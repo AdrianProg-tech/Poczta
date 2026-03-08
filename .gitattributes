@@ -1,2 +1,42 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# --- Java & Maven ---
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.log
+*.sh
+*.bat
+
+# --- Node / React ---
+node_modules/
+build/
+dist/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- IDE (IntelliJ, VS Code) ---
+.idea/
+*.iml
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+bin/
+
+# --- Systemowe ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Oracle / DB Tools ---
+.sqlitedb
+connect.xml
