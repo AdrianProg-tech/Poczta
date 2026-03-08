@@ -1,0 +1,9 @@
+### Test dodawania paczki
+POST http://localhost:8080/api/parcels
+Content-Type: application/json
+
+{
+  "trackingNumber": "INPOST001",
+  "status": "CREATED",
+  "recipientEmail": "klient@wp.pl"
+}
