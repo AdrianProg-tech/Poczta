@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<rect x="0" y="0" width="1440" height="72" fill="#f2f2f2" stroke="#444"/>
+<text x="40" y="45" font-family="Arial" font-size="28" fill="#111">Śledzenie przesyłki</text>
+<rect x="1180" y="16" width="100" height="40" fill="none" stroke="#444"/>
+<text x="1210" y="42" font-family="Arial" font-size="18" fill="#111">Profil</text>
+<rect x="1295" y="16" width="100" height="40" fill="none" stroke="#444"/>
+<text x="1320" y="42" font-family="Arial" font-size="18" fill="#111">Logout</text>
+<rect x="40" y="110" width="1360" height="110" fill="none" stroke="#444"/>
+<text x="58" y="144" font-family="Arial" font-size="22" fill="#111">Wyszukiwarka</text>
+<text x="60" y="178" font-family="Arial" font-size="16" fill="#333">• Pole numeru przesyłki</text>
+<text x="60" y="206" font-family="Arial" font-size="16" fill="#333">• Przycisk „Szukaj”</text>
+<rect x="40" y="250" width="420" height="180" fill="none" stroke="#444"/>
+<text x="58" y="284" font-family="Arial" font-size="22" fill="#111">Status aktualny</text>
+<text x="60" y="318" font-family="Arial" font-size="16" fill="#333">• Numer przesyłki</text>
+<text x="60" y="346" font-family="Arial" font-size="16" fill="#333">• Status</text>
+<text x="60" y="374" font-family="Arial" font-size="16" fill="#333">• Ostatnia aktualizacja</text>
+<rect x="490" y="250" width="910" height="420" fill="none" stroke="#444"/>
+<text x="508" y="284" font-family="Arial" font-size="22" fill="#111">Oś czasu zdarzeń</text>
+<text x="510" y="318" font-family="Arial" font-size="16" fill="#333">• Nadanie</text>
+<text x="510" y="346" font-family="Arial" font-size="16" fill="#333">• W transporcie</text>
+<text x="510" y="374" font-family="Arial" font-size="16" fill="#333">• Próba doręczenia</text>
+<text x="510" y="402" font-family="Arial" font-size="16" fill="#333">• Odbiór / doręczenie</text>
+<rect x="40" y="460" width="420" height="210" fill="none" stroke="#444"/>
+<text x="58" y="494" font-family="Arial" font-size="22" fill="#111">Szczegóły przesyłki</text>
+<text x="60" y="528" font-family="Arial" font-size="16" fill="#333">• Typ dostawy</text>
+<text x="60" y="556" font-family="Arial" font-size="16" fill="#333">• Punkt odbioru</text>
+<text x="60" y="584" font-family="Arial" font-size="16" fill="#333">• Status płatności</text>
+<text x="40" y="880" font-family="Arial" font-size="16" fill="#666">Wireframe — uproszczony szkic ekranu</text>
+</svg>

@@ -1,0 +1,114 @@
+@startuml
+title Architektura komponentów frontendu
+
+package "App" as AppPkg {
+  component App
+  component AppRouter
+  component Providers
+}
+
+package "Core" as CorePkg {
+  component AuthProvider
+  component StoreProvider
+  component ThemeProvider
+  component ApiClient
+}
+
+package "Layouts" as LayoutsPkg {
+  component PublicLayout
+  component DashboardLayout
+  component RoleGuard
+}
+
+package "Public module" as PublicModule {
+  component HomePage
+  component TrackingPage
+  component PointsPage
+  component LoginPage
+}
+
+package "Client module" as ClientModule {
+  component ClientDashboardPage
+  component ShipmentListPage
+  component ShipmentDetailsPage
+  component CreateShipmentPage
+  component PaymentPage
+  component RedirectionPage
+  component ComplaintsPage
+}
+
+package "Courier module" as CourierModule {
+  component CourierDashboardPage
+  component CourierTasksPage
+  component CourierTaskDetailsPage
+  component CourierActionForm
+}
+
+package "Point module" as PointModule {
+  component PointDashboardPage
+  component AcceptShipmentPage
+  component ReleaseShipmentPage
+  component VerifyPaymentPage
+  component PointShipmentsPage
+}
+
+package "Admin module" as AdminModule {
+  component AdminDashboardPage
+  component UsersPage
+  component PointsAdminPage
+  component ShipmentsAdminPage
+  component PaymentsAdminPage
+  component ComplaintsAdminPage
+  component ReportsPage
+}
+
+package "Shared UI" as SharedUI {
+  component Navbar
+  component Sidebar
+  component PageHeader
+  component DataTable
+  component StatusBadge
+  component FormField
+  component Modal
+  component Toast
+  component EmptyState
+  component LoadingState
+}
+
+App --> Providers
+App --> AppRouter
+
+Providers --> AuthProvider
+Providers --> StoreProvider
+Providers --> ThemeProvider
+Providers --> ApiClient
+
+AppRouter --> PublicLayout
+AppRouter --> DashboardLayout
+AppRouter --> RoleGuard
+
+PublicLayout --> HomePage
+PublicLayout --> TrackingPage
+PublicLayout --> PointsPage
+PublicLayout --> LoginPage
+
+DashboardLayout --> ClientDashboardPage
+DashboardLayout --> CourierDashboardPage
+DashboardLayout --> PointDashboardPage
+DashboardLayout --> AdminDashboardPage
+
+RoleGuard --> ClientModule
+RoleGuard --> CourierModule
+RoleGuard --> PointModule
+RoleGuard --> AdminModule
+
+ClientModule --> SharedUI
+CourierModule --> SharedUI
+PointModule --> SharedUI
+AdminModule --> SharedUI
+
+ApiClient --> ClientModule
+ApiClient --> CourierModule
+ApiClient --> PointModule
+ApiClient --> AdminModule
+@enduml

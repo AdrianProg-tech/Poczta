@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<rect x="0" y="0" width="1440" height="72" fill="#f2f2f2" stroke="#444"/>
+<text x="40" y="45" font-family="Arial" font-size="28" fill="#111">Strona główna</text>
+<rect x="1180" y="16" width="100" height="40" fill="none" stroke="#444"/>
+<text x="1210" y="42" font-family="Arial" font-size="18" fill="#111">Profil</text>
+<rect x="1295" y="16" width="100" height="40" fill="none" stroke="#444"/>
+<text x="1320" y="42" font-family="Arial" font-size="18" fill="#111">Logout</text>
+<rect x="40" y="110" width="1360" height="180" fill="none" stroke="#444"/>
+<text x="58" y="144" font-family="Arial" font-size="22" fill="#111">Hero section</text>
+<text x="60" y="178" font-family="Arial" font-size="16" fill="#333">• Pole śledzenia przesyłki</text>
+<text x="60" y="206" font-family="Arial" font-size="16" fill="#333">• Przycisk „Śledź”</text>
+<text x="60" y="234" font-family="Arial" font-size="16" fill="#333">• Skrót do logowania</text>
+<text x="60" y="262" font-family="Arial" font-size="16" fill="#333">• Krótki opis systemu</text>
+<rect x="40" y="320" width="430" height="180" fill="none" stroke="#444"/>
+<text x="58" y="354" font-family="Arial" font-size="22" fill="#111">Szybkie akcje</text>
+<text x="60" y="388" font-family="Arial" font-size="16" fill="#333">• Utwórz przesyłkę</text>
+<text x="60" y="416" font-family="Arial" font-size="16" fill="#333">• Znajdź punkt</text>
+<text x="60" y="444" font-family="Arial" font-size="16" fill="#333">• Śledź przesyłkę</text>
+<text x="60" y="472" font-family="Arial" font-size="16" fill="#333">• FAQ</text>
+<rect x="505" y="320" width="430" height="180" fill="none" stroke="#444"/>
+<text x="523" y="354" font-family="Arial" font-size="22" fill="#111">Korzyści / opis</text>
+<text x="525" y="388" font-family="Arial" font-size="16" fill="#333">• Obsługa klienta, kuriera i punktu</text>
+<text x="525" y="416" font-family="Arial" font-size="16" fill="#333">• Dostęp przez WWW</text>
+<text x="525" y="444" font-family="Arial" font-size="16" fill="#333">• Historia statusów</text>
+<rect x="970" y="320" width="430" height="180" fill="none" stroke="#444"/>
+<text x="988" y="354" font-family="Arial" font-size="22" fill="#111">Lista punktów</text>
+<text x="990" y="388" font-family="Arial" font-size="16" fill="#333">• Miasto / kod</text>
+<text x="990" y="416" font-family="Arial" font-size="16" fill="#333">• Typ punktu</text>
+<text x="990" y="444" font-family="Arial" font-size="16" fill="#333">• Godziny otwarcia</text>
+<rect x="40" y="530" width="1360" height="250" fill="none" stroke="#444"/>
+<text x="58" y="564" font-family="Arial" font-size="22" fill="#111">Stopka / informacje</text>
+<text x="60" y="598" font-family="Arial" font-size="16" fill="#333">• Kontakt</text>
+<text x="60" y="626" font-family="Arial" font-size="16" fill="#333">• Regulamin</text>
+<text x="60" y="654" font-family="Arial" font-size="16" fill="#333">• Linki do paneli</text>
+<text x="60" y="682" font-family="Arial" font-size="16" fill="#333">• Informacje techniczne</text>
+<text x="40" y="880" font-family="Arial" font-size="16" fill="#666">Wireframe — uproszczony szkic ekranu</text>
+</svg>
