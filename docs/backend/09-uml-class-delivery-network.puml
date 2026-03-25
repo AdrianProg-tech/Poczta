@@ -1,0 +1,86 @@
+@startuml
+hide empty members
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+title Moduł sieci doręczeń
+
+class Point {
+  +id: UUID
+  +name: String
+  +type: PointType
+  +city: String
+  +address: String
+  +postalCode: String
+  +isActive: boolean
+}
+
+enum PointType {
+  POSTING_POINT
+  PICKUP_POINT
+  PARCEL_LOCKER
+}
+
+class Locker {
+  +id: UUID
+  +code: String
+  +totalCompartments: int
+  +availableCompartments: int
+}
+
+class LockerCompartment {
+  +id: UUID
+  +compartmentNumber: String
+  +sizeType: String
+  +status: String
+}
+
+class CourierTask {
+  +id: UUID
+  +taskDate: LocalDate
+  +status: String
+}
+
+class DeliveryAttempt {
+  +id: UUID
+  +attemptTime: LocalDateTime
+  +result: String
+  +comment: String
+}
+
+class Notice {
+  +id: UUID
+  +noticeNumber: String
+  +issuedAt: LocalDateTime
+  +expiresAt: LocalDateTime
+}
+
+class ReturnProcess {
+  +id: UUID
+  +reason: String
+  +status: String
+  +initiatedAt: LocalDateTime
+}
+
+class Redirection {
+  +id: UUID
+  +requestedAt: LocalDateTime
+  +reason: String
+  +status: String
+}
+
+class DeliveryNetworkService
+class PointRepository
+class CourierTaskRepository
+
+Point ..> PointType
+Point "1" -- "0..*" Locker
+Locker "1" -- "1..*" LockerCompartment
+CourierTask "1" -- "1" DeliveryAttempt
+CourierTask "1" -- "0..1" Notice
+CourierTask "1" -- "0..1" ReturnProcess
+Redirection "0..*" -- "1" Point : targetPoint
+
+DeliveryNetworkService ..> PointRepository
+DeliveryNetworkService ..> CourierTaskRepository
+@enduml

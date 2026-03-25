@@ -1,0 +1,47 @@
+@startuml
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+title Architektura systemu — backend
+
+actor Klient
+actor Kurier
+actor "Pracownik punktu" as PointEmployee
+actor Administrator
+
+rectangle "Frontend SPA\n(React + TypeScript)" as Frontend
+rectangle "REST API\n(Spring Boot)" as Api
+rectangle "Warstwa biznesowa\nServices / Domain Logic" as Domain
+rectangle "Persistence Layer\nRepositories / JPA" as Persistence
+
+database "Oracle Database" as Oracle
+cloud "System płatności\n(sandbox)" as PaymentGateway
+cloud "OAuth2 Provider\n(np. Google)" as OAuth
+queue "Message Queue\n(planowane)" as MQ
+
+Klient --> Frontend
+Kurier --> Frontend
+PointEmployee --> Frontend
+Administrator --> Frontend
+
+Frontend --> Api : HTTP / JSON
+Api --> Domain
+Domain --> Persistence
+Persistence --> Oracle
+
+Api ..> OAuth : logowanie (później)
+Domain ..> PaymentGateway : płatności (później)
+Domain ..> MQ : powiadomienia / async (później)
+
+note right of Domain
+Główne moduły:
+- Users & Roles
+- Shipments
+- Tracking
+- Delivery Network
+- Payments
+- Complaints
+- Reports
+end note
+@enduml

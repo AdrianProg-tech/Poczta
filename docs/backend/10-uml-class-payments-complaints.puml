@@ -1,0 +1,68 @@
+@startuml
+hide empty members
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+title Moduł płatności i reklamacji
+
+class Payment {
+  +id: UUID
+  +amount: BigDecimal
+  +method: PaymentMethod
+  +status: PaymentStatus
+  +externalReference: String
+  +createdAt: LocalDateTime
+}
+
+enum PaymentMethod {
+  ONLINE
+  OFFLINE
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
+  OFFLINE_PENDING
+  OFFLINE_CONFIRMED
+}
+
+class Complaint {
+  +id: UUID
+  +complaintNumber: String
+  +type: String
+  +status: ComplaintStatus
+  +description: String
+  +submittedAt: LocalDateTime
+}
+
+enum ComplaintStatus {
+  SUBMITTED
+  IN_REVIEW
+  ACCEPTED
+  REJECTED
+  CLOSED
+}
+
+class ComplaintAttachment {
+  +id: UUID
+  +fileName: String
+  +filePath: String
+  +uploadedAt: LocalDateTime
+}
+
+class PaymentService
+class ComplaintService
+class PaymentRepository
+class ComplaintRepository
+
+Payment ..> PaymentMethod
+Payment ..> PaymentStatus
+Complaint ..> ComplaintStatus
+Complaint "1" -- "0..*" ComplaintAttachment
+
+PaymentService ..> PaymentRepository
+ComplaintService ..> ComplaintRepository
+@enduml

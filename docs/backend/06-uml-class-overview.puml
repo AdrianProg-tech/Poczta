@@ -1,0 +1,42 @@
+@startuml
+hide empty members
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+title UML Class Overview — domena backendu
+
+class User
+class Role
+class Shipment
+class Label
+class TrackingEvent
+class Point
+class Locker
+class Payment
+class Complaint
+class Redirection
+class DeliveryAttempt
+class Notice
+class ReturnProcess
+class CourierTask
+
+User "*" -- "*" Role
+User "1" -- "0..*" Shipment : creates >
+User "1" -- "0..*" Complaint : submits >
+
+Shipment "1" -- "1" Label
+Shipment "1" -- "0..*" TrackingEvent
+Shipment "1" -- "0..*" Payment
+Shipment "1" -- "0..*" Redirection
+Shipment "1" -- "0..*" DeliveryAttempt
+Shipment "1" -- "0..1" Notice
+Shipment "1" -- "0..1" ReturnProcess
+Shipment "1" -- "0..*" Complaint
+
+Point "1" -- "0..*" Shipment : current location
+Point "1" -- "0..*" Locker
+Locker "1" -- "1..*" Shipment : pickup / posting
+
+CourierTask "0..*" -- "1" Shipment
+CourierTask "0..*" -- "1" User : courier
+@enduml

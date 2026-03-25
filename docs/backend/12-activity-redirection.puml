@@ -1,0 +1,24 @@
+@startuml
+start
+:Użytkownik otwiera szczegóły przesyłki;
+:Wybiera opcję przekierowania;
+:System pobiera aktualny status przesyłki;
+
+if (Przekierowanie dozwolone?) then (tak)
+  :System pobiera listę dostępnych punktów i paczkomatów;
+  :Użytkownik wybiera nowy punkt;
+  :System waliduje wybór;
+
+  if (Wybrany punkt dostępny?) then (tak)
+    :System zapisuje przekierowanie;
+    :System aktualizuje docelowy punkt odbioru;
+    :System zapisuje zdarzenie śledzenia;
+    :System zwraca potwierdzenie;
+  else (nie)
+    :System zwraca komunikat o braku dostępności;
+  endif
+else (nie)
+  :System zwraca komunikat, że przekierowanie nie jest możliwe;
+endif
+stop
+@enduml

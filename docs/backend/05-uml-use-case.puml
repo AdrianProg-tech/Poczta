@@ -1,0 +1,58 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+title Diagram przypadków użycia — System zarządzania przesyłkami
+
+actor Klient
+actor Kurier
+actor "Pracownik punktu" as PointEmployee
+actor Administrator
+
+rectangle System {
+  usecase "Utwórz przesyłkę" as UC1
+  usecase "Opłać przesyłkę" as UC2
+  usecase "Śledź przesyłkę" as UC3
+  usecase "Przekieruj przesyłkę" as UC4
+  usecase "Zgłoś reklamację" as UC5
+  usecase "Nadaj przesyłkę w punkcie" as UC6
+  usecase "Wydaj przesyłkę" as UC7
+  usecase "Weryfikuj płatność" as UC8
+  usecase "Przeglądaj zadania kuriera" as UC9
+  usecase "Zarejestruj próbę doręczenia" as UC10
+  usecase "Doręcz przesyłkę" as UC11
+  usecase "Wystaw awizo" as UC12
+  usecase "Rozpocznij zwrot" as UC13
+  usecase "Rozpatrz reklamację" as UC14
+  usecase "Zarządzaj punktami i paczkomatami" as UC15
+  usecase "Przeglądaj raporty" as UC16
+  usecase "Zarządzaj użytkownikami i rolami" as UC17
+}
+
+Klient --> UC1
+Klient --> UC2
+Klient --> UC3
+Klient --> UC4
+Klient --> UC5
+
+PointEmployee --> UC6
+PointEmployee --> UC7
+PointEmployee --> UC8
+
+Kurier --> UC9
+Kurier --> UC10
+Kurier --> UC11
+Kurier --> UC12
+Kurier --> UC13
+
+Administrator --> UC14
+Administrator --> UC15
+Administrator --> UC16
+Administrator --> UC17
+Administrator --> UC8
+
+UC1 .> UC2 : <<include>>
+UC10 .> UC12 : <<extend>>
+UC10 .> UC13 : <<extend>>
+@enduml

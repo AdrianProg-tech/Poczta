@@ -1,0 +1,29 @@
+@startuml
+start
+:Klient uruchamia formularz tworzenia przesyłki;
+:Wprowadza dane nadawcy i odbiorcy;
+:Wprowadza parametry paczki;
+:Wybiera sposób doręczenia i usługi dodatkowe;
+:System waliduje dane;
+
+if (Dane poprawne?) then (tak)
+  :System wylicza koszt przesyłki;
+  :Klient potwierdza utworzenie przesyłki;
+  :System zapisuje przesyłkę ze statusem CREATED;
+  :System tworzy rekord płatności PENDING;
+  :Klient przechodzi do płatności;
+
+  if (Płatność zakończona sukcesem?) then (tak)
+    :System zmienia status płatności na PAID;
+    :System nadaje numer przesyłki;
+    :System generuje etykietę;
+    :System ustawia status przesyłki na PAID / READY_FOR_POSTING;
+  else (nie)
+    :System oznacza płatność jako FAILED lub CANCELED;
+    :Przesyłka pozostaje nieopłacona;
+  endif
+else (nie)
+  :System zwraca błędy walidacji;
+endif
+stop
+@enduml

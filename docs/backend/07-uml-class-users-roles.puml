@@ -1,0 +1,41 @@
+@startuml
+hide empty members
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+title Moduł użytkowników i ról
+
+class User {
+  +id: UUID
+  +firstName: String
+  +lastName: String
+  +email: String
+  +phone: String
+  +isActive: boolean
+  +createdAt: LocalDateTime
+}
+
+class Role {
+  +id: UUID
+  +name: RoleName
+  +description: String
+}
+
+enum RoleName {
+  CLIENT
+  COURIER
+  POINT_EMPLOYEE
+  ADMIN
+}
+
+class UserService
+class UserRepository
+class RoleRepository
+class AuthService
+
+User "*" -- "*" Role : roles
+UserService ..> UserRepository
+UserService ..> RoleRepository
+AuthService ..> UserService
+Role ..> RoleName
+@enduml

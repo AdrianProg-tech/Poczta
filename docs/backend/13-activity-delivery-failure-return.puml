@@ -1,0 +1,34 @@
+@startuml
+start
+:Kurier otwiera zadanie doręczenia;
+:Kurier podejmuje próbę doręczenia;
+
+if (Doręczenie udane?) then (tak)
+  :System zapisuje status DELIVERED;
+  :System dodaje zdarzenie śledzenia;
+  stop
+else (nie)
+  :System zapisuje próbę doręczenia;
+
+  if (Można wystawić awizo?) then (tak)
+    :System generuje awizo;
+    :System ustawia status AWAITING_PICKUP;
+    :Przesyłka trafia do punktu lub paczkomatu;
+
+    if (Przesyłka odebrana w terminie?) then (tak)
+      :System zapisuje odbiór;
+      :System ustawia status DELIVERED;
+      stop
+    else (nie)
+      :System inicjuje zwrot;
+      :System ustawia status RETURNED;
+      stop
+    endif
+
+  else (nie)
+    :System inicjuje zwrot bez awiza;
+    :System ustawia status RETURNED;
+    stop
+  endif
+endif
+@enduml

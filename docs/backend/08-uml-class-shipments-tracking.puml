@@ -1,0 +1,69 @@
+@startuml
+hide empty members
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+
+title Moduł przesyłek i śledzenia
+
+class Shipment {
+  +id: UUID
+  +trackingNumber: String
+  +status: ShipmentStatus
+  +senderName: String
+  +senderPhone: String
+  +recipientName: String
+  +recipientPhone: String
+  +weight: BigDecimal
+  +sizeCategory: String
+  +createdAt: LocalDateTime
+}
+
+class Label {
+  +id: UUID
+  +filePath: String
+  +generatedAt: LocalDateTime
+}
+
+class TrackingEvent {
+  +id: UUID
+  +status: ShipmentStatus
+  +description: String
+  +eventTime: LocalDateTime
+  +locationName: String
+}
+
+class ParcelDetails {
+  +declaredValue: BigDecimal
+  +fragile: boolean
+  +express: boolean
+}
+
+enum ShipmentStatus {
+  CREATED
+  PAID
+  READY_FOR_POSTING
+  POSTED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERY_ATTEMPT
+  AWAITING_PICKUP
+  DELIVERED
+  RETURNED
+  CANCELED
+}
+
+class ShipmentService
+class TrackingService
+class ShipmentRepository
+class TrackingEventRepository
+
+Shipment "1" -- "1" Label
+Shipment "1" -- "0..*" TrackingEvent
+Shipment "1" -- "1" ParcelDetails
+Shipment ..> ShipmentStatus
+TrackingEvent ..> ShipmentStatus
+
+ShipmentService ..> ShipmentRepository
+ShipmentService ..> TrackingService
+TrackingService ..> TrackingEventRepository
+@enduml
