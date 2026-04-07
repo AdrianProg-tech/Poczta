@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  oracle-db:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: oracle-21c-springboot
+    environment:
+      - ORACLE_PASSWORD=Sys123 # Hasło dla użytkowników SYS i SYSTEM
+      - APP_USER=springuser           # Automatycznie tworzy użytkownika
+      - APP_USER_PASSWORD=spring  # Hasło dla powyższego użytkownika
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+
+volumes:
+  oracle-data:
