@@ -5,5 +5,11 @@ Content-Type: application/json
 {
   "trackingNumber": "INPOST001",
   "status": "CREATED",
-  "recipientEmail": "klient@wp.pl"
+  "senderName": "Jan Kowalski",
+  "senderPhone": "+48111222333",
+  "recipientName": "Anna Nowak",
+  "recipientPhone": "+48444555666",
+  "deliveryType": "COURIER",
+  "weight": 1.25,
+  "sizeCategory": "M"
 }
