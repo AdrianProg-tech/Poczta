@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "notices")
@@ -11,6 +13,8 @@ import java.util.UUID;
 public class Notice {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(length = 36)
     private UUID id;
 
     private String noticeNumber;
@@ -25,3 +29,4 @@ public class Notice {
     @JoinColumn(name = "pickup_point_id")
     private Point pickupPoint;
 }
+

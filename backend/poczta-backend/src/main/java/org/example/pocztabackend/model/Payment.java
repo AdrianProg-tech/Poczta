@@ -7,6 +7,8 @@ import org.example.pocztabackend.model.enums.PaymentStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "payments")
@@ -16,6 +18,8 @@ import java.util.UUID;
 public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(length = 36)
     private UUID id;
 
     private BigDecimal amount;
@@ -30,3 +34,4 @@ public class Payment {
     @JoinColumn(name = "shipment_id")
     private Shipment shipment;
 }
+

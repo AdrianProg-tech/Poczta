@@ -5,6 +5,8 @@ import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "courier_tasks")
@@ -12,6 +14,8 @@ import java.util.UUID;
 public class CourierTask {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(length = 36)
     private UUID id;
 
     private LocalDate taskDate;
@@ -25,3 +29,4 @@ public class CourierTask {
     @JoinColumn(name = "shipment_id")
     private Shipment shipment;
 }
+

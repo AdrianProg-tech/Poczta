@@ -3,6 +3,8 @@ package org.example.pocztabackend.model;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.util.List;
 
 @Entity
@@ -11,6 +13,8 @@ import java.util.List;
 public class Locker {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(length = 36)
     private UUID id;
 
     private String code;
@@ -24,3 +28,4 @@ public class Locker {
     @OneToMany(mappedBy = "locker", cascade = CascadeType.ALL)
     private List<LockerCompartment> compartments;
 }
+
