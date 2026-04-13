@@ -1,5 +1,5 @@
-### Test dodawania paczki
-POST http://localhost:8080/api/parcels
+### Create shipment
+POST http://localhost:8081/api/parcels
 Content-Type: application/json
 
 {
@@ -13,3 +13,36 @@ Content-Type: application/json
   "weight": 1.25,
   "sizeCategory": "M"
 }
+
+### Get all shipments
+GET http://localhost:8081/api/parcels
+
+### Get shipment by tracking number
+GET http://localhost:8081/api/parcels/tracking/INPOST001
+
+### Update shipment status
+PATCH http://localhost:8081/api/parcels/{{shipmentId}}/status
+Content-Type: application/json
+
+{
+  "status": "IN_TRANSIT"
+}
+
+### Delete shipment
+DELETE http://localhost:8081/api/parcels/{{shipmentId}}
+
+### Create point
+POST http://localhost:8081/api/points
+Content-Type: application/json
+
+{
+  "name": "Warsaw Locker 01",
+  "type": "PARCEL_LOCKER",
+  "city": "Warsaw",
+  "address": "Marszalkowska 1",
+  "postalCode": "00-001",
+  "active": true
+}
+
+### Get all points
+GET http://localhost:8081/api/points
