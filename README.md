@@ -1,15 +1,60 @@
-"# Projekt na zaliczenie"
+# Projekt na zaliczenie
 
-# install docker DB
+## Uruchomienie projektu
+
+### Backend
+
+Wymagania:
+- Docker
+- Java 17
+- IntelliJ IDEA lub inne IDE z obsługą Lombok
+
+Konfiguracja IDE:
+- zainstaluj wtyczkę `Lombok`
+- włącz `Annotation Processing`
+
+1. Uruchom bazę danych:
+
+```powershell
+cd H:\poczta
 docker compose up -d oracle-db
-# check docker status
 docker compose ps
-# check logs 
-docker compose logs -f oracle-db
+```
 
-# uninstall docker DB
-docker compose down
+2. Uruchom backend:
 
-# rebuild 
+```powershell
 cd H:\poczta\backend\poczta-backend
-.\mvnw.cmd clean compile
+.\mvnw.cmd spring-boot:run
+```
+
+Backend uruchamia się na `http://localhost:8081`.
+
+Przydatne komendy:
+
+```powershell
+docker compose logs -f oracle-db
+docker compose down
+```
+
+### Frontend
+
+Wymagania:
+- Node.js
+- npm
+
+1. Zainstaluj zależności:
+
+```powershell
+cd H:\poczta\frontend
+npm install
+```
+
+2. Uruchom frontend:
+
+```powershell
+cd H:\poczta\frontend
+npm run dev
+```
+
+Frontend będzie zwykle dostępny pod adresem `http://localhost:5173`.

@@ -1,0 +1,19 @@
+# IDE
+.idea/
+*.iml
+
+# OS / local temp files
+.DS_Store
+Thumbs.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.npm/
+
+# Backend
+backend/**/target/
+
+# Logs
+*.log
