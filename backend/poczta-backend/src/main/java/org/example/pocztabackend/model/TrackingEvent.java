@@ -9,7 +9,10 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "tracking_events")
-@Data @NoArgsConstructor @AllArgsConstructor
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class TrackingEvent {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

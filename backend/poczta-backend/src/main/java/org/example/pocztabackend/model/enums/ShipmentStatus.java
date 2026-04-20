@@ -11,5 +11,5 @@ public enum ShipmentStatus {
     AWAITING_PICKUP,
     DELIVERED,
     RETURNED,
-    CANCELED
+    REGISTERED, CANCELED
 }

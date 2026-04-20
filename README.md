@@ -29,7 +29,7 @@ cd H:\poczta\backend\poczta-backend
 ```
 
 Backend uruchamia się na `http://localhost:8081`.
-
+'http://localhost:8081/swagger-ui.html'
 Przydatne komendy:
 
 ```powershell

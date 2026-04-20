@@ -20,14 +20,13 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        // 1. Zezwalamy na Twoje endpointy API
                         .requestMatchers("/api/**").permitAll()
+                        // 2. Zezwalamy na pełny dostęp do dokumentacji Swagger!
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                        // 3. Resztę blokujemy
                         .anyRequest().authenticated()
                 );
         return http.build();
-    }
-
-    @Bean
-    public UserDetailsService userDetailsService() {
-        return new InMemoryUserDetailsManager();
     }
 }
