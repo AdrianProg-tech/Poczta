@@ -1,6 +1,7 @@
 package org.example.pocztabackend.model.enums;
 
 public enum ShipmentStatus {
+    REGISTERED,
     CREATED,
     PAID,
     READY_FOR_POSTING,
@@ -11,5 +12,5 @@ public enum ShipmentStatus {
     AWAITING_PICKUP,
     DELIVERED,
     RETURNED,
-    REGISTERED, CANCELED
+    CANCELED
 }

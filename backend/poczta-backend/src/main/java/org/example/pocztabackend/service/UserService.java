@@ -30,14 +30,20 @@ public class UserService {
     }
 
     public User createUser(UserRequest request) {
-        User user = User.builder()
-                .firstName(request.firstName())
-                .lastName(request.lastName())
-                .email(request.email())
-                .phone(request.phone())
-                .isActive(true)
-                .createdAt(LocalDateTime.now())
-                .build();
+        if (request.email() == null || request.email().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email is required");
+        }
+        if (userRepository.existsByEmail(request.email())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "User with this email already exists");
+        }
+
+        User user = new User();
+        user.setFirstName(request.firstName());
+        user.setLastName(request.lastName());
+        user.setEmail(request.email());
+        user.setPhone(request.phone());
+        user.setActive(true);
+        user.setCreatedAt(LocalDateTime.now());
 
         return userRepository.save(user);
     }

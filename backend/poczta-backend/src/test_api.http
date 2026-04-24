@@ -46,3 +46,61 @@ Content-Type: application/json
 
 ### Get all points
 GET http://localhost:8081/api/points
+
+### Create user
+POST http://localhost:8081/api/users
+Content-Type: application/json
+
+{
+  "firstName": "Roman",
+  "lastName": "Nowak",
+  "email": "roman@example.com",
+  "phone": "+48123123123"
+}
+
+### Get all users
+GET http://localhost:8081/api/users
+
+### Add tracking event
+POST http://localhost:8081/api/tracking
+Content-Type: application/json
+
+{
+  "shipmentId": "{{shipmentId}}",
+  "status": "IN_TRANSIT",
+  "locationName": "Warsaw Sorting Center",
+  "description": "Shipment scanned at sorting center"
+}
+
+### Get tracking history
+GET http://localhost:8081/api/tracking/{{shipmentId}}
+
+### Create complaint
+POST http://localhost:8081/api/complaints
+Content-Type: application/json
+
+{
+  "shipmentId": "{{shipmentId}}",
+  "userId": "{{userId}}",
+  "type": "DAMAGED",
+  "description": "Box arrived damaged"
+}
+
+### Get complaints
+GET http://localhost:8081/api/complaints
+
+### Create offline payment
+POST http://localhost:8081/api/payments
+Content-Type: application/json
+
+{
+  "shipmentId": "{{shipmentId}}",
+  "amount": 29.99,
+  "method": "OFFLINE"
+}
+
+### Get payments
+GET http://localhost:8081/api/payments?shipmentId={{shipmentId}}
+
+### Confirm offline payment
+PATCH http://localhost:8081/api/payments/{{paymentId}}/confirm-offline

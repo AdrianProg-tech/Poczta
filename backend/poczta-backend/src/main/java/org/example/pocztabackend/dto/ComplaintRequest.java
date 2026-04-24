@@ -1,11 +1,17 @@
 package org.example.pocztabackend.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 import java.util.UUID;
 
 public record ComplaintRequest(
-        UUID shipmentId, // ID paczki, której dotyczy reklamacja
-        UUID userId,     // ID użytkownika zgłaszającego
-        String type,     // Typ reklamacji (np. "USZKODZENIE", "ZAGUBIENIE")
-        String description // Opis problemu
+        @NotNull(message = "shipmentId is required")
+        UUID shipmentId,
+        @NotNull(message = "userId is required")
+        UUID userId,
+        @NotBlank(message = "type is required")
+        String type,
+        String description
 ) {
 }

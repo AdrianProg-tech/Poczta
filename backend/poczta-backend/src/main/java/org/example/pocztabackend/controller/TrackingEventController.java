@@ -1,9 +1,10 @@
 package org.example.pocztabackend.controller;
 
-import lombok.RequiredArgsConstructor;
+import jakarta.validation.Valid;
 import org.example.pocztabackend.dto.TrackingEventRequest;
 import org.example.pocztabackend.dto.TrackingEventResponse;
 import org.example.pocztabackend.service.TrackingEventService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,14 +13,17 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/tracking")
-@RequiredArgsConstructor
 public class TrackingEventController {
 
     private final TrackingEventService trackingEventService;
 
+    public TrackingEventController(TrackingEventService trackingEventService) {
+        this.trackingEventService = trackingEventService;
+    }
+
     @PostMapping
-    public ResponseEntity<TrackingEventResponse> addEvent(@RequestBody TrackingEventRequest request) {
-        return ResponseEntity.ok(trackingEventService.addEvent(request));
+    public ResponseEntity<TrackingEventResponse> addEvent(@Valid @RequestBody TrackingEventRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(trackingEventService.addEvent(request));
     }
 
     @GetMapping("/{shipmentId}")

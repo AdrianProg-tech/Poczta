@@ -1,10 +1,19 @@
 package org.example.pocztabackend.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import org.example.pocztabackend.model.enums.ShipmentStatus;
+
 import java.util.UUID;
 
 public record TrackingEventRequest(
-        UUID shipmentId,       // ID paczki, którą skanujemy
-        String status,         // Np. "W_DORECZENIU", "W_ODDZIALE"
-        String locationName,   // Np. "Warszawa", "Sortownia Centralna"
-        String description     // Np. "Paczka wydana kurierowi do doręczenia"
+        @NotNull(message = "shipmentId is required")
+        UUID shipmentId,
+        @NotNull(message = "status is required")
+        ShipmentStatus status,
+        @NotBlank(message = "locationName is required")
+        String locationName,
+        @NotBlank(message = "description is required")
+        String description
 ) {
 }

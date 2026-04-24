@@ -1,0 +1,86 @@
+Organizacja zajęć projektu z Inżynierii Systemów Informacyjnych
+Projekty wykonywane są w grupach 3-4 osobowych. Inna liczebność członków zespołu projektowego wymaga zgody Prowadzącego. Każdy zespół projektowy wybiera swojego Team Leadera, który odpowiada za koordynację pracy w zespole oraz kontakt z Prowadzącym.
+
+Metodyka pracy:
+
+Zespoły pracują w oparciu o tablicę zadań (np. Trello, Jira, GitHub Projects).
+
+Zajęcia w terminach parzystych mają charakter przeglądu sprintu (Retro/Planning) – zespół referuje co zostało zrobione oraz co planuje na kolejne 2 tygodnie.
+
+Po każdych zajęciach parzystych Team Leader wysyła maila do prowadzącego (temat: ISI_PROJEKT_GR_NAZWISKA_DATA) z linkiem do tablicy zadań (lub jej zrzut ekranu) i krótkim opisem postępów.
+
+
+Harmonogram spotkań:
+
+II zajęcia – Zgłoszenie zespołów, Team Leadera oraz tematów. Setup tablicy zadań i repozytorium (GitLab/GitHub).
+
+IV zajęcia – Prezentacja analizy: schemat bazy danych (ERD), wykorzystywane technologie, diagramy UML.
+
+VI zajęcia – Prezentacja działającego szkieletu aplikacji (CRUD, połączenie z bazą danych).
+
+VIII zajęcia – Implementacja głównej logiki biznesowej systemu.
+
+X zajęcia – Integracja z zewnętrznymi systemami (Social Media, Płatności).
+
+XII zajęcia – Implementacja asynchronicznych kolejek komunikatów oraz prezentacja testów automatycznych.
+
+XIV zajęcia – Przegląd końcowy, dopracowanie dokumentacji i UI.
+
+XV zajęcia – I termin oddania i obrony projektu.
+
+
+Przebieg zaliczenia projektu:
+
+Przedstawienie tematyki projektu i założeń projektowych.
+
+Prezentacja aplikacji wraz z przeprowadzonymi testami.
+
+Przedstawienie sposobu implementacji (kod źródłowy, użyte biblioteki, narzędzia).
+
+Obrona projektu – każdy z członków zespołu referuje część aplikacji wykonaną przez siebie.
+
+Złożenie sprawozdania – dokumentacja techniczna w formie papierowej oraz wersja elektroniczna (kod + dokumentacja) wysłana na maila.
+
+
+Wymagania dotyczące projektu:
+
+Projekt musi implementować wzorzec MVC / REST API.
+
+Język programowania backendu: do wyboru. Całkowity zakaz używania JavaScript / NodeJS / TypeScript w warstwie serwerowej.
+
+Asynchroniczność: Obowiązkowe użycie asynchronicznych kolejek komunikatów (np. Kafka, RabbitMQ, ActiveMQ) do procesów w tle (np. wysyłka powiadomień, procesowanie statusów płatności).
+
+Tematyka: systemy informacyjne dla firm (produkcja, handel, usługi).
+
+Każdy projekt musi zawierać:
+
+Funkcjonalność logowania z użyciem social media (OAuth2).
+
+Integrację z systemem płatności elektronicznych (Sandbox). Obsługa scenariuszy negatywnych jest obowiązkowa.
+
+Możliwość zatwierdzenia płatności OFFLINE przez administratora.
+
+Studenci studiów niestacjonarnych: obowiązkowa tylko jedna z powyższych funkcjonalności płatności (online lub offline).
+
+Każdy projekt musi zawierać automatyczne testy jednostkowe oraz integracyjne (minimum 50% logiki biznesowej).
+
+W uzasadnionych przypadkach dopuszcza się wykonanie systemu dostarczającego tylko REST API.
+
+
+Zakres dokumentacji technicznej (Sprawozdania):
+
+Opis celu projektu i głównych funkcjonalności.
+
+Diagram przypadków użycia (UML).
+
+Diagram klas (UML) lub schemat architektury systemu.
+
+Schemat bazy danych (ERD) z opisem kluczowych relacji.
+
+Dokumentacja API (np. Swagger/OpenAPI) lub opis endpointów.
+
+Opis wykorzystanych mechanizmów asynchronicznych (Kolejki).
+
+Raport z testów (pokrycie, główne przypadki testowe).
+
+Krótka instrukcja instalacji i uruchomienia projektu.

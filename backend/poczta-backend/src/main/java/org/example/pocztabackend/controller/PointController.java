@@ -1,5 +1,6 @@
 package org.example.pocztabackend.controller;
 
+import jakarta.validation.Valid;
 import org.example.pocztabackend.dto.PointRequest;
 import org.example.pocztabackend.dto.PointResponse;
 import org.example.pocztabackend.model.Point;
@@ -38,7 +39,7 @@ public class PointController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public PointResponse createPoint(@RequestBody PointRequest request) {
+    public PointResponse createPoint(@Valid @RequestBody PointRequest request) {
         if (!StringUtils.hasText(request.name())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name is required");
         }

@@ -1,10 +1,13 @@
 package org.example.pocztabackend.controller;
 
+import jakarta.validation.Valid;
 import org.example.pocztabackend.dto.ShipmentRequest;
 import org.example.pocztabackend.dto.ShipmentResponse;
 import org.example.pocztabackend.dto.ShipmentStatusUpdateRequest;
 import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.repository.ShipmentRepository;
+import org.example.pocztabackend.service.ShipmentWorkflowService;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -19,9 +22,11 @@ import java.util.UUID;
 public class ShipmentController {
 
     private final ShipmentRepository parcelRepository;
+    private final ShipmentWorkflowService shipmentWorkflowService;
 
-    public ShipmentController(ShipmentRepository parcelRepository) {
+    public ShipmentController(ShipmentRepository parcelRepository, ShipmentWorkflowService shipmentWorkflowService) {
         this.parcelRepository = parcelRepository;
+        this.shipmentWorkflowService = shipmentWorkflowService;
     }
 
     @GetMapping
@@ -47,7 +52,7 @@ public class ShipmentController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ShipmentResponse createShipment(@RequestBody ShipmentRequest request) {
+    public ShipmentResponse createShipment(@Valid @RequestBody ShipmentRequest request) {
         if (!StringUtils.hasText(request.trackingNumber())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "trackingNumber is required");
         }
@@ -74,15 +79,11 @@ public class ShipmentController {
     }
 
     @PatchMapping("/{id}/status")
-    public ShipmentResponse updateParcelStatus(@PathVariable UUID id, @RequestBody ShipmentStatusUpdateRequest request) {
-        if (request.status() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "status is required");
-        }
-
+    public ShipmentResponse updateParcelStatus(@PathVariable UUID id, @Valid @RequestBody ShipmentStatusUpdateRequest request) {
         Shipment shipment = parcelRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found"));
 
-        shipment.setStatus(request.status());
+        shipmentWorkflowService.changeStatus(shipment, request.status());
         return ShipmentResponse.fromEntity(parcelRepository.save(shipment));
     }
 
@@ -92,6 +93,13 @@ public class ShipmentController {
         Shipment shipment = parcelRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found"));
 
-        parcelRepository.delete(shipment);
+        try {
+            parcelRepository.delete(shipment);
+        } catch (DataIntegrityViolationException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Parcel cannot be deleted because it is referenced by other records"
+            );
+        }
     }
 }

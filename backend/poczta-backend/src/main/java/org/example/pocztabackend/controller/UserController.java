@@ -1,5 +1,6 @@
 package org.example.pocztabackend.controller;
 
+import jakarta.validation.Valid;
 import org.example.pocztabackend.dto.UserRequest;
 import org.example.pocztabackend.dto.UserResponse;
 import org.example.pocztabackend.service.UserService;
@@ -33,7 +34,7 @@ public class UserController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse createUser(@RequestBody UserRequest request) {
+    public UserResponse createUser(@Valid @RequestBody UserRequest request) {
         return UserResponse.fromEntity(userService.createUser(request));
     }
 }

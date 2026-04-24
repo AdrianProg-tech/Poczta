@@ -1,7 +1,6 @@
 package org.example.pocztabackend.model;
 
 import jakarta.persistence.*;
-import lombok.*;
 import org.example.pocztabackend.model.enums.PaymentStatus;
 
 import java.math.BigDecimal;
@@ -12,9 +11,6 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "payments")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -33,5 +29,64 @@ public class Payment {
     @ManyToOne
     @JoinColumn(name = "shipment_id")
     private Shipment shipment;
+
+    public Payment() {
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    public String getMethod() {
+        return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
+    }
+
+    public PaymentStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(PaymentStatus status) {
+        this.status = status;
+    }
+
+    public String getExternalReference() {
+        return externalReference;
+    }
+
+    public void setExternalReference(String externalReference) {
+        this.externalReference = externalReference;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Shipment getShipment() {
+        return shipment;
+    }
+
+    public void setShipment(Shipment shipment) {
+        this.shipment = shipment;
+    }
 }
 
