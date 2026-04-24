@@ -5,11 +5,13 @@
 ### Backend
 
 Wymagania:
+
 - Docker
 - Java 17
 - IntelliJ IDEA lub inne IDE z obsługą Lombok
 
 Konfiguracja IDE:
+
 - zainstaluj wtyczkę `Lombok`
 - włącz `Annotation Processing`
 
@@ -37,9 +39,22 @@ docker compose logs -f oracle-db
 docker compose down
 ```
 
+Baza danuch ładowanie:
+
+```powershell
+cd H:\poczta
+python .\scripts\generate_api_csvs.py
+python .\scripts\load_api_csvs.py
+```
+Więcej danych:
+```powershell
+python .\scripts\generate_api_csvs.py --users 15 --points 8 --shipments 20
+```
+
 ### Frontend
 
 Wymagania:
+
 - Node.js
 - npm
 
