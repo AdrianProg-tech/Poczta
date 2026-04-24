@@ -3,21 +3,36 @@ import { Topbar } from '../components/Topbar';
 import { Package, TrendingUp, Clock, CheckCircle, Plus, ArrowRight } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
 import { Link } from 'react-router';
+import { useAppStateContext } from '../state/AppStateContext';
 
 export default function ClientDashboard() {
-  const stats = [
-    { label: 'Aktywne przesyłki', value: '5', icon: Package, color: 'text-accent' },
-    { label: 'W tym miesiącu', value: '12', icon: TrendingUp, color: 'text-success' },
-    { label: 'Oczekujące', value: '2', icon: Clock, color: 'text-warning' },
-    { label: 'Doręczone', value: '47', icon: CheckCircle, color: 'text-success' },
-  ];
+  const {
+    state: { currentUser, shipments },
+  } = useAppStateContext();
+  const clientShipments = shipments.filter((shipment) => shipment.clientId === currentUser?.id);
 
-  const recentShipments = [
-    { id: 'PW123456789PL', status: 'W transporcie', recipient: 'Anna Nowak', date: '25.03.2026', destination: 'Kraków' },
-    { id: 'PW987654321PL', status: 'Oczekuje na odbiór', recipient: 'Piotr Wiśniewski', date: '24.03.2026', destination: 'Warszawa' },
-    { id: 'PW555444333PL', status: 'Doręczona', recipient: 'Maria Kowalczyk', date: '23.03.2026', destination: 'Gdańsk' },
-    { id: 'PW111222333PL', status: 'Nadana', recipient: 'Tomasz Lewandowski', date: '25.03.2026', destination: 'Wrocław' },
+  const stats = [
+    {
+      label: 'Aktywne przesyłki',
+      value: String(clientShipments.filter((shipment) => shipment.status !== 'Doręczona').length),
+      icon: Package,
+      color: 'text-accent',
+    },
+    { label: 'W tym miesiącu', value: String(clientShipments.length), icon: TrendingUp, color: 'text-success' },
+    {
+      label: 'Oczekujące',
+      value: String(clientShipments.filter((shipment) => shipment.status === 'Oczekuje na odbiór').length),
+      icon: Clock,
+      color: 'text-warning',
+    },
+    {
+      label: 'Doręczone',
+      value: String(clientShipments.filter((shipment) => shipment.status === 'Doręczona').length),
+      icon: CheckCircle,
+      color: 'text-success',
+    },
   ];
+  const recentShipments = clientShipments.slice(0, 4);
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -29,7 +44,7 @@ export default function ClientDashboard() {
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           {/* Welcome Section */}
           <div className="mb-8">
-            <h2 className="text-2xl mb-2">Witaj ponownie, Jan!</h2>
+            <h2 className="text-2xl mb-2">Witaj ponownie, {currentUser?.name.split(' ')[0]}!</h2>
             <p className="text-muted-foreground">Oto podsumowanie Twoich przesyłek</p>
           </div>
 
@@ -113,9 +128,9 @@ export default function ClientDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <StatusBadge status={shipment.status} />
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">{shipment.recipient}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{shipment.destination}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">{shipment.date}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{shipment.recipient.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{shipment.recipient.address.split(',').pop()?.trim()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">{shipment.created}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <Link
                           to={`/client/shipments/${shipment.id}`}

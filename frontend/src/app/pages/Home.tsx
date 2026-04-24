@@ -1,7 +1,11 @@
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Package, MapPin, Search, TrendingUp, Shield, Clock } from 'lucide-react';
+import { useState } from 'react';
 
 export default function Home() {
+  const navigate = useNavigate();
+  const [trackingNumber, setTrackingNumber] = useState('');
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -42,9 +46,15 @@ export default function Home() {
                 <input
                   type="text"
                   placeholder="Wpisz numer przesyłki"
+                  value={trackingNumber}
+                  onChange={(event) => setTrackingNumber(event.target.value)}
                   className="flex-1 px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent text-foreground"
                 />
-                <button className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/tracking?number=${encodeURIComponent(trackingNumber)}`)}
+                  className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors flex items-center gap-2"
+                >
                   <Search className="w-5 h-5" />
                   <span className="hidden sm:inline">Śledź</span>
                 </button>
@@ -154,25 +164,25 @@ export default function Home() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link to="/tracking" className="hover:text-accent">Śledź przesyłkę</Link></li>
                 <li><Link to="/points" className="hover:text-accent">Punkty odbioru</Link></li>
-                <li><Link to="#" className="hover:text-accent">Cennik</Link></li>
+                <li><Link to="/info/pricing" className="hover:text-accent">Cennik</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="mb-4">Firma</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="#" className="hover:text-accent">O nas</Link></li>
-                <li><Link to="#" className="hover:text-accent">Kariera</Link></li>
-                <li><Link to="#" className="hover:text-accent">Kontakt</Link></li>
+                <li><Link to="/info/about" className="hover:text-accent">O nas</Link></li>
+                <li><Link to="/info/careers" className="hover:text-accent">Kariera</Link></li>
+                <li><Link to="/info/contact" className="hover:text-accent">Kontakt</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="mb-4">Pomoc</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="#" className="hover:text-accent">FAQ</Link></li>
-                <li><Link to="#" className="hover:text-accent">Regulamin</Link></li>
-                <li><Link to="#" className="hover:text-accent">Prywatność</Link></li>
+                <li><Link to="/info/faq" className="hover:text-accent">FAQ</Link></li>
+                <li><Link to="/info/terms" className="hover:text-accent">Regulamin</Link></li>
+                <li><Link to="/info/privacy" className="hover:text-accent">Prywatność</Link></li>
               </ul>
             </div>
           </div>

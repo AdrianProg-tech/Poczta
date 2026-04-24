@@ -2,13 +2,25 @@ import { Sidebar } from '../components/Sidebar';
 import { Topbar } from '../components/Topbar';
 import { Users, Package, MapPin, CreditCard, TrendingUp, AlertCircle, ArrowUp, ArrowDown } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { useAppStateContext } from '../state/AppStateContext';
 
 export default function AdminDashboard() {
+  const {
+    state: { claims, points, shipments, users },
+  } = useAppStateContext();
+
   const stats = [
-    { label: 'Użytkownicy', value: '2,543', change: '+12%', icon: Users, color: 'text-accent', trend: 'up' },
-    { label: 'Przesyłki (dziś)', value: '1,234', change: '+8%', icon: Package, color: 'text-success', trend: 'up' },
-    { label: 'Punkty odbioru', value: '5,128', change: '+3%', icon: MapPin, color: 'text-info', trend: 'up' },
-    { label: 'Przychód (dziś)', value: '45,234 PLN', change: '-2%', icon: CreditCard, color: 'text-warning', trend: 'down' },
+    { label: 'Użytkownicy', value: String(users.length), change: '+12%', icon: Users, color: 'text-accent', trend: 'up' },
+    { label: 'Przesyłki', value: String(shipments.length), change: '+8%', icon: Package, color: 'text-success', trend: 'up' },
+    { label: 'Punkty odbioru', value: String(points.length), change: '+3%', icon: MapPin, color: 'text-info', trend: 'up' },
+    {
+      label: 'Reklamacje',
+      value: String(claims.length),
+      change: '-2%',
+      icon: CreditCard,
+      color: 'text-warning',
+      trend: 'down',
+    },
   ];
 
   const shipmentsData = [

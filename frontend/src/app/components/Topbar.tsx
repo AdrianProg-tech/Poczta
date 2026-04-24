@@ -1,4 +1,6 @@
 import { Bell, User } from 'lucide-react';
+import { getRoleLabel } from '../navigation';
+import { useAppStateContext } from '../state/AppStateContext';
 
 interface TopbarProps {
   title: string;
@@ -6,6 +8,13 @@ interface TopbarProps {
 }
 
 export function Topbar({ title, userName = 'Jan Kowalski' }: TopbarProps) {
+  const {
+    state: { currentUser },
+  } = useAppStateContext();
+
+  const displayName = currentUser?.name ?? userName;
+  const displayRole = currentUser ? getRoleLabel(currentUser.role) : 'Gość';
+
   return (
     <header className="bg-card border-b border-border px-6 py-4 lg:px-8">
       <div className="flex items-center justify-between">
@@ -22,8 +31,8 @@ export function Topbar({ title, userName = 'Jan Kowalski' }: TopbarProps) {
               <User className="w-5 h-5 text-white" />
             </div>
             <div className="hidden md:block">
-              <div className="text-sm">{userName}</div>
-              <div className="text-xs text-muted-foreground">Klient</div>
+              <div className="text-sm">{displayName}</div>
+              <div className="text-xs text-muted-foreground">{displayRole}</div>
             </div>
           </div>
         </div>

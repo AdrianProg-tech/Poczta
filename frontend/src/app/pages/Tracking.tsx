@@ -1,21 +1,30 @@
-import { Link } from 'react-router';
-import { Package, Search, MapPin, Calendar, Clock } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router';
+import { Package, Search, MapPin, Calendar } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
+import { useAppStateContext } from '../state/AppStateContext';
 
 export default function Tracking() {
-  const trackingData = {
-    number: 'PW123456789PL',
-    status: 'W transporcie',
-    from: 'Warszawa, ul. Marszałkowska 1',
-    to: 'Kraków, ul. Floriańska 15',
-    estimatedDelivery: '26.03.2026',
-    history: [
-      { date: '25.03.2026 14:30', location: 'Katowice - Sortownia', status: 'W transporcie', description: 'Przesyłka w drodze' },
-      { date: '25.03.2026 09:15', location: 'Warszawa - Punkt nadania', status: 'Nadana', description: 'Przesyłka nadana' },
-      { date: '24.03.2026 18:20', location: 'Warszawa - Magazyn', status: 'Opłacona', description: 'Przesyłka opłacona' },
-      { date: '24.03.2026 16:45', location: 'Online', status: 'Utworzona', description: 'Przesyłka utworzona' },
-    ],
-  };
+  const {
+    state: { shipments },
+  } = useAppStateContext();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialQuery = searchParams.get('number') ?? shipments[0]?.id ?? '';
+  const [trackingNumber, setTrackingNumber] = useState(initialQuery);
+  const [searchedNumber, setSearchedNumber] = useState(initialQuery);
+
+  useEffect(() => {
+    const queryNumber = searchParams.get('number');
+    if (queryNumber) {
+      setTrackingNumber(queryNumber);
+      setSearchedNumber(queryNumber);
+    }
+  }, [searchParams]);
+
+  const trackingData = useMemo(
+    () => shipments.find((shipment) => shipment.id === searchedNumber),
+    [shipments, searchedNumber],
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -52,10 +61,18 @@ export default function Tracking() {
               <input
                 type="text"
                 placeholder="Wpisz numer przesyłki (np. PW123456789PL)"
-                defaultValue="PW123456789PL"
+                value={trackingNumber}
+                onChange={(event) => setTrackingNumber(event.target.value.toUpperCase())}
                 className="flex-1 px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-input-background"
               />
-              <button className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchedNumber(trackingNumber);
+                  setSearchParams(trackingNumber ? { number: trackingNumber } : {});
+                }}
+                className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors flex items-center gap-2"
+              >
                 <Search className="w-5 h-5" />
                 <span className="hidden sm:inline">Śledź</span>
               </button>
@@ -63,72 +80,80 @@ export default function Tracking() {
           </div>
 
           {/* Tracking Info */}
-          <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden mb-6">
-            <div className="p-6 border-b border-border">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <div className="text-sm text-muted-foreground mb-1">Numer przesyłki</div>
-                  <div className="text-xl">{trackingData.number}</div>
+          {trackingData ? (
+            <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden mb-6">
+              <div className="p-6 border-b border-border">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Numer przesyłki</div>
+                    <div className="text-xl">{trackingData.id}</div>
+                  </div>
+                  <StatusBadge status={trackingData.status} />
                 </div>
-                <StatusBadge status={trackingData.status} />
-              </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <div className="text-sm text-muted-foreground mb-2">Nadawca</div>
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>{trackingData.from}</div>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-2">Nadawca</div>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div>{trackingData.sender.address}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-2">Odbiorca</div>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div>{trackingData.recipient.address}</div>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div className="text-sm text-muted-foreground mb-2">Odbiorca</div>
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>{trackingData.to}</div>
+
+                <div className="mt-6 p-4 bg-accent/10 rounded-lg flex items-center gap-3">
+                  <Calendar className="w-5 h-5 text-accent" />
+                  <div>
+                    <div className="text-sm text-muted-foreground">Przewidywana dostawa</div>
+                    <div>{trackingData.estimatedDelivery}</div>
                   </div>
                 </div>
               </div>
 
-              <div className="mt-6 p-4 bg-accent/10 rounded-lg flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-accent" />
-                <div>
-                  <div className="text-sm text-muted-foreground">Przewidywana dostawa</div>
-                  <div>{trackingData.estimatedDelivery}</div>
+              <div className="p-6">
+                <h3 className="text-lg mb-6">Historia przesyłki</h3>
+                <div className="space-y-6">
+                  {trackingData.history.map((item, index) => (
+                    <div key={`${item.date}-${item.status}`} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-3 h-3 rounded-full ${index === 0 ? 'bg-accent' : 'bg-muted'}`}></div>
+                        {index !== trackingData.history.length - 1 ? (
+                          <div className="w-0.5 h-full bg-border mt-2"></div>
+                        ) : null}
+                      </div>
+                      <div className="flex-1 pb-6">
+                        <div className="flex items-center gap-3 mb-1">
+                          <StatusBadge status={item.status} />
+                          <span className="text-sm text-muted-foreground">{item.date}</span>
+                        </div>
+                        <div className="mb-1">{item.description}</div>
+                        <div className="text-sm text-muted-foreground flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          {item.location}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-
-            {/* Timeline */}
-            <div className="p-6">
-              <h3 className="text-lg mb-6">Historia przesyłki</h3>
-              <div className="space-y-6">
-                {trackingData.history.map((item, index) => (
-                  <div key={index} className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div className={`w-3 h-3 rounded-full ${
-                        index === 0 ? 'bg-accent' : 'bg-muted'
-                      }`}></div>
-                      {index !== trackingData.history.length - 1 && (
-                        <div className="w-0.5 h-full bg-border mt-2"></div>
-                      )}
-                    </div>
-                    <div className="flex-1 pb-6">
-                      <div className="flex items-center gap-3 mb-1">
-                        <StatusBadge status={item.status} />
-                        <span className="text-sm text-muted-foreground">{item.date}</span>
-                      </div>
-                      <div className="mb-1">{item.description}</div>
-                      <div className="text-sm text-muted-foreground flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {item.location}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          ) : (
+            <div className="bg-card rounded-xl border border-border p-6 mb-6">
+              <h3 className="text-lg mb-2">Nie znaleziono przesyłki</h3>
+              <p className="text-muted-foreground">
+                Sprawdź numer przesyłki i spróbuj ponownie. Przykładowe numery:
+                {' '}
+                {shipments.slice(0, 3).map((shipment) => shipment.id).join(', ')}.
+              </p>
             </div>
-          </div>
+          )}
 
           {/* Help Section */}
           <div className="bg-secondary p-6 rounded-xl">
@@ -137,12 +162,18 @@ export default function Tracking() {
               Jeśli masz pytania dotyczące swojej przesyłki, skontaktuj się z naszym działem obsługi klienta.
             </p>
             <div className="flex flex-wrap gap-3">
-              <button className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors">
+              <Link
+                to="/login"
+                className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors"
+              >
                 Zgłoś problem
-              </button>
-              <button className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors">
+              </Link>
+              <Link
+                to="/info/contact"
+                className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors"
+              >
                 Kontakt
-              </button>
+              </Link>
             </div>
           </div>
         </div>

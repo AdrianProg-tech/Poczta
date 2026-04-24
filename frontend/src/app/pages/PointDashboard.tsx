@@ -2,52 +2,29 @@ import { Sidebar } from '../components/Sidebar';
 import { Topbar } from '../components/Topbar';
 import { Package, CheckCircle, Clock, Download, Upload, Search, Scan } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
+import { useAppStateContext } from '../state/AppStateContext';
 
 export default function PointDashboard() {
-  const stats = [
-    { label: 'Do wydania', value: '8', icon: Download, color: 'text-accent' },
-    { label: 'Do nadania', value: '3', icon: Upload, color: 'text-info' },
-    { label: 'Wydane dzisiaj', value: '12', icon: CheckCircle, color: 'text-success' },
-    { label: 'Oczekujące', value: '15', icon: Clock, color: 'text-warning' },
-  ];
+  const {
+    state: { currentUser, shipments },
+  } = useAppStateContext();
+  const pointShipments = shipments.filter((shipment) => shipment.pointId === currentUser?.id);
 
-  const shipments = [
-    { 
-      id: 'PW123456789PL', 
-      type: 'Do wydania',
-      recipient: 'Jan Kowalski',
-      arrived: '24.03.2026 14:30',
-      status: 'Oczekuje na odbiór',
-      paymentStatus: 'Opłacona',
-      expires: '29.03.2026'
+  const stats = [
+    {
+      label: 'Do wydania',
+      value: String(pointShipments.filter((shipment) => shipment.status === 'Oczekuje na odbiór').length),
+      icon: Download,
+      color: 'text-accent',
     },
-    { 
-      id: 'PW987654321PL', 
-      type: 'Do wydania',
-      recipient: 'Anna Nowak',
-      arrived: '25.03.2026 09:15',
-      status: 'Oczekuje na odbiór',
-      paymentStatus: 'Opłacona',
-      expires: '30.03.2026'
+    {
+      label: 'Do nadania',
+      value: String(pointShipments.filter((shipment) => shipment.status === 'Nadana').length),
+      icon: Upload,
+      color: 'text-info',
     },
-    { 
-      id: 'PW555444333PL', 
-      type: 'Do nadania',
-      recipient: 'Piotr Wiśniewski',
-      arrived: '25.03.2026 11:20',
-      status: 'Nadana',
-      paymentStatus: 'Offline — do potwierdzenia',
-      expires: '-'
-    },
-    { 
-      id: 'PW111222333PL', 
-      type: 'Do wydania',
-      recipient: 'Maria Kowalczyk',
-      arrived: '25.03.2026 13:45',
-      status: 'Oczekuje na odbiór',
-      paymentStatus: 'Opłacona',
-      expires: '30.03.2026'
-    },
+    { label: 'Wydane dzisiaj', value: '2', icon: CheckCircle, color: 'text-success' },
+    { label: 'Oczekujące', value: String(pointShipments.length), icon: Clock, color: 'text-warning' },
   ];
 
   return (
@@ -61,7 +38,7 @@ export default function PointDashboard() {
           {/* Welcome */}
           <div className="mb-8">
             <h2 className="text-2xl mb-2">Panel punktu odbioru</h2>
-            <p className="text-muted-foreground">ul. Marszałkowska 104, 00-017 Warszawa</p>
+            <p className="text-muted-foreground">{currentUser?.location}</p>
           </div>
 
           {/* Stats */}
@@ -160,36 +137,36 @@ export default function PointDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {shipments.map((shipment) => (
+                  {pointShipments.map((shipment) => (
                     <tr key={shipment.id} className="hover:bg-muted/50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-accent">{shipment.id}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs ${
-                          shipment.type === 'Do wydania' 
+                          shipment.status === 'Oczekuje na odbiór' 
                             ? 'bg-accent/10 text-accent border border-accent/20' 
                             : 'bg-info/10 text-info border border-info/20'
                         }`}>
-                          {shipment.type}
+                          {shipment.status === 'Oczekuje na odbiór' ? 'Do wydania' : 'Do nadania'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">{shipment.recipient}</td>
+                      <td className="px-6 py-4 whitespace-nowrap">{shipment.recipient.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <StatusBadge status={shipment.status} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge status={shipment.paymentStatus} type="payment" />
+                        <StatusBadge status={shipment.payment.status} type="payment" />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        {shipment.arrived}
+                        {shipment.created}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        {shipment.expires}
+                        {shipment.estimatedDelivery}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <button className="text-accent hover:text-accent/80 transition-colors text-sm">
-                          {shipment.type === 'Do wydania' ? 'Wydaj' : 'Potwierdź'}
+                          {shipment.status === 'Oczekuje na odbiór' ? 'Wydaj' : 'Potwierdź'}
                         </button>
                       </td>
                     </tr>

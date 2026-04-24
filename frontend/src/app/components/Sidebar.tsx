@@ -1,8 +1,7 @@
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { 
   LayoutDashboard, 
   Package, 
-  Truck, 
   MapPin, 
   Users, 
   CreditCard, 
@@ -13,6 +12,7 @@ import {
   X
 } from 'lucide-react';
 import { useState } from 'react';
+import { useAppStateContext } from '../state/AppStateContext';
 
 interface SidebarProps {
   role: 'client' | 'courier' | 'point' | 'admin';
@@ -20,7 +20,9 @@ interface SidebarProps {
 
 export function Sidebar({ role }: SidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const { logout } = useAppStateContext();
 
   const getMenuItems = () => {
     switch (role) {
@@ -88,7 +90,14 @@ export function Sidebar({ role }: SidebarProps) {
       </nav>
 
       <div className="p-4 border-t border-sidebar-border">
-        <button className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors w-full">
+        <button
+          onClick={() => {
+            logout();
+            setIsOpen(false);
+            navigate('/login');
+          }}
+          className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors w-full"
+        >
           <LogOut className="w-5 h-5" />
           <span>Wyloguj</span>
         </button>

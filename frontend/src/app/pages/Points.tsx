@@ -1,15 +1,24 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { Package, Search, MapPin, Clock, Phone } from 'lucide-react';
+import { useAppStateContext } from '../state/AppStateContext';
 
 export default function Points() {
-  const points = [
-    { id: 1, name: 'PingwinPost - Warszawa Centrum', type: 'Punkt odbioru', address: 'ul. Marszałkowska 104, 00-017 Warszawa', hours: 'Pn-Pt: 8:00-20:00, Sb: 9:00-15:00', phone: '+48 22 123 4567' },
-    { id: 2, name: 'Paczkomat WAW01', type: 'Paczkomat', address: 'ul. Złota 44, 00-120 Warszawa', hours: '24/7', phone: '-' },
-    { id: 3, name: 'PingwinPost - Kraków Stare Miasto', type: 'Punkt odbioru', address: 'ul. Floriańska 15, 31-019 Kraków', hours: 'Pn-Pt: 9:00-19:00, Sb: 10:00-14:00', phone: '+48 12 345 6789' },
-    { id: 4, name: 'Paczkomat KRK12', type: 'Paczkomat', address: 'ul. Długa 72, 31-147 Kraków', hours: '24/7', phone: '-' },
-    { id: 5, name: 'PingwinPost - Wrocław Rynek', type: 'Punkt odbioru', address: 'Rynek 8, 50-106 Wrocław', hours: 'Pn-Pt: 8:00-20:00, Sb-Nd: 10:00-18:00', phone: '+48 71 234 5678' },
-    { id: 6, name: 'Paczkomat WRO33', type: 'Paczkomat', address: 'ul. Świdnicka 53, 50-030 Wrocław', hours: '24/7', phone: '-' },
-  ];
+  const {
+    state: { points },
+  } = useAppStateContext();
+  const [query, setQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('Wszystkie');
+
+  const filteredPoints = useMemo(
+    () =>
+      points.filter((point) => {
+        const matchesQuery = `${point.name} ${point.address}`.toLowerCase().includes(query.toLowerCase());
+        const matchesType = typeFilter === 'Wszystkie' || point.type === typeFilter;
+        return matchesQuery && matchesType;
+      }),
+    [points, query, typeFilter],
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,23 +57,26 @@ export default function Points() {
                 <input
                   type="text"
                   placeholder="Wpisz miasto lub adres"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-input-background"
                 />
               </div>
-              <select className="px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-input-background">
+              <select
+                value={typeFilter}
+                onChange={(event) => setTypeFilter(event.target.value)}
+                className="px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-input-background"
+              >
                 <option>Wszystkie</option>
                 <option>Punkt odbioru</option>
                 <option>Paczkomat</option>
               </select>
-              <button className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors">
-                Szukaj
-              </button>
             </div>
           </div>
 
           {/* Points List */}
           <div className="grid gap-6">
-            {points.map((point) => (
+            {filteredPoints.map((point) => (
               <div key={point.id} className="bg-card rounded-xl p-6 shadow-sm border border-border hover:shadow-md transition-shadow">
                 <div className="flex flex-col md:flex-row gap-6">
                   <div className="flex-1">
@@ -100,12 +112,18 @@ export default function Points() {
                   </div>
 
                   <div className="flex flex-col gap-2 md:w-40">
-                    <button className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors text-sm">
+                    <Link
+                      to="/login"
+                      className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors text-sm text-center"
+                    >
                       Wybierz punkt
-                    </button>
-                    <button className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors text-sm">
+                    </Link>
+                    <Link
+                      to="/info/contact"
+                      className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors text-sm text-center"
+                    >
                       Pokaż na mapie
-                    </button>
+                    </Link>
                   </div>
                 </div>
               </div>

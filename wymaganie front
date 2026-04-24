@@ -1,0 +1,68 @@
+Organizacja zajęć projektu
+Projekty wykonywane są w grupach 3-4 osobowych. Inna liczebność członków zespołu projektowego wymaga zgody Prowadzącego. Każdy zespół projektowy wybiera swojego Team Leadera, który odpowiada za koordynację pracy w zespole oraz kontakt z Prowadzącym.
+
+
+Metodyka pracy:
+
+Zespoły pracują w oparciu o tablicę zadań (np. Trello, Jira, GitHub Projects).
+
+Zajęcia w terminach parzystych mają charakter przeglądu sprintu (Retro/Planning) – zespół referuje postępy w budowie interfejsu oraz planuje zadania na kolejne 2 tygodnie.
+
+Po każdych zajęciach parzystych Team Leader wysyła maila do prowadzącego (temat: ZAF_PROJEKT_GR_NAZWISKA_DATA) z linkiem do tablicy zadań i krótkim opisem postępów.
+
+
+Harmonogram spotkań:
+
+II zajęcia – Zgłoszenie zespołów, liderów oraz tematów aplikacji. Setup repozytorium i tablicy zadań.
+
+IV zajęcia – Prezentacja makiety aplikacji (np. Figma lub podobne) oraz architektury komponentów.
+
+VI zajęcia – Setup projektu w wybranym frameworku, konfiguracja routingu oraz podstawowych widoków (Mockup danych).
+
+VIII zajęcia – Implementacja zaawansowanego zarządzania stanem (State Management) oraz nawigacji.
+
+X zajęcia – Integracja z zewnętrznym API (komunikacja asynchroniczna, obsługa błędów sieciowych).
+
+XII zajęcia – Implementacja zaawansowanych funkcji - internacjonalizacja, interceptory, themes oraz testy komponentów.
+
+XIV zajęcia – Przegląd końcowy, optymalizacja wydajności (Lighthouse score), dopracowanie UI/UX.
+
+XV zajęcia – I termin oddania i obrony projektu.
+
+
+Wymagania dotyczące projektu:
+
+Projekt musi być zrealizowany jako "Cienki Klient", oparty na nowoczesnym frameworku frontendowym (np. React, Angular, Vue.js).
+
+Technologie: Obowiązkowe użycie TypeScript. Stylizowanie przy użyciu nowoczesnych podejść (np. CSS Modules, Styled Components, Tailwind CSS lub preprocesory SASS/SCSS).
+
+Zarządzanie stanem: Wykorzystanie zaawansowanych mechanizmów zarządzania stanem (np. Redux Toolkit, NgRx lub zaawansowany Context API).
+
+Komunikacja: Aplikacja musi komunikować się z zewnętrznym API (może to być własny backend z innego przedmiotu, publiczne API lub Mock API).
+
+Funkcjonalności:
+
+Responsywność (RWD) na wysokim poziomie.
+
+Obsługa autoryzacji i zabezpieczonych tras (Guards/Protected Routes).
+
+Walidacja formularzy (np. React Hook Form, itp.).
+
+Implementacja zaawansowanych funkcji: internacjonalizacja (i18n), interceptory, themes.
+
+Testowanie: Obowiązkowe testy komponentów lub testy E2E (np. Jest, Vitest, Cypress) – pokrycie min. 30% kluczowych interfejsów.
+
+
+Zakres dokumentacji technicznej:
+
+Opis architektury aplikacji i struktury katalogów.
+
+Wykaz użytych bibliotek i uzasadnienie ich wyboru.
+
+Makiety UI (zrzuty ekranu z narzędzi do prototypowania).
+
+Opis strategii zarządzania stanem.
+
+Dokumentacja komunikacji z API (opis wykorzystanych zasobów).
+
+Instrukcja budowania i uruchamiania aplikacji (npm/yarn scripts).

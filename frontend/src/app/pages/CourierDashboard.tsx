@@ -2,54 +2,32 @@ import { Sidebar } from '../components/Sidebar';
 import { Topbar } from '../components/Topbar';
 import { Package, CheckCircle, Clock, MapPin, Navigation, Phone } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
+import { useAppStateContext } from '../state/AppStateContext';
 
 export default function CourierDashboard() {
-  const stats = [
-    { label: 'Dzisiejsze zadania', value: '12', icon: Package, color: 'text-accent' },
-    { label: 'Zrealizowane', value: '8', icon: CheckCircle, color: 'text-success' },
-    { label: 'Oczekujące', value: '4', icon: Clock, color: 'text-warning' },
-  ];
+  const {
+    state: { currentUser, shipments },
+  } = useAppStateContext();
+  const tasks = shipments.filter(
+    (shipment) =>
+      shipment.assignedCourierId === currentUser?.id &&
+      shipment.status !== 'Doręczona' &&
+      shipment.status !== 'Zwrócona',
+  );
 
-  const tasks = [
-    { 
-      id: 'PW123456789PL', 
-      type: 'Odbiór', 
-      address: 'ul. Marszałkowska 104, Warszawa',
-      recipient: 'Jan Kowalski',
-      phone: '+48 123 456 789',
-      time: '10:00 - 12:00',
-      status: 'Oczekuje na odbiór',
-      priority: 'normal'
+  const stats = [
+    { label: 'Dzisiejsze zadania', value: String(tasks.length), icon: Package, color: 'text-accent' },
+    {
+      label: 'Zrealizowane',
+      value: String(shipments.filter((shipment) => shipment.status === 'Doręczona').length),
+      icon: CheckCircle,
+      color: 'text-success',
     },
-    { 
-      id: 'PW987654321PL', 
-      type: 'Dostawa', 
-      address: 'ul. Floriańska 15, Kraków',
-      recipient: 'Anna Nowak',
-      phone: '+48 987 654 321',
-      time: '14:00 - 16:00',
-      status: 'W transporcie',
-      priority: 'high'
-    },
-    { 
-      id: 'PW555444333PL', 
-      type: 'Dostawa', 
-      address: 'ul. Długa 72, Wrocław',
-      recipient: 'Piotr Wiśniewski',
-      phone: '+48 555 444 333',
-      time: '16:00 - 18:00',
-      status: 'W transporcie',
-      priority: 'normal'
-    },
-    { 
-      id: 'PW111222333PL', 
-      type: 'Odbiór', 
-      address: 'ul. Złota 44, Warszawa',
-      recipient: 'Maria Kowalczyk',
-      phone: '+48 111 222 333',
-      time: '12:00 - 14:00',
-      status: 'Oczekuje na odbiór',
-      priority: 'normal'
+    {
+      label: 'Oczekujące',
+      value: String(tasks.filter((shipment) => shipment.status === 'Oczekuje na odbiór').length),
+      icon: Clock,
+      color: 'text-warning',
     },
   ];
 
@@ -63,8 +41,8 @@ export default function CourierDashboard() {
         <main className="flex-1 overflow-y-auto p-6 lg:p-8">
           {/* Welcome */}
           <div className="mb-8">
-            <h2 className="text-2xl mb-2">Dzień dobry, Marek!</h2>
-            <p className="text-muted-foreground">Masz 12 zadań do wykonania dzisiaj</p>
+            <h2 className="text-2xl mb-2">Dzień dobry, {currentUser?.name.split(' ')[0]}!</h2>
+            <p className="text-muted-foreground">Masz {tasks.length} aktywnych zadań do obsłużenia</p>
           </div>
 
           {/* Stats */}
@@ -85,7 +63,7 @@ export default function CourierDashboard() {
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <h3 className="text-xl mb-2">Zaplanowana trasa</h3>
-                <p className="text-white/80">4 punkty do odwiedzenia • ~45 km • ~3h 30min</p>
+                <p className="text-white/80">{tasks.length} punktów do odwiedzenia • zoptymalizowana trasa dnia</p>
               </div>
               <button className="px-6 py-3 bg-white text-accent rounded-lg hover:bg-white/90 transition-colors flex items-center gap-2">
                 <Navigation className="w-5 h-5" />
@@ -107,13 +85,13 @@ export default function CourierDashboard() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
                         <span className={`px-3 py-1 rounded-md text-xs ${
-                          task.type === 'Odbiór' 
+                          task.status === 'Oczekuje na odbiór' 
                             ? 'bg-info/10 text-info border border-info/20' 
                             : 'bg-success/10 text-success border border-success/20'
                         }`}>
-                          {task.type}
+                          {task.status === 'Oczekuje na odbiór' ? 'Odbiór' : 'Dostawa'}
                         </span>
-                        {task.priority === 'high' && (
+                        {task.status === 'W transporcie' && (
                           <span className="px-3 py-1 rounded-md text-xs bg-warning/10 text-warning border border-warning/20">
                             Priorytet
                           </span>
@@ -121,29 +99,29 @@ export default function CourierDashboard() {
                         <StatusBadge status={task.status} />
                       </div>
 
-                      <div className="grid md:grid-cols-2 gap-3 mb-3">
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Numer przesyłki</div>
-                          <div>{task.id}</div>
+                        <div className="grid md:grid-cols-2 gap-3 mb-3">
+                          <div>
+                            <div className="text-sm text-muted-foreground mb-1">Numer przesyłki</div>
+                            <div>{task.id}</div>
+                          </div>
+                          <div>
+                            <div className="text-sm text-muted-foreground mb-1">Klient</div>
+                            <div>{task.recipient.name}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm text-muted-foreground mb-1">Klient</div>
-                          <div>{task.recipient}</div>
-                        </div>
-                      </div>
 
                       <div className="space-y-2 text-sm">
                         <div className="flex items-start gap-2">
                           <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                          <span className="text-muted-foreground">{task.address}</span>
+                          <span className="text-muted-foreground">{task.recipient.address}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <span className="text-muted-foreground">{task.time}</span>
+                          <span className="text-muted-foreground">Plan: {task.estimatedDelivery}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                          <span className="text-muted-foreground">{task.phone}</span>
+                          <span className="text-muted-foreground">{task.recipient.phone}</span>
                         </div>
                       </div>
                     </div>
@@ -158,7 +136,7 @@ export default function CourierDashboard() {
                       </button>
                       <button className="px-4 py-2 bg-success text-white rounded-lg hover:bg-success/90 transition-colors flex items-center justify-center gap-2">
                         <CheckCircle className="w-4 h-4" />
-                        {task.type === 'Odbiór' ? 'Odbierz' : 'Dostarcz'}
+                        {task.status === 'Oczekuje na odbiór' ? 'Odbierz' : 'Dostarcz'}
                       </button>
                     </div>
                   </div>

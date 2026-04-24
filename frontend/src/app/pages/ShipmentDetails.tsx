@@ -2,43 +2,34 @@ import { Sidebar } from '../components/Sidebar';
 import { Topbar } from '../components/Topbar';
 import { Package, MapPin, User, Calendar, CreditCard, Printer, RotateCcw, AlertCircle, Download } from 'lucide-react';
 import { StatusBadge } from '../components/StatusBadge';
-import { Link } from 'react-router';
+import { Link, useParams } from 'react-router';
+import { useAppStateContext } from '../state/AppStateContext';
 
 export default function ShipmentDetails() {
-  const shipment = {
-    id: 'PW123456789PL',
-    status: 'W transporcie',
-    paymentStatus: 'Opłacona',
-    created: '24.03.2026 16:45',
-    estimatedDelivery: '26.03.2026',
-    sender: {
-      name: 'Jan Kowalski',
-      phone: '+48 123 456 789',
-      address: 'ul. Marszałkowska 1, 00-017 Warszawa',
-    },
-    recipient: {
-      name: 'Anna Nowak',
-      phone: '+48 987 654 321',
-      address: 'ul. Floriańska 15, 31-019 Kraków',
-    },
-    package: {
-      weight: '2.5 kg',
-      dimensions: '30 x 20 x 15 cm',
-      type: 'Paczka standardowa',
-      value: '250 PLN',
-    },
-    payment: {
-      method: 'Karta płatnicza',
-      amount: '24.99 PLN',
-      date: '24.03.2026 18:20',
-    },
-    history: [
-      { date: '25.03.2026 14:30', location: 'Katowice - Sortownia', status: 'W transporcie', description: 'Przesyłka w drodze' },
-      { date: '25.03.2026 09:15', location: 'Warszawa - Punkt nadania', status: 'Nadana', description: 'Przesyłka nadana' },
-      { date: '24.03.2026 18:20', location: 'Warszawa - Magazyn', status: 'Opłacona', description: 'Przesyłka opłacona' },
-      { date: '24.03.2026 16:45', location: 'Online', status: 'Utworzona', description: 'Przesyłka utworzona' },
-    ],
-  };
+  const { id } = useParams();
+  const {
+    state: { shipments },
+  } = useAppStateContext();
+  const shipment = shipments.find((item) => item.id === id);
+
+  if (!shipment) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="bg-card rounded-xl border border-border shadow-sm p-8 max-w-lg text-center">
+          <h2 className="text-2xl mb-3">Nie znaleziono przesyłki</h2>
+          <p className="text-muted-foreground mb-6">
+            Wybrana przesyłka nie istnieje albo nie jest już dostępna.
+          </p>
+          <Link
+            to="/client/shipments"
+            className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+          >
+            Wróć do listy przesyłek
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -63,12 +54,16 @@ export default function ShipmentDetails() {
                 <Download className="w-4 h-4" />
                 Etykieta
               </button>
-              <button className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors flex items-center gap-2"
+              >
                 <Printer className="w-4 h-4" />
                 Drukuj
               </button>
               <Link
-                to="/client/shipments/redirect"
+                to={`/client/shipments/${shipment.id}/redirect`}
                 className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors flex items-center gap-2"
               >
                 <RotateCcw className="w-4 h-4" />
@@ -201,7 +196,7 @@ export default function ShipmentDetails() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Status</span>
-                    <StatusBadge status={shipment.paymentStatus} type="payment" />
+                    <StatusBadge status={shipment.payment.status} type="payment" />
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Kwota</span>
