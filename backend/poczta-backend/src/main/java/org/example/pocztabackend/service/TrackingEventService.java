@@ -96,4 +96,40 @@ public class TrackingEventService {
                 history
         );
     }
+
+    public void updateBulkStatus(org.example.pocztabackend.dto.BulkStatusUpdateRequest request){
+        for(UUID shipmentId : request.shipmentIds()) {
+            Shipment shipment = shipmentRepository.findById(shipmentId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nie znaleziono przesyłki: " + shipmentId));
+
+            shipmentWorkflowService.changeStatus(shipment, request.status()); //zmiana statusu paczki
+            shipmentRepository.save(shipment); //zapis nowej warsji statusu paczki
+
+            TrackingEvent event = new TrackingEvent();
+            event.setShipment(shipment); // przypis do konkretnej przesyłki
+            event.setStatus(request.status().name()); // przypis nowego statusu
+            event.setEventTime(LocalDateTime.now()); // przypis teraźniejszy czas
+
+            switch (request.status()){
+                case OUT_FOR_DELIVERY:
+                    event.setLocationName("W doręczeniu");
+                    event.setDescription("Przesyłka została wydana kurierowi i jest drodze do Ciebie.");
+                    break;
+                case DELIVERED:
+                    event.setLocationName("Doręczona");
+                    event.setDescription("Przesyłka została pomyślnie doręczona do odbiorcy.");
+                    break;
+                case DELIVERY_ATTEMPT:
+                    event.setLocationName("Próba doręczenia");
+                    event.setDescription("Kurier próbował doręczyć paczkę, ale nikogo nie było.");
+                    break;
+                default:
+                    event.setLocationName("System (Zmiana Kuriera)");
+                    event.setDescription("Zaktualizowano status przesyłki.");
+            }
+
+            trackingEventRepository.save(event);
+
+        }
+    }
 }

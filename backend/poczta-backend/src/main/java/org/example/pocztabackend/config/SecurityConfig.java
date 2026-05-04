@@ -23,7 +23,7 @@ public class SecurityConfig {
                         // 1. Zezwalamy na Twoje endpointy API
                         .requestMatchers("/api/**").permitAll()
                         // 2. Zezwalamy na pełny dostęp do dokumentacji Swagger!
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs", "/swagger-ui.html").permitAll()
                         // 3. Resztę blokujemy
                         .anyRequest().authenticated()
                 );

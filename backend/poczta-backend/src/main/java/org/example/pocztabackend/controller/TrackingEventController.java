@@ -26,6 +26,14 @@ public class TrackingEventController {
         return ResponseEntity.status(HttpStatus.CREATED).body(trackingEventService.addEvent(request));
     }
 
+    @PostMapping("/bulk-status")
+    public ResponseEntity<Void> updateBulkStatus(
+            @Valid @RequestBody org.example.pocztabackend.dto.BulkStatusUpdateRequest request
+    ) {
+        trackingEventService.updateBulkStatus(request);
+        return ResponseEntity.noContent().build(); // Po wykonaniu zadania, zwracamy odpowiedź
+    }
+
     @GetMapping("/{shipmentId}")
     public ResponseEntity<List<TrackingEventResponse>> getHistory(@PathVariable UUID shipmentId) {
         return ResponseEntity.ok(trackingEventService.getHistory(shipmentId));
