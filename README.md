@@ -22,6 +22,7 @@ cd H:\poczta
 docker compose up -d oracle-db
 docker compose ps
 ```
+// FOR ME: npx repomix
 
 2. Uruchom backend:
 

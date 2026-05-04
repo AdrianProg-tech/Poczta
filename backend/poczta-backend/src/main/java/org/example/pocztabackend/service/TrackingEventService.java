@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.example.pocztabackend.dto.PublicShipmentTrackingResponse;
+import org.example.pocztabackend.dto.PublicTrackingEventResponse;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -67,5 +69,31 @@ public class TrackingEventService {
                 .stream()
                 .map(TrackingEventResponse::fromEntity)
                 .toList();
+    }
+
+    public PublicShipmentTrackingResponse getPublicTracking(String trackingNumber) {
+        // Znajdź przesyłkę po numerze
+        Shipment shipment = shipmentRepository.findByTrackingNumber(trackingNumber)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nie znaleziono przesyłki: " + trackingNumber));
+
+        // Pobierz historię
+        List<PublicTrackingEventResponse> history = trackingEventRepository.findAllByShipment_IdOrderByEventTimeDesc(shipment.getId())
+                .stream()
+                .map(event -> new PublicTrackingEventResponse(
+                        event.getStatus(),
+                        event.getLocationName(),
+                        event.getDescription(),
+                        event.getEventTime()
+                ))
+                .toList();
+
+        return new PublicShipmentTrackingResponse(
+                shipment.getTrackingNumber(),
+                shipment.getStatus(),
+                shipment.getDeliveryType(),
+                "Nadawca (zabezpieczone)",
+                "Odbiorca (zabezpieczone)",
+                history
+        );
     }
 }
