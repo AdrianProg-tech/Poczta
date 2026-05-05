@@ -12,10 +12,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/public/tracking")
-@RequiredArgsConstructor
+//@RequiredArgsConstructor
 public class PublicTrackingController {
 
     private final TrackingEventService trackingEventService;
+
+    public PublicTrackingController(TrackingEventService trackingEventService) {
+        this.trackingEventService = trackingEventService;
+    }
 
     @GetMapping("/{trackingNumber}")
     public ResponseEntity<PublicShipmentTrackingResponse> trackShipment(@PathVariable String trackingNumber) {

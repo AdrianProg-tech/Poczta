@@ -26,7 +26,7 @@ public class TrackingEventController {
         return ResponseEntity.status(HttpStatus.CREATED).body(trackingEventService.addEvent(request));
     }
 
-    @PostMapping("/bulk-status")
+    @PatchMapping("/bulk-status")
     public ResponseEntity<Void> updateBulkStatus(
             @Valid @RequestBody org.example.pocztabackend.dto.BulkStatusUpdateRequest request
     ) {

@@ -20,10 +20,10 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        // 1. Zezwalamy na Twoje endpointy API
+                        // 1. Zezwalamy na wszystkie Twoje endpointy API
                         .requestMatchers("/api/**").permitAll()
-                        // 2. Zezwalamy na pełny dostęp do dokumentacji Swagger!
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/v3/api-docs", "/swagger-ui.html").permitAll()
+                        // 2. Zezwalamy na pełny dostęp do dokumentacji Swagger i pliku z definicją API
+                        .requestMatchers("/api/**", "/v3/api-docs", "/v3/api-docs/**", "/swagger-resources", "/swagger-resources/**", "/configuration/ui", "/configuration/security", "/swagger-ui/**", "/swagger-ui.html", "/error").permitAll()
                         // 3. Resztę blokujemy
                         .anyRequest().authenticated()
                 );
