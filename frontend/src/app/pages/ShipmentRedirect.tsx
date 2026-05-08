@@ -1,59 +1,137 @@
-import { useState } from 'react';
-import { useParams } from 'react-router';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { Link, useNavigate, useParams } from 'react-router';
+import { getPublicPoints, requestClientShipmentRedirect, type PublicPoint } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
+import { useAppStateContext } from '../state/AppStateContext';
+
+interface RedirectFormValues {
+  targetPointCode: string;
+  reason: string;
+}
 
 export default function ShipmentRedirect() {
   const { id } = useParams();
-  const [submitted, setSubmitted] = useState(false);
+  const navigate = useNavigate();
+  const {
+    state: { currentUser },
+  } = useAppStateContext();
+  const [points, setPoints] = useState<PublicPoint[]>([]);
+  const [submitState, setSubmitState] = useState<'idle' | 'success'>('idle');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<RedirectFormValues>();
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadPoints() {
+      try {
+        const data = await getPublicPoints();
+        if (!active) {
+          return;
+        }
+
+        const activePoints = data.filter((point) => point.active && point.type === 'PICKUP_POINT');
+        setPoints(activePoints);
+        if (activePoints[0]) {
+          setValue('targetPointCode', activePoints[0].pointCode);
+        }
+      } catch {
+        if (active) {
+          setPoints([]);
+        }
+      }
+    }
+
+    void loadPoints();
+
+    return () => {
+      active = false;
+    };
+  }, [setValue]);
+
+  const onSubmit = handleSubmit(async (values) => {
+    if (!currentUser?.email || !id) {
+      return;
+    }
+
+    setSubmitError(null);
+
+    try {
+      await requestClientShipmentRedirect(currentUser.email, id, values);
+      setSubmitState('success');
+    } catch (requestError) {
+      setSubmitError(requestError instanceof Error ? requestError.message : 'Nie udało się wysłać przekierowania.');
+    }
+  });
 
   return (
     <DashboardShell role="client" title="Przekierowanie przesyłki">
-      <div className="max-w-2xl">
-        <div className="bg-card rounded-xl border border-border shadow-sm p-6">
-          <h2 className="text-xl mb-2">Przekieruj przesyłkę {id}</h2>
-          <p className="text-muted-foreground mb-6">
-            Wybierz nowy punkt odbioru i zapisz zmianę, aby zaktualizować preferencje doręczenia.
-          </p>
+      <div className="max-w-2xl rounded-xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="mb-2 text-xl">Przekieruj przesyłkę {id}</h2>
+        <p className="mb-6 text-muted-foreground">
+          Ten formularz korzysta już z prawdziwego endpointu klienta i zapisuje redirect request po stronie backendu.
+        </p>
 
-          {!submitted ? (
-            <form
-              className="space-y-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                setSubmitted(true);
-              }}
-            >
-              <div>
-                <label className="block mb-2 text-sm">Nowy punkt odbioru</label>
-                <input
-                  type="text"
-                  defaultValue="PingwinPost - Warszawa Centrum"
-                  className="w-full px-4 py-3 border border-border rounded-lg bg-input-background focus:outline-none focus:ring-2 focus:ring-accent"
-                />
-              </div>
-
-              <div>
-                <label className="block mb-2 text-sm">Powód zmiany</label>
-                <textarea
-                  rows={4}
-                  placeholder="Np. odbiorca prosi o zmianę punktu odbioru"
-                  className="w-full px-4 py-3 border border-border rounded-lg bg-input-background focus:outline-none focus:ring-2 focus:ring-accent resize-none"
-                />
-              </div>
-
+        {submitState === 'success' ? (
+          <div className="rounded-xl border border-success/20 bg-success/10 p-4">
+            <div className="mb-2 text-success">Przekierowanie zostało zapisane.</div>
+            <div className="flex gap-3">
               <button
-                type="submit"
-                className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+                type="button"
+                onClick={() => navigate(`/client/shipments/${id}`)}
+                className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90"
               >
-                Zapisz zmianę
+                Wróć do przesyłki
               </button>
-            </form>
-          ) : (
-            <div className="p-4 rounded-xl bg-success/10 text-success border border-success/20">
-              Zmiana została zapisana pomyślnie.
+              <Link to="/client/shipments" className="rounded-lg border border-border px-4 py-2 transition-colors hover:bg-muted">
+                Lista przesyłek
+              </Link>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <form className="space-y-4" onSubmit={onSubmit}>
+            <div>
+              <label className="mb-2 block text-sm">Nowy punkt odbioru</label>
+              <select
+                {...register('targetPointCode', { required: 'Wybierz punkt docelowy.' })}
+                className="w-full rounded-lg border border-border bg-input-background px-4 py-3"
+              >
+                {points.map((point) => (
+                  <option key={point.pointCode} value={point.pointCode}>
+                    {point.name} ({point.pointCode})
+                  </option>
+                ))}
+              </select>
+              {errors.targetPointCode ? <p className="mt-1 text-sm text-destructive">{errors.targetPointCode.message}</p> : null}
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm">Powód zmiany</label>
+              <textarea
+                {...register('reason')}
+                rows={4}
+                placeholder="Np. odbiorca woli odbiór w punkcie"
+                className="w-full resize-none rounded-lg border border-border bg-input-background px-4 py-3"
+              />
+            </div>
+
+            {submitError ? <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{submitError}</div> : null}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-lg bg-accent px-6 py-3 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
+            >
+              {isSubmitting ? 'Zapisywanie...' : 'Zapisz zmianę'}
+            </button>
+          </form>
+        )}
       </div>
     </DashboardShell>
   );

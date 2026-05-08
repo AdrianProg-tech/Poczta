@@ -22,9 +22,10 @@ public class ShipmentWorkflowService {
         allowedTransitions.put(ShipmentStatus.PAID, EnumSet.of(ShipmentStatus.READY_FOR_POSTING, ShipmentStatus.CANCELED));
         allowedTransitions.put(ShipmentStatus.READY_FOR_POSTING, EnumSet.of(ShipmentStatus.POSTED, ShipmentStatus.CANCELED));
         allowedTransitions.put(ShipmentStatus.POSTED, EnumSet.of(ShipmentStatus.IN_TRANSIT, ShipmentStatus.RETURNED));
-        allowedTransitions.put(ShipmentStatus.IN_TRANSIT, EnumSet.of(ShipmentStatus.OUT_FOR_DELIVERY, ShipmentStatus.AWAITING_PICKUP, ShipmentStatus.RETURNED));
+        allowedTransitions.put(ShipmentStatus.IN_TRANSIT, EnumSet.of(ShipmentStatus.OUT_FOR_DELIVERY, ShipmentStatus.REDIRECTED_TO_PICKUP, ShipmentStatus.AWAITING_PICKUP, ShipmentStatus.RETURNED));
         allowedTransitions.put(ShipmentStatus.OUT_FOR_DELIVERY, EnumSet.of(ShipmentStatus.DELIVERY_ATTEMPT, ShipmentStatus.DELIVERED, ShipmentStatus.RETURNED));
-        allowedTransitions.put(ShipmentStatus.DELIVERY_ATTEMPT, EnumSet.of(ShipmentStatus.OUT_FOR_DELIVERY, ShipmentStatus.AWAITING_PICKUP, ShipmentStatus.RETURNED));
+        allowedTransitions.put(ShipmentStatus.DELIVERY_ATTEMPT, EnumSet.of(ShipmentStatus.OUT_FOR_DELIVERY, ShipmentStatus.REDIRECTED_TO_PICKUP, ShipmentStatus.AWAITING_PICKUP, ShipmentStatus.RETURNED));
+        allowedTransitions.put(ShipmentStatus.REDIRECTED_TO_PICKUP, EnumSet.of(ShipmentStatus.AWAITING_PICKUP, ShipmentStatus.RETURNED));
         allowedTransitions.put(ShipmentStatus.AWAITING_PICKUP, EnumSet.of(ShipmentStatus.DELIVERED, ShipmentStatus.RETURNED));
         allowedTransitions.put(ShipmentStatus.DELIVERED, EnumSet.noneOf(ShipmentStatus.class));
         allowedTransitions.put(ShipmentStatus.RETURNED, EnumSet.noneOf(ShipmentStatus.class));

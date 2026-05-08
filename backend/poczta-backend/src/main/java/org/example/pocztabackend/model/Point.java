@@ -14,11 +14,14 @@ public class Point {
     @Column(length = 36)
     private UUID id;
 
+    private String pointCode;
     private String name;
     private String type; // np. PARCEL_LOCKER, PICKUP_POINT
     private String city;
     private String address;
     private String postalCode;
+    private String phone;
+    private String openingHours;
     private boolean isActive;
 
     public Point() {
@@ -38,6 +41,14 @@ public class Point {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getPointCode() {
+        return pointCode;
+    }
+
+    public void setPointCode(String pointCode) {
+        this.pointCode = pointCode;
     }
 
     public String getType() {
@@ -70,6 +81,22 @@ public class Point {
 
     public void setPostalCode(String postalCode) {
         this.postalCode = postalCode;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getOpeningHours() {
+        return openingHours;
+    }
+
+    public void setOpeningHours(String openingHours) {
+        this.openingHours = openingHours;
     }
 
     public boolean isActive() {

@@ -1,42 +1,74 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { Package, Search, MapPin, Clock, Phone } from 'lucide-react';
-import { useAppStateContext } from '../state/AppStateContext';
+import { Clock, MapPin, Package, Phone, Search } from 'lucide-react';
+import { formatPointType, getPublicPoints, type PublicPoint } from '../api';
 
 export default function Points() {
-  const {
-    state: { points },
-  } = useAppStateContext();
+  const [points, setPoints] = useState<PublicPoint[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('Wszystkie');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadPoints() {
+      try {
+        const data = await getPublicPoints();
+        if (active) {
+          setPoints(data);
+          setError(null);
+        }
+      } catch (requestError) {
+        if (active) {
+          setError(requestError instanceof Error ? requestError.message : 'Nie udało się pobrać punktów.');
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadPoints();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filteredPoints = useMemo(
     () =>
       points.filter((point) => {
-        const matchesQuery = `${point.name} ${point.address}`.toLowerCase().includes(query.toLowerCase());
-        const matchesType = typeFilter === 'Wszystkie' || point.type === typeFilter;
-        return matchesQuery && matchesType;
+        const haystack = `${point.name} ${point.city} ${point.address} ${point.pointCode}`.toLowerCase();
+        const matchesQuery = haystack.includes(query.toLowerCase());
+        const matchesType = typeFilter === 'ALL' || point.type === typeFilter;
+        return point.active && matchesQuery && matchesType;
       }),
     [points, query, typeFilter],
   );
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-primary text-white border-b border-primary">
+      <header className="border-b border-primary bg-primary text-white">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-accent rounded-lg flex items-center justify-center">
-                <Package className="w-6 h-6 text-white" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
+                <Package className="h-6 w-6 text-white" />
               </div>
               <span className="text-2xl">PingwinPost</span>
             </Link>
-            
-            <nav className="hidden md:flex items-center gap-6">
-              <Link to="/tracking" className="hover:text-accent transition-colors">Śledź przesyłkę</Link>
-              <Link to="/points" className="hover:text-accent transition-colors">Punkty odbioru</Link>
-              <Link to="/login" className="px-4 py-2 bg-accent rounded-lg hover:bg-accent/90 transition-colors">
+
+            <nav className="hidden items-center gap-6 md:flex">
+              <Link to="/tracking" className="transition-colors hover:text-accent">
+                Śledź przesyłkę
+              </Link>
+              <Link to="/points" className="transition-colors hover:text-accent">
+                Punkty odbioru
+              </Link>
+              <Link to="/login" className="rounded-lg bg-accent px-4 py-2 transition-colors hover:bg-accent/90">
                 Zaloguj się
               </Link>
             </nav>
@@ -44,110 +76,98 @@ export default function Points() {
         </div>
       </header>
 
-      {/* Content */}
       <div className="container mx-auto px-4 py-12">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-3xl mb-8">Punkty odbioru i paczkomaty</h1>
+        <div className="mx-auto max-w-6xl">
+          <h1 className="mb-8 text-3xl">Punkty odbioru i paczkomaty</h1>
 
-          {/* Search and Filters */}
-          <div className="bg-card rounded-xl p-6 shadow-sm border border-border mb-8">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <div className="mb-8 rounded-xl border border-border bg-card p-6 shadow-sm">
+            <div className="flex flex-col gap-4 md:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Wpisz miasto lub adres"
+                  placeholder="Szukaj po mieście, adresie lub kodzie punktu"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-input-background"
+                  className="w-full rounded-lg border border-border bg-input-background py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
               <select
                 value={typeFilter}
                 onChange={(event) => setTypeFilter(event.target.value)}
-                className="px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-input-background"
+                className="rounded-lg border border-border bg-input-background px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent"
               >
-                <option>Wszystkie</option>
-                <option>Punkt odbioru</option>
-                <option>Paczkomat</option>
+                <option value="ALL">Wszystkie</option>
+                <option value="PICKUP_POINT">Punkt odbioru</option>
+                <option value="PARCEL_LOCKER">Paczkomat</option>
               </select>
             </div>
           </div>
 
-          {/* Points List */}
-          <div className="grid gap-6">
-            {filteredPoints.map((point) => (
-              <div key={point.id} className="bg-card rounded-xl p-6 shadow-sm border border-border hover:shadow-md transition-shadow">
-                <div className="flex flex-col md:flex-row gap-6">
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="text-lg mb-1">{point.name}</h3>
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs ${
-                          point.type === 'Paczkomat' 
-                            ? 'bg-info/10 text-info border border-info/20' 
-                            : 'bg-accent/10 text-accent border border-accent/20'
-                        }`}>
-                          {point.type}
+          {isLoading ? <div className="rounded-xl bg-card p-6">Ładowanie punktów...</div> : null}
+          {error ? <div className="rounded-xl bg-destructive/10 p-6 text-destructive">{error}</div> : null}
+
+          {!isLoading && !error ? (
+            <div className="grid gap-6">
+              {filteredPoints.map((point) => (
+                <div key={point.pointCode} className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                  <div className="flex flex-col gap-6 md:flex-row">
+                    <div className="flex-1">
+                      <div className="mb-3 flex items-start justify-between gap-4">
+                        <div>
+                          <h3 className="mb-1 text-lg">{point.name}</h3>
+                          <div className="text-sm text-muted-foreground">
+                            {point.pointCode} • {point.city}
+                          </div>
+                        </div>
+                        <span className="inline-flex rounded-md border border-accent/20 bg-accent/10 px-2.5 py-1 text-xs text-accent">
+                          {formatPointType(point.type)}
                         </span>
                       </div>
-                    </div>
 
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                        <span className="text-muted-foreground">{point.address}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                        <span className="text-muted-foreground">{point.hours}</span>
-                      </div>
-                      {point.phone !== '-' && (
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-start gap-2">
+                          <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                          <span className="text-muted-foreground">
+                            {point.address}, {point.postalCode} {point.city}
+                          </span>
+                        </div>
                         <div className="flex items-center gap-2">
-                          <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                          <Clock className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                          <span className="text-muted-foreground">{point.openingHours}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                           <span className="text-muted-foreground">{point.phone}</span>
                         </div>
-                      )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 md:w-44">
+                      <Link
+                        to="/login"
+                        className="rounded-lg bg-accent px-4 py-2 text-center text-sm text-white transition-colors hover:bg-accent/90"
+                      >
+                        Wybierz w formularzu
+                      </Link>
+                      <Link
+                        to="/tracking"
+                        className="rounded-lg border border-border bg-card px-4 py-2 text-center text-sm transition-colors hover:bg-muted"
+                      >
+                        Przejdź do śledzenia
+                      </Link>
                     </div>
                   </div>
-
-                  <div className="flex flex-col gap-2 md:w-40">
-                    <Link
-                      to="/login"
-                      className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors text-sm text-center"
-                    >
-                      Wybierz punkt
-                    </Link>
-                    <Link
-                      to="/info/contact"
-                      className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors text-sm text-center"
-                    >
-                      Pokaż na mapie
-                    </Link>
-                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
 
-          {/* Info Section */}
-          <div className="mt-12 grid md:grid-cols-2 gap-6">
-            <div className="bg-secondary p-6 rounded-xl">
-              <h3 className="text-lg mb-3">Punkt odbioru</h3>
-              <p className="text-sm text-muted-foreground">
-                Odbierz przesyłkę osobiście w jednym z naszych punktów. Obsługa profesjonalna, 
-                możliwość nadania paczki oraz dokonania płatności.
-              </p>
+              {filteredPoints.length === 0 ? (
+                <div className="rounded-xl border border-border bg-card p-6 text-muted-foreground">
+                  Nie znaleziono punktów pasujących do podanych filtrów.
+                </div>
+              ) : null}
             </div>
-
-            <div className="bg-secondary p-6 rounded-xl">
-              <h3 className="text-lg mb-3">Paczkomat</h3>
-              <p className="text-sm text-muted-foreground">
-                Odbierz przesyłkę 24/7 w dowolnym momencie. Wystarczy kod SMS lub aplikacja 
-                mobilna. Szybko, wygodnie i bez kolejek.
-              </p>
-            </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </div>

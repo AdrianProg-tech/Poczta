@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -27,12 +28,17 @@ public class Shipment {
     private ShipmentStatus status;
     private String senderName;
     private String senderPhone;
+    private String senderAddress;
     private String recipientName;
     private String recipientPhone;
+    private String recipientAddress;
     private String deliveryType;
     private BigDecimal weight;
     private String sizeCategory;
+    private BigDecimal declaredValue;
+    private Boolean fragile;
     private LocalDateTime createdAt;
+    private LocalDate estimatedDeliveryDate;
 
     @ManyToOne
     @JoinColumn(name = "creator_id")
@@ -52,6 +58,11 @@ public class Shipment {
     @JoinColumn(name = "current_point_id")
     @JsonIgnore
     private Point currentPoint;
+
+    @ManyToOne
+    @JoinColumn(name = "target_point_id")
+    @JsonIgnore
+    private Point targetPoint;
 
     public Shipment() {
     }
@@ -112,6 +123,22 @@ public class Shipment {
         this.recipientPhone = recipientPhone;
     }
 
+    public String getSenderAddress() {
+        return senderAddress;
+    }
+
+    public void setSenderAddress(String senderAddress) {
+        this.senderAddress = senderAddress;
+    }
+
+    public String getRecipientAddress() {
+        return recipientAddress;
+    }
+
+    public void setRecipientAddress(String recipientAddress) {
+        this.recipientAddress = recipientAddress;
+    }
+
     public String getDeliveryType() {
         return deliveryType;
     }
@@ -136,12 +163,36 @@ public class Shipment {
         this.sizeCategory = sizeCategory;
     }
 
+    public BigDecimal getDeclaredValue() {
+        return declaredValue;
+    }
+
+    public void setDeclaredValue(BigDecimal declaredValue) {
+        this.declaredValue = declaredValue;
+    }
+
+    public Boolean getFragile() {
+        return fragile;
+    }
+
+    public void setFragile(Boolean fragile) {
+        this.fragile = fragile;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDate getEstimatedDeliveryDate() {
+        return estimatedDeliveryDate;
+    }
+
+    public void setEstimatedDeliveryDate(LocalDate estimatedDeliveryDate) {
+        this.estimatedDeliveryDate = estimatedDeliveryDate;
     }
 
     public User getCreator() {
@@ -174,6 +225,14 @@ public class Shipment {
 
     public void setCurrentPoint(Point currentPoint) {
         this.currentPoint = currentPoint;
+    }
+
+    public Point getTargetPoint() {
+        return targetPoint;
+    }
+
+    public void setTargetPoint(Point targetPoint) {
+        this.targetPoint = targetPoint;
     }
 }
 

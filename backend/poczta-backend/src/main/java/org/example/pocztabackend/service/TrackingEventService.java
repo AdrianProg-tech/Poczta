@@ -1,5 +1,8 @@
 package org.example.pocztabackend.service;
 
+import org.example.pocztabackend.dto.BulkStatusUpdateRequest;
+import org.example.pocztabackend.dto.PublicShipmentTrackingResponse;
+import org.example.pocztabackend.dto.PublicTrackingEventResponse;
 import org.example.pocztabackend.dto.TrackingEventRequest;
 import org.example.pocztabackend.dto.TrackingEventResponse;
 import org.example.pocztabackend.model.Shipment;
@@ -10,12 +13,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import org.example.pocztabackend.dto.PublicShipmentTrackingResponse;
-import org.example.pocztabackend.dto.PublicTrackingEventResponse;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @Service
 public class TrackingEventService {
@@ -72,11 +74,9 @@ public class TrackingEventService {
     }
 
     public PublicShipmentTrackingResponse getPublicTracking(String trackingNumber) {
-        // Znajdź przesyłkę po numerze
         Shipment shipment = shipmentRepository.findByTrackingNumber(trackingNumber)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nie znaleziono przesyłki: " + trackingNumber));
 
-        // Pobierz historię
         List<PublicTrackingEventResponse> history = trackingEventRepository.findAllByShipment_IdOrderByEventTimeDesc(shipment.getId())
                 .stream()
                 .map(event -> new PublicTrackingEventResponse(
@@ -91,45 +91,76 @@ public class TrackingEventService {
                 shipment.getTrackingNumber(),
                 shipment.getStatus(),
                 shipment.getDeliveryType(),
-                "Nadawca (zabezpieczone)",
-                "Odbiorca (zabezpieczone)",
+                buildDestinationSummary(shipment),
+                shipment.getEstimatedDeliveryDate(),
                 history
         );
     }
 
-    public void updateBulkStatus(org.example.pocztabackend.dto.BulkStatusUpdateRequest request){
-        for(UUID shipmentId : request.shipmentIds()) {
+    @Transactional
+    public void updateBulkStatus(BulkStatusUpdateRequest request) {
+        for (UUID shipmentId : request.shipmentIds()) {
             Shipment shipment = shipmentRepository.findById(shipmentId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nie znaleziono przesyłki: " + shipmentId));
 
-            shipmentWorkflowService.changeStatus(shipment, request.status()); //zmiana statusu paczki
-            shipmentRepository.save(shipment); //zapis nowej warsji statusu paczki
+            shipmentWorkflowService.changeStatus(shipment, request.status());
+            shipmentRepository.save(shipment);
 
             TrackingEvent event = new TrackingEvent();
-            event.setShipment(shipment); // przypis do konkretnej przesyłki
-            event.setStatus(request.status().name()); // przypis nowego statusu
-            event.setEventTime(LocalDateTime.now()); // przypis teraźniejszy czas
+            event.setShipment(shipment);
+            event.setStatus(request.status().name());
+            event.setEventTime(LocalDateTime.now());
 
-            switch (request.status()){
-                case OUT_FOR_DELIVERY:
+            switch (request.status()) {
+                case OUT_FOR_DELIVERY -> {
                     event.setLocationName("W doręczeniu");
                     event.setDescription("Przesyłka została wydana kurierowi i jest drodze do Ciebie.");
-                    break;
-                case DELIVERED:
+                }
+                case DELIVERED -> {
                     event.setLocationName("Doręczona");
                     event.setDescription("Przesyłka została pomyślnie doręczona do odbiorcy.");
-                    break;
-                case DELIVERY_ATTEMPT:
+                }
+                case DELIVERY_ATTEMPT -> {
                     event.setLocationName("Próba doręczenia");
                     event.setDescription("Kurier próbował doręczyć paczkę, ale nikogo nie było.");
-                    break;
-                default:
+                }
+                default -> {
                     event.setLocationName("System (Zmiana Kuriera)");
                     event.setDescription("Zaktualizowano status przesyłki.");
+                }
             }
 
             trackingEventRepository.save(event);
-
         }
+    }
+
+    private String buildDestinationSummary(Shipment shipment) {
+        if (shipment.getCurrentPoint() != null) {
+            return Stream.of(
+                            shipment.getCurrentPoint().getPointCode(),
+                            shipment.getCurrentPoint().getCity(),
+                            shipment.getCurrentPoint().getAddress()
+                    )
+                    .filter(value -> value != null && !value.isBlank())
+                    .reduce((left, right) -> left + ", " + right)
+                    .orElse("Pickup point");
+        }
+
+        if (shipment.getTargetPoint() != null) {
+            return Stream.of(
+                            shipment.getTargetPoint().getPointCode(),
+                            shipment.getTargetPoint().getCity(),
+                            shipment.getTargetPoint().getAddress()
+                    )
+                    .filter(value -> value != null && !value.isBlank())
+                    .reduce((left, right) -> left + ", " + right)
+                    .orElse("Pickup point");
+        }
+
+        if (shipment.getRecipientAddress() != null && !shipment.getRecipientAddress().isBlank()) {
+            return shipment.getRecipientAddress();
+        }
+
+        return shipment.getRecipientName();
     }
 }

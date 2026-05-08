@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @RestController
@@ -48,13 +49,34 @@ public class PointController {
         }
 
         Point point = new Point();
+        point.setPointCode(resolvePointCode(request));
         point.setName(request.name());
-        point.setType(request.type());
+        point.setType(request.type().trim().toUpperCase(Locale.ROOT));
         point.setCity(request.city());
         point.setAddress(request.address());
         point.setPostalCode(request.postalCode());
+        point.setPhone(request.phone());
+        point.setOpeningHours(request.openingHours());
         point.setActive(Boolean.TRUE.equals(request.active()));
 
         return PointResponse.fromEntity(pointRepository.save(point));
+    }
+
+    private String resolvePointCode(PointRequest request) {
+        if (StringUtils.hasText(request.pointCode())) {
+            String normalized = request.pointCode().trim().toUpperCase(Locale.ROOT);
+            if (pointRepository.findByPointCode(normalized).isPresent()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "pointCode already exists");
+            }
+            return normalized;
+        }
+
+        String prefix = "PICKUP_POINT".equalsIgnoreCase(request.type()) ? "POP" : "PLK";
+        String candidate;
+        do {
+            candidate = prefix + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase(Locale.ROOT);
+        } while (pointRepository.findByPointCode(candidate).isPresent());
+
+        return candidate;
     }
 }

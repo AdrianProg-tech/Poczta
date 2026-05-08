@@ -9,6 +9,7 @@ public enum ShipmentStatus {
     IN_TRANSIT,
     OUT_FOR_DELIVERY,
     DELIVERY_ATTEMPT,
+    REDIRECTED_TO_PICKUP,
     AWAITING_PICKUP,
     DELIVERED,
     RETURNED,

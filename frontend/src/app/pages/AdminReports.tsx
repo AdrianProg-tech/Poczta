@@ -1,28 +1,38 @@
+import { useCallback, useEffect, useState } from 'react';
+import { getAdminComplaints, getAdminPayments, getOpsDashboardSummary, getPublicPoints } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
-import { useAppStateContext } from '../state/AppStateContext';
 
 export default function AdminReports() {
-  const {
-    state: { claims, points, shipments, users },
-  } = useAppStateContext();
+  const [cards, setCards] = useState<Array<{ label: string; value: number }>>([]);
 
-  const delivered = shipments.filter((shipment) => shipment.status === 'Doręczona').length;
-  const active = shipments.filter((shipment) => shipment.status !== 'Doręczona').length;
+  const loadReports = useCallback(async () => {
+    const [summary, points, payments, complaints] = await Promise.all([
+      getOpsDashboardSummary(),
+      getPublicPoints(),
+      getAdminPayments(),
+      getAdminComplaints(),
+    ]);
 
-  const cards = [
-    { label: 'Użytkownicy', value: users.length },
-    { label: 'Aktywne przesyłki', value: active },
-    { label: 'Doręczone przesyłki', value: delivered },
-    { label: 'Punkty odbioru', value: points.length },
-    { label: 'Reklamacje', value: claims.length },
-  ];
+    setCards([
+      { label: 'Wszystkie przesyłki', value: summary.totalShipments },
+      { label: 'Błędne płatności', value: summary.paymentFailedShipments },
+      { label: 'Aktywne taski kurierów', value: summary.activeCourierTasks },
+      { label: 'Punkty odbioru', value: points.length },
+      { label: 'Płatności', value: payments.length },
+      { label: 'Reklamacje', value: complaints.length },
+    ]);
+  }, []);
+
+  useEffect(() => {
+    void loadReports();
+  }, [loadReports]);
 
   return (
     <DashboardShell role="admin" title="Raporty">
-      <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => (
-          <div key={card.label} className="bg-card rounded-xl border border-border shadow-sm p-6">
-            <div className="text-sm text-muted-foreground mb-3">{card.label}</div>
+          <div key={card.label} className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <div className="mb-3 text-sm text-muted-foreground">{card.label}</div>
             <div className="text-4xl">{card.value}</div>
           </div>
         ))}

@@ -1,28 +1,18 @@
 import { DashboardShell } from '../components/DashboardShell';
-import { useAppStateContext } from '../state/AppStateContext';
 
 export default function AdminUsers() {
-  const {
-    state: { users },
-  } = useAppStateContext();
-
   return (
     <DashboardShell role="admin" title="Użytkownicy">
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-border">
-          <h2 className="text-xl">Użytkownicy systemu</h2>
-        </div>
-        <div className="divide-y divide-border">
-          {users.map((user) => (
-            <div key={user.id} className="p-6 flex items-center justify-between gap-4">
-              <div>
-                <div>{user.name}</div>
-                <div className="text-sm text-muted-foreground">{user.email}</div>
-              </div>
-              <div className="text-sm">{user.role}</div>
-            </div>
-          ))}
-        </div>
+      <div className="max-w-3xl rounded-xl border border-border bg-card p-6 shadow-sm">
+        <h2 className="mb-3 text-xl">Katalog użytkowników</h2>
+        <p className="mb-4 text-muted-foreground">
+          Ten ekran nie używa już mocków, ale backend nadal nie wystawia osobnego read-modelu `admin/users`.
+        </p>
+        <p className="text-muted-foreground">
+          Na dziś role operacyjne są widoczne pośrednio w innych ekranach:
+          kurierzy w `Courier Dispatch`, klienci przy płatnościach i reklamacjach, a punkt wybieramy po `pointCode`.
+          Gdy dodamy dedykowany endpoint katalogu użytkowników, tę stronę podepniemy bez zmiany architektury frontu.
+        </p>
       </div>
     </DashboardShell>
   );

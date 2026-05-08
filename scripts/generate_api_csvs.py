@@ -2,32 +2,126 @@ from __future__ import annotations
 
 import argparse
 import csv
-import random
-from dataclasses import dataclass
-from decimal import Decimal
 from pathlib import Path
 
 
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "generated_api_csv"
-DEFAULT_SEED = 20260424
 
+ADMIN_TEMPLATES = [
+    {
+        "persona": "ADMIN",
+        "serviceCity": "",
+        "firstName": "Damian",
+        "lastName": "Dispatcher",
+        "email": "ops.dispatch@example.com",
+        "phone": "+48520100101",
+    },
+    {
+        "persona": "ADMIN",
+        "serviceCity": "",
+        "firstName": "Anna",
+        "lastName": "Reviewer",
+        "email": "admin.review@example.com",
+        "phone": "+48520100102",
+    },
+]
 
-@dataclass(frozen=True)
-class PersonPools:
-    first_names: list[str]
-    last_names: list[str]
-    cities: list[str]
+COURIER_TEMPLATES = [
+    ("WARSAW", "Piotr", "Warszawski", "courier.warsaw.1@example.com", "+48510100101"),
+    ("WARSAW", "Marta", "Mazur", "courier.warsaw.2@example.com", "+48510100102"),
+    ("KRAKOW", "Pawel", "Krakowski", "courier.krakow.1@example.com", "+48510100103"),
+    ("KRAKOW", "Karolina", "Wisla", "courier.krakow.2@example.com", "+48510100104"),
+    ("GDANSK", "Natalia", "Baltycka", "courier.gdansk.1@example.com", "+48510100105"),
+    ("WROCLAW", "Michal", "Odra", "courier.wroclaw.1@example.com", "+48510100106"),
+    ("POZNAN", "Tomasz", "Wielkopolski", "courier.poznan.1@example.com", "+48510100107"),
+    ("WARSAW", "Kamil", "Mokotow", "courier.warsaw.3@example.com", "+48510100108"),
+]
+
+CLIENT_TEMPLATES = [
+    ("Alicja", "Nowak", "alicja.nowak.client@example.com", "+48500100101"),
+    ("Jan", "Kowalski", "jan.kowalski.client@example.com", "+48500100102"),
+    ("Olena", "Shevchenko", "olena.shevchenko.client@example.com", "+48500100103"),
+    ("Marek", "Dabrowski", "marek.dabrowski.client@example.com", "+48500100104"),
+    ("Julia", "Wozniak", "julia.wozniak.client@example.com", "+48500100105"),
+    ("Andrii", "Melnyk", "andrii.melnyk.client@example.com", "+48500100106"),
+    ("Karolina", "Piasecka", "karolina.piasecka.client@example.com", "+48500100107"),
+    ("Tomasz", "Lewandowski", "tomasz.lewandowski.client@example.com", "+48500100108"),
+    ("Monika", "Sikora", "monika.sikora.client@example.com", "+48500100109"),
+    ("Roman", "Kaczmarek", "roman.kaczmarek.client@example.com", "+48500100110"),
+    ("Yuliia", "Bondar", "yuliia.bondar.client@example.com", "+48500100111"),
+    ("Klaudia", "Borek", "klaudia.borek.client@example.com", "+48500100112"),
+]
+
+POINT_TEMPLATES = [
+    ("POP-WAW-01", "Warsaw Pickup Central", "PICKUP_POINT", "Warsaw", "Marszalkowska 10", "00-001", "+48221234561", "Mon-Fri 08:00-20:00"),
+    ("PLK-WAW-01", "Warsaw Locker North", "PARCEL_LOCKER", "Warsaw", "Pulawska 22", "02-515", "+48221234562", "24/7"),
+    ("POP-KRK-01", "Krakow Pickup Center", "PICKUP_POINT", "Krakow", "Dietla 44", "31-070", "+48121234563", "Mon-Sat 09:00-19:00"),
+    ("PLK-KRK-01", "Krakow Locker Bronowice", "PARCEL_LOCKER", "Krakow", "Jasnogorska 3", "31-358", "+48121234564", "24/7"),
+    ("POP-GDN-01", "Gdansk Pickup Port", "PICKUP_POINT", "Gdansk", "Dluga 5", "80-827", "+48581234565", "Mon-Fri 08:00-19:00"),
+    ("PLK-GDN-01", "Gdansk Locker Morena", "PARCEL_LOCKER", "Gdansk", "Schuberta 70", "80-172", "+48581234566", "24/7"),
+    ("POP-WRO-01", "Wroclaw Pickup Hub", "PICKUP_POINT", "Wroclaw", "Legnicka 40", "54-204", "+48711234567", "Mon-Sat 09:00-18:00"),
+    ("POP-POZ-01", "Poznan Pickup Center", "PICKUP_POINT", "Poznan", "Piekary 11", "61-823", "+48611234568", "Mon-Fri 08:00-18:00"),
+]
+
+CITY_ADDRESSES = {
+    "WARSAW": ["Warsaw, Prosta 7", "Warsaw, Grzybowska 9", "Warsaw, Zelazna 14"],
+    "KRAKOW": ["Krakow, Karmelicka 18", "Krakow, Dietla 12", "Krakow, Wielicka 20"],
+    "GDANSK": ["Gdansk, Kartuska 77", "Gdansk, Chmielna 8", "Gdansk, Hallera 15"],
+    "WROCLAW": ["Wroclaw, Legnicka 40", "Wroclaw, Grabiszynska 55", "Wroclaw, Swidnicka 21"],
+    "POZNAN": ["Poznan, Glogowska 16", "Poznan, Piekary 11", "Poznan, Hetmanska 9"],
+}
+
+SENDER_ADDRESSES = [
+    "Warsaw, Zielna 12",
+    "Lodz, Piotrkowska 33",
+    "Poznan, Piekary 11",
+    "Warsaw, Krucza 20",
+    "Lodz, Narutowicza 14",
+    "Gdynia, Swietojanska 45",
+    "Katowice, Chorzowska 8",
+    "Szczecin, Rayskiego 17",
+]
+
+RECIPIENT_POOL = [
+    ("Marek Bilski", "+48555111111"),
+    ("Magda Rutkowska", "+48555222222"),
+    ("Piotr Romanowski", "+48555333333"),
+    ("Julia Krawiec", "+48555444444"),
+    ("Konrad Wrona", "+48555555555"),
+    ("Ewa Sobczak", "+48555666666"),
+    ("Lukasz Michalik", "+48555777777"),
+    ("Natalia Jarosz", "+48555888888"),
+]
+
+SCENARIO_ROTATION = [
+    "PAYMENT_PENDING",
+    "PAYMENT_FAILED",
+    "READY_FOR_DISPATCH",
+    "ASSIGNED_WAITING_ACCEPT",
+    "ACCEPTED_WAITING_ROUTE",
+    "IN_PROGRESS_COURIER",
+    "DELIVERED_COURIER",
+    "REDIRECT_PENDING_POINT_ACCEPT",
+    "REDIRECT_AWAITING_PICKUP",
+    "REDIRECT_RELEASED",
+    "COMPLAINT_IN_REVIEW",
+    "COMPLAINT_ACCEPTED",
+    "OFFLINE_PAYMENT_PENDING",
+    "OFFLINE_PAYMENT_CONFIRMED",
+    "OFFLINE_POINT_READY_TO_POST",
+    "OFFLINE_POINT_POSTED",
+    "MANUAL_ASSIGNMENT_DELIVERED",
+]
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate CSV files for seeding the poczta backend through REST API."
+        description="Generate scenario-based CSV files for seeding the poczta backend through contract endpoints."
     )
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_DIR, help="Output directory for CSV files.")
-    parser.add_argument("--seed", type=int, default=DEFAULT_SEED, help="Random seed for reproducible data.")
-    parser.add_argument("--users", type=int, default=10, help="Number of users to generate.")
-    parser.add_argument("--points", type=int, default=6, help="Number of points to generate.")
-    parser.add_argument("--shipments", type=int, default=12, help="Number of shipments to generate.")
+    parser.add_argument("--users", type=int, default=18, help="Approximate number of users to generate.")
+    parser.add_argument("--points", type=int, default=8, help="Number of points to generate.")
+    parser.add_argument("--shipments", type=int, default=24, help="Number of shipment scenarios to generate.")
     return parser.parse_args()
 
 
@@ -39,229 +133,355 @@ def write_csv(output_dir: Path, filename: str, headers: list[str], rows: list[di
         writer.writerows(rows)
 
 
-def build_pools() -> PersonPools:
-    return PersonPools(
-        first_names=[
-            "Roman",
-            "Anna",
-            "Jan",
-            "Maria",
-            "Piotr",
-            "Katarzyna",
-            "Oleksii",
-            "Iryna",
-            "Marek",
-            "Paulina",
-            "Michal",
-            "Natalia",
-        ],
-        last_names=[
-            "Nowak",
-            "Kowalski",
-            "Wisniewski",
-            "Wojcik",
-            "Krawczyk",
-            "Mazur",
-            "Lewandowski",
-            "Zielinski",
-            "Shevchenko",
-            "Koval",
-        ],
-        cities=[
-            "Warsaw",
-            "Krakow",
-            "Wroclaw",
-            "Poznan",
-            "Gdansk",
-            "Lodz",
-            "Kielce"
-        ],
-    )
+def cleanup_output_dir(output_dir: Path, expected_files: set[str]) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for path in output_dir.iterdir():
+        if path.is_file() and path.name not in expected_files:
+            try:
+                path.unlink()
+            except OSError:
+                pass
 
 
-def random_phone(rng: random.Random) -> str:
-    return "+48" + "".join(str(rng.randint(0, 9)) for _ in range(9))
+def build_users(target_count: int) -> list[dict[str, object]]:
+    effective_count = max(target_count, 12)
+    users: list[dict[str, object]] = list(ADMIN_TEMPLATES)
 
+    remaining = effective_count - len(users)
+    courier_count = min(len(COURIER_TEMPLATES), max(5, remaining // 3))
+    client_count = min(len(CLIENT_TEMPLATES), effective_count - len(users) - courier_count)
 
-def generate_users(rng: random.Random, pools: PersonPools, count: int) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for index in range(1, count + 1):
-        first_name = rng.choice(pools.first_names)
-        last_name = rng.choice(pools.last_names)
-        rows.append(
+    for service_city, first_name, last_name, email, phone in COURIER_TEMPLATES[:courier_count]:
+        users.append(
             {
+                "persona": "COURIER",
+                "serviceCity": service_city,
                 "firstName": first_name,
                 "lastName": last_name,
-                "email": f"{first_name.lower()}.{last_name.lower()}.{index}@example.com",
-                "phone": random_phone(rng),
+                "email": email,
+                "phone": phone,
             }
         )
-    return rows
+
+    for first_name, last_name, email, phone in CLIENT_TEMPLATES[:client_count]:
+        users.append(
+            {
+                "persona": "CLIENT",
+                "serviceCity": "",
+                "firstName": first_name,
+                "lastName": last_name,
+                "email": email,
+                "phone": phone,
+            }
+        )
+
+    return users
 
 
-def generate_points(rng: random.Random, pools: PersonPools, count: int) -> list[dict[str, object]]:
-    point_types = ["PARCEL_LOCKER", "PICKUP_POINT", "BRANCH"]
-    rows: list[dict[str, object]] = []
-    for index in range(1, count + 1):
-        city = rng.choice(pools.cities)
-        point_type = rng.choice(point_types)
+def build_points(target_count: int) -> list[dict[str, object]]:
+    effective_count = max(4, min(target_count, len(POINT_TEMPLATES)))
+    rows = []
+    for point_code, name, point_type, city, address, postal_code, phone, opening_hours in POINT_TEMPLATES[:effective_count]:
         rows.append(
             {
-                "name": f"{city} {point_type} {index:02d}",
+                "pointCode": point_code,
+                "name": name,
                 "type": point_type,
                 "city": city,
-                "address": f"Main Street {rng.randint(1, 99)}",
-                "postalCode": f"{rng.randint(10, 99)}-{rng.randint(100, 999)}",
+                "address": address,
+                "postalCode": postal_code,
+                "phone": phone,
+                "openingHours": opening_hours,
                 "active": "true",
             }
         )
     return rows
 
 
-def generate_shipments(rng: random.Random, count: int) -> list[dict[str, object]]:
-    delivery_types = ["COURIER", "LOCKER", "PICKUP_POINT"]
-    size_categories = ["S", "M", "L"]
-    rows: list[dict[str, object]] = []
-    for index in range(1, count + 1):
-        rows.append(
-            {
-                "trackingNumber": f"INPOST{index:04d}",
-                "status": "CREATED",
-                "senderName": f"Sender {index}",
-                "senderPhone": random_phone(rng),
-                "recipientName": f"Recipient {index}",
-                "recipientPhone": random_phone(rng),
-                "deliveryType": rng.choice(delivery_types),
-                "weight": str(Decimal(rng.randint(50, 500)) / Decimal("100")),
-                "sizeCategory": rng.choice(size_categories),
-            }
-        )
-    return rows
+def build_pickup_points_by_city(points: list[dict[str, object]]) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    for point in points:
+        city_code = point["city"].strip().upper()
+        if point["type"] != "PICKUP_POINT":
+            continue
+        result.setdefault(city_code, []).append(point["pointCode"])
+    return result
 
 
-def generate_payments(shipments: list[dict[str, object]]) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for shipment in shipments[: max(1, len(shipments) // 2)]:
-        rows.append(
-            {
-                "trackingNumber": shipment["trackingNumber"],
-                "amount": "29.99",
-                "method": "OFFLINE",
-                "confirmOffline": "true",
-            }
-        )
-    return rows
+def build_courier_emails_by_city(users: list[dict[str, object]]) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    for user in users:
+        if user["persona"] != "COURIER":
+            continue
+        city_code = str(user["serviceCity"]).strip().upper()
+        result.setdefault(city_code, []).append(str(user["email"]))
+    return result
 
 
-def generate_status_updates(shipments: list[dict[str, object]]) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for shipment in shipments[: max(1, len(shipments) // 3)]:
-        tracking_number = shipment["trackingNumber"]
-        rows.extend(
-            [
-                {"trackingNumber": tracking_number, "status": "PAID"},
-                {"trackingNumber": tracking_number, "status": "READY_FOR_POSTING"},
-                {"trackingNumber": tracking_number, "status": "POSTED"},
-            ]
-        )
-    return rows
+def shipment_key_for(scenario_name: str, index: int) -> str:
+    return f"{scenario_name.lower()}_{index + 1:03d}"
 
 
-def generate_tracking_events(shipments: list[dict[str, object]]) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for shipment in shipments[: max(1, len(shipments) // 3)]:
-        tracking_number = shipment["trackingNumber"]
-        rows.extend(
-            [
-                {
-                    "trackingNumber": tracking_number,
-                    "status": "IN_TRANSIT",
-                    "locationName": "Warsaw Sorting Center",
-                    "description": "Shipment scanned at sorting center",
-                },
-                {
-                    "trackingNumber": tracking_number,
-                    "status": "OUT_FOR_DELIVERY",
-                    "locationName": "Courier Depot",
-                    "description": "Shipment handed over to courier",
-                },
-                {
-                    "trackingNumber": tracking_number,
-                    "status": "DELIVERED",
-                    "locationName": "Recipient Address",
-                    "description": "Shipment delivered successfully",
-                },
-            ]
-        )
-    return rows
-
-
-def generate_complaints(
-    shipments: list[dict[str, object]],
+def build_dataset(
     users: list[dict[str, object]],
-) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for shipment, user in zip(shipments[: max(1, len(shipments) // 4)], users):
-        rows.append(
+    points: list[dict[str, object]],
+    shipment_count: int,
+) -> dict[str, list[dict[str, object]]]:
+    clients = [user for user in users if user["persona"] == "CLIENT"]
+    pickup_points_by_city = build_pickup_points_by_city(points)
+    courier_emails_by_city = build_courier_emails_by_city(users)
+    available_cities = [city for city in pickup_points_by_city if city in courier_emails_by_city]
+    if not available_cities:
+        available_cities = ["WARSAW"]
+
+    shipments: list[dict[str, object]] = []
+    payment_actions: list[dict[str, object]] = []
+    courier_assignments: list[dict[str, object]] = []
+    courier_task_actions: list[dict[str, object]] = []
+    point_actions: list[dict[str, object]] = []
+    complaints: list[dict[str, object]] = []
+
+    for index in range(max(8, shipment_count)):
+        scenario_name = SCENARIO_ROTATION[index % len(SCENARIO_ROTATION)]
+        client = clients[index % len(clients)]
+        city_code = available_cities[index % len(available_cities)]
+        pickup_code = pickup_points_by_city[city_code][0]
+        sender_address = SENDER_ADDRESSES[index % len(SENDER_ADDRESSES)]
+        recipient_name, recipient_phone = RECIPIENT_POOL[index % len(RECIPIENT_POOL)]
+        recipient_address = CITY_ADDRESSES[city_code][index % len(CITY_ADDRESSES[city_code])]
+        shipment_key = shipment_key_for(scenario_name, index)
+        task_date = f"2026-05-{9 + (index % 12):02d}"
+
+        delivery_type = "COURIER"
+        target_point_code = ""
+        payment_method = "ONLINE"
+        payment_action = "NONE"
+        manual_courier_email = ""
+
+        if scenario_name.startswith("OFFLINE_POINT") or scenario_name == "OFFLINE_PAYMENT_PENDING" or scenario_name == "OFFLINE_PAYMENT_CONFIRMED":
+            delivery_type = "PICKUP_POINT"
+            target_point_code = pickup_code
+            payment_method = "OFFLINE_AT_POINT"
+        elif "REDIRECT" in scenario_name:
+            target_point_code = pickup_code
+
+        if scenario_name in {
+            "READY_FOR_DISPATCH",
+            "ASSIGNED_WAITING_ACCEPT",
+            "ACCEPTED_WAITING_ROUTE",
+            "IN_PROGRESS_COURIER",
+            "DELIVERED_COURIER",
+            "REDIRECT_PENDING_POINT_ACCEPT",
+            "REDIRECT_AWAITING_PICKUP",
+            "REDIRECT_RELEASED",
+            "COMPLAINT_IN_REVIEW",
+            "COMPLAINT_ACCEPTED",
+            "MANUAL_ASSIGNMENT_DELIVERED",
+        }:
+            payment_action = "MARK_PAID"
+        elif scenario_name == "PAYMENT_FAILED":
+            payment_action = "FAIL"
+
+        if scenario_name == "MANUAL_ASSIGNMENT_DELIVERED":
+            manual_courier_email = courier_emails_by_city[city_code][0]
+
+        shipments.append(
             {
-                "trackingNumber": shipment["trackingNumber"],
-                "userEmail": user["email"],
-                "type": "DAMAGED",
-                "description": "Test complaint created from generated CSV data",
+                "shipmentKey": shipment_key,
+                "scenario": scenario_name,
+                "creatorEmail": client["email"],
+                "senderName": f"{client['firstName']} {client['lastName']}",
+                "senderPhone": client["phone"],
+                "senderAddress": sender_address,
+                "recipientName": recipient_name,
+                "recipientPhone": recipient_phone,
+                "recipientAddress": recipient_address,
+                "recipientCity": city_code,
+                "deliveryType": delivery_type,
+                "targetPointCode": target_point_code,
+                "weight": f"{0.7 + (index % 5) * 0.55:.2f}",
+                "sizeCategory": ["S", "M", "L"][index % 3],
+                "declaredValue": f"{49 + (index % 7) * 38.5:.2f}",
+                "fragile": "true" if index % 4 == 0 else "false",
+                "paymentMethod": payment_method,
+                "paymentAmount": f"{19.9 + (index % 6) * 3.5:.2f}",
             }
         )
-    return rows
+        payment_actions.append({"shipmentKey": shipment_key, "action": payment_action})
+
+        if scenario_name in {
+            "ASSIGNED_WAITING_ACCEPT",
+            "ACCEPTED_WAITING_ROUTE",
+            "IN_PROGRESS_COURIER",
+            "DELIVERED_COURIER",
+            "REDIRECT_PENDING_POINT_ACCEPT",
+            "REDIRECT_AWAITING_PICKUP",
+            "REDIRECT_RELEASED",
+            "COMPLAINT_IN_REVIEW",
+            "COMPLAINT_ACCEPTED",
+            "MANUAL_ASSIGNMENT_DELIVERED",
+        }:
+            courier_assignments.append(
+                {
+                    "shipmentKey": shipment_key,
+                    "assignmentMode": "MANUAL" if manual_courier_email else "AUTO",
+                    "courierEmail": manual_courier_email,
+                    "taskDate": task_date,
+                }
+            )
+
+        if scenario_name == "ACCEPTED_WAITING_ROUTE":
+            courier_task_actions.append(
+                {
+                    "shipmentKey": shipment_key,
+                    "action": "ACCEPT_ONLY",
+                    "redirectPointCode": "",
+                    "result": "",
+                    "note": "Courier accepted the task and will start later.",
+                    "deliveredAt": "",
+                }
+            )
+        elif scenario_name == "IN_PROGRESS_COURIER":
+            courier_task_actions.append(
+                {
+                    "shipmentKey": shipment_key,
+                    "action": "START_ONLY",
+                    "redirectPointCode": "",
+                    "result": "",
+                    "note": "Courier has started the route and is still in progress.",
+                    "deliveredAt": "",
+                }
+            )
+        elif scenario_name in {"DELIVERED_COURIER", "COMPLAINT_IN_REVIEW", "COMPLAINT_ACCEPTED", "MANUAL_ASSIGNMENT_DELIVERED"}:
+            courier_task_actions.append(
+                {
+                    "shipmentKey": shipment_key,
+                    "action": "COMPLETE_SUCCESS",
+                    "redirectPointCode": "",
+                    "result": "",
+                    "note": "Delivered successfully during seeded scenario.",
+                    "deliveredAt": f"2026-05-{9 + (index % 12):02d}T1{index % 8}:30:00",
+                }
+            )
+        elif scenario_name in {"REDIRECT_PENDING_POINT_ACCEPT", "REDIRECT_AWAITING_PICKUP", "REDIRECT_RELEASED"}:
+            courier_task_actions.append(
+                {
+                    "shipmentKey": shipment_key,
+                    "action": "FAIL_TO_PICKUP",
+                    "redirectPointCode": pickup_code,
+                    "result": "RECIPIENT_ABSENT",
+                    "note": "Recipient unavailable during seeded attempt.",
+                    "deliveredAt": "",
+                }
+            )
+
+        if scenario_name == "REDIRECT_AWAITING_PICKUP":
+            point_actions.append({"shipmentKey": shipment_key, "pointCode": pickup_code, "action": "ACCEPT"})
+        elif scenario_name == "REDIRECT_RELEASED":
+            point_actions.extend(
+                [
+                    {"shipmentKey": shipment_key, "pointCode": pickup_code, "action": "ACCEPT"},
+                    {"shipmentKey": shipment_key, "pointCode": pickup_code, "action": "RELEASE"},
+                ]
+            )
+
+        if scenario_name == "COMPLAINT_IN_REVIEW":
+            complaints.append(
+                {
+                    "complaintKey": f"cmp_review_{index + 1:03d}",
+                    "shipmentKey": shipment_key,
+                    "userEmail": client["email"],
+                    "type": "DELAYED",
+                    "description": "Shipment was delivered, but client requests an active review.",
+                    "adminAction": "START_REVIEW_ONLY",
+                    "resolutionNote": "Case is under review.",
+                }
+            )
+        elif scenario_name == "COMPLAINT_ACCEPTED":
+            complaints.append(
+                {
+                    "complaintKey": f"cmp_accept_{index + 1:03d}",
+                    "shipmentKey": shipment_key,
+                    "userEmail": client["email"],
+                    "type": "DAMAGED",
+                    "description": "Client reported damage after successful delivery.",
+                    "adminAction": "ACCEPT_AND_CLOSE",
+                    "resolutionNote": "Damage confirmed. Compensation approved.",
+                }
+            )
+
+    return {
+        "users.csv": users,
+        "points.csv": points,
+        "shipments.csv": shipments,
+        "payment_actions.csv": payment_actions,
+        "courier_assignments.csv": courier_assignments,
+        "courier_task_actions.csv": courier_task_actions,
+        "point_actions.csv": point_actions,
+        "complaints.csv": complaints,
+    }
 
 
 def write_summary(output_dir: Path, tables: dict[str, list[dict[str, object]]]) -> None:
-    lines = ["Generated API CSV files:"]
+    lines = [
+        "Generated scenario seed CSV files:",
+        "- dataset goal: realistic contract-driven operational flows on a clean database",
+    ]
     for filename, rows in sorted(tables.items()):
         lines.append(f"- {filename}: {len(rows)} rows")
+    lines.extend(
+        [
+            "",
+            "Included operational stories:",
+            "- online payment pending and failed shipments",
+            "- paid shipments waiting for dispatch or courier assignment",
+            "- courier tasks in assigned, accepted, in-progress, delivered and failed states",
+            "- redirected shipments waiting for point acceptance or client pickup",
+            "- offline point payment cases left pending for manual testing",
+            "- complaints left in review and complaints accepted and closed",
+        ]
+    )
     (output_dir / "_summary.txt").write_text("\n".join(lines), encoding="utf-8")
 
 
 def main() -> None:
     args = parse_args()
-    rng = random.Random(args.seed)
-    pools = build_pools()
-
-    users = generate_users(rng, pools, args.users)
-    points = generate_points(rng, pools, args.points)
-    shipments = generate_shipments(rng, args.shipments)
-    payments = generate_payments(shipments)
-    status_updates = generate_status_updates(shipments)
-    tracking_events = generate_tracking_events(shipments)
-    complaints = generate_complaints(shipments, users)
-
-    tables: dict[str, list[dict[str, object]]] = {
-        "users.csv": users,
-        "points.csv": points,
-        "shipments.csv": shipments,
-        "payments.csv": payments,
-        "shipment_status_updates.csv": status_updates,
-        "tracking_events.csv": tracking_events,
-        "complaints.csv": complaints,
-    }
+    users = build_users(args.users)
+    points = build_points(args.points)
+    tables = build_dataset(users, points, args.shipments)
 
     headers = {
-        "users.csv": ["firstName", "lastName", "email", "phone"],
-        "points.csv": ["name", "type", "city", "address", "postalCode", "active"],
+        "users.csv": ["persona", "serviceCity", "firstName", "lastName", "email", "phone"],
+        "points.csv": ["pointCode", "name", "type", "city", "address", "postalCode", "phone", "openingHours", "active"],
         "shipments.csv": [
-            "trackingNumber",
-            "status",
+            "shipmentKey",
+            "scenario",
+            "creatorEmail",
             "senderName",
             "senderPhone",
+            "senderAddress",
             "recipientName",
             "recipientPhone",
+            "recipientAddress",
+            "recipientCity",
             "deliveryType",
+            "targetPointCode",
             "weight",
             "sizeCategory",
+            "declaredValue",
+            "fragile",
+            "paymentMethod",
+            "paymentAmount",
         ],
-        "payments.csv": ["trackingNumber", "amount", "method", "confirmOffline"],
-        "shipment_status_updates.csv": ["trackingNumber", "status"],
-        "tracking_events.csv": ["trackingNumber", "status", "locationName", "description"],
-        "complaints.csv": ["trackingNumber", "userEmail", "type", "description"],
+        "payment_actions.csv": ["shipmentKey", "action"],
+        "courier_assignments.csv": ["shipmentKey", "assignmentMode", "courierEmail", "taskDate"],
+        "courier_task_actions.csv": ["shipmentKey", "action", "redirectPointCode", "result", "note", "deliveredAt"],
+        "point_actions.csv": ["shipmentKey", "pointCode", "action"],
+        "complaints.csv": ["complaintKey", "shipmentKey", "userEmail", "type", "description", "adminAction", "resolutionNote"],
     }
+
+    expected_files = set(tables.keys()) | {"_summary.txt"}
+    cleanup_output_dir(args.output, expected_files)
 
     for filename, rows in tables.items():
         write_csv(args.output, filename, headers[filename], rows)

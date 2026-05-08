@@ -1,92 +1,142 @@
 # API Seeding
 
-## Goal
+## Cel
 
-These scripts generate test CSV files and load them into the backend through REST API.
+Skrypty seedujace:
+- generuja CSV z danymi testowymi
+- laduja dane do backendu przez prawdziwe endpointy REST
 
-This is useful for:
-- filling Oracle with test data
-- smoke-testing the backend through real endpoints
-- preparing demo data before classes
+To nie jest import bezposrednio do bazy. Seeder przechodzi przez contract API i dzieki temu sprawdza realny flow backendu.
 
-## Files
+## Pliki
 
 - `scripts/generate_api_csvs.py`
 - `scripts/load_api_csvs.py`
 
-## What Gets Generated
+## Co generuje generator
 
-The generator creates:
+CSV sa zapisywane do:
+- `scripts/generated_api_csv/`
+
+Generator tworzy:
 - `users.csv`
 - `points.csv`
 - `shipments.csv`
-- `payments.csv`
-- `shipment_status_updates.csv`
-- `tracking_events.csv`
+- `payment_actions.csv`
+- `courier_assignments.csv`
+- `courier_task_actions.csv`
+- `point_actions.csv`
 - `complaints.csv`
+- `_summary.txt`
 
-All files are written by default to:
-- `scripts/generated_api_csv`
+## Warunki uruchomienia
 
-## How To Generate CSV
+Przed loadem musi dzialac:
+- Oracle w Dockerze
+- backend na `http://localhost:8081`
 
-From repo root:
+## Bardzo wazna zasada
+
+Jesli chcesz miec czyste dane testowe, najpierw wyczysc baze:
 
 ```powershell
-python .\scripts\generate_api_csvs.py
+cd H:\poczta
+docker compose down -v
+docker compose up -d oracle-db
 ```
 
-Example with custom counts:
+Poczekaj na:
 
-```powershell
-python .\scripts\generate_api_csvs.py --users 15 --points 8 --shipments 20
+```text
+DATABASE IS READY TO USE!
 ```
 
-## How To Load Data Through API
+Potem uruchom backend i dopiero wtedy generator + loader.
 
-Make sure:
-- Oracle Docker is running
-- backend is running on `http://localhost:8081`
+Powod:
+- users i points sa reuzywane
+- shipmenty i akcje biznesowe sa tworzone na nowo
+- wielokrotne odpalanie loadera bez resetu daje dodatkowe rekordy
 
-Then run:
+## Generowanie CSV
+
+Domyslny rozsadny zestaw:
 
 ```powershell
+cd H:\poczta
+python .\scripts\generate_api_csvs.py --users 18 --points 8 --shipments 24
+```
+
+Przyklad wiekszego zestawu:
+
+```powershell
+python .\scripts\generate_api_csvs.py --users 24 --points 8 --shipments 40
+```
+
+## Ladowanie danych
+
+```powershell
+cd H:\poczta
 python .\scripts\load_api_csvs.py
 ```
 
-Custom base URL:
+Mozna tez podac inny base URL:
 
 ```powershell
 python .\scripts\load_api_csvs.py --base-url http://localhost:8081
 ```
 
-## Loading Order
+## Kolejnosc ladowania
 
-The loader sends data in this order:
+Loader pracuje w tej kolejnosci:
 
 1. users
 2. points
 3. shipments
-4. payments
-5. shipment status updates
-6. tracking events
-7. complaints
+4. payment actions
+5. courier assignments
+6. courier task actions
+7. point actions
+8. complaints
 
-This order matches the dependencies between entities.
+## Jakie scenariusze seed sa teraz pokryte
 
-## Notes
+Aktualny seed buduje m.in.:
+- payment `PENDING`
+- payment `FAILED`
+- shipment `READY_FOR_POSTING`
+- shipmenty czekajace na assign kuriera
+- task kuriera w `ASSIGNED`
+- task kuriera w `ACCEPTED`
+- task kuriera w `IN_PROGRESS`
+- task kuriera zakonczony sukcesem
+- nieudana proba doreczenia i redirect do point
+- complaint `IN_REVIEW`
+- complaint `CLOSED`
+- offline point payment cases jako `OFFLINE_PENDING`
 
-- The loader reuses existing users by `email`
-- The loader reuses existing shipments by `trackingNumber`
-- The loader reuses existing points by a composite key
-- Payments, tracking events and complaints are treated as new actions and are sent each time
+## Potwierdzenie
 
-## Practical Demo Flow
+Ten flow zostal sprawdzony lokalnie na czystej bazie:
 
-1. Generate CSV
-2. Start backend
-3. Load CSV through API
-4. Show data in:
-   - Postman
-   - Swagger
-   - DBeaver
+1. reset Oracle przez `docker compose down -v`
+2. start Oracle
+3. start backendu
+4. generate CSV
+5. load przez API
+
+Loader zakonczyl sie sukcesem dla zestawu:
+- `users: 18`
+- `points: 8`
+- `shipments: 24`
+- `payment_actions: 24`
+- `courier_assignments: 14`
+- `courier_task_actions: 12`
+- `point_actions: 3`
+- `complaints: 2`
+
+## Ograniczenie, o ktorym trzeba wiedziec
+
+Offline point payment cases sa obecnie zostawiane w seedzie jako pending do recznego testowania. Nie sa automatycznie domykane przez loader.
+
+To jest swiadoma decyzja, zeby seed byl stabilny i nie przewracal calego importu na tym jednym rogu domenowym.

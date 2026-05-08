@@ -51,7 +51,7 @@ public class PaymentService {
 
         String method = request.method().trim().toUpperCase();
         PaymentStatus initialStatus = switch (method) {
-            case "OFFLINE" -> PaymentStatus.OFFLINE_PENDING;
+            case "OFFLINE", "OFFLINE_AT_POINT" -> PaymentStatus.OFFLINE_PENDING;
             case "ONLINE" -> PaymentStatus.PENDING;
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported payment method");
         };

@@ -26,7 +26,12 @@ public class Complaint {
     @Lob
     private String description;
 
+    @Lob
+    private String resolutionNote;
+
     private LocalDateTime submittedAt;
+    private LocalDateTime reviewedAt;
+    private LocalDateTime closedAt;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
@@ -79,12 +84,36 @@ public class Complaint {
         this.description = description;
     }
 
+    public String getResolutionNote() {
+        return resolutionNote;
+    }
+
+    public void setResolutionNote(String resolutionNote) {
+        this.resolutionNote = resolutionNote;
+    }
+
     public LocalDateTime getSubmittedAt() {
         return submittedAt;
     }
 
     public void setSubmittedAt(LocalDateTime submittedAt) {
         this.submittedAt = submittedAt;
+    }
+
+    public LocalDateTime getReviewedAt() {
+        return reviewedAt;
+    }
+
+    public void setReviewedAt(LocalDateTime reviewedAt) {
+        this.reviewedAt = reviewedAt;
+    }
+
+    public LocalDateTime getClosedAt() {
+        return closedAt;
+    }
+
+    public void setClosedAt(LocalDateTime closedAt) {
+        this.closedAt = closedAt;
     }
 
     public User getUser() {

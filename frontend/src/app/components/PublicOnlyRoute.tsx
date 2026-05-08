@@ -9,8 +9,12 @@ interface PublicOnlyRouteProps {
 
 export function PublicOnlyRoute({ children }: PublicOnlyRouteProps) {
   const {
-    state: { currentUser },
+    state: { currentUser, isLoading },
   } = useAppStateContext();
+
+  if (isLoading) {
+    return <div className="min-h-screen bg-background" />;
+  }
 
   if (currentUser) {
     return <Navigate to={getDashboardPath(currentUser.role)} replace />;

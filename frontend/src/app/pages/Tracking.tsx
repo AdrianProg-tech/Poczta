@@ -1,48 +1,73 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { Package, Search, MapPin, Calendar } from 'lucide-react';
+import { Calendar, MapPin, Package, Search } from 'lucide-react';
+import { formatDate, formatDateTime, getPublicTracking, type PublicTrackingResponse } from '../api';
 import { StatusBadge } from '../components/StatusBadge';
-import { useAppStateContext } from '../state/AppStateContext';
+
+const defaultTrackingNumber = 'PWBAC1DF039PL';
 
 export default function Tracking() {
-  const {
-    state: { shipments },
-  } = useAppStateContext();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialQuery = searchParams.get('number') ?? shipments[0]?.id ?? '';
-  const [trackingNumber, setTrackingNumber] = useState(initialQuery);
-  const [searchedNumber, setSearchedNumber] = useState(initialQuery);
+  const initialValue = searchParams.get('number') ?? defaultTrackingNumber;
+  const [trackingNumber, setTrackingNumber] = useState(initialValue);
+  const [trackingData, setTrackingData] = useState<PublicTrackingResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const queryNumber = searchParams.get('number');
-    if (queryNumber) {
-      setTrackingNumber(queryNumber);
-      setSearchedNumber(queryNumber);
-    }
-  }, [searchParams]);
+    const queryNumber = searchParams.get('number') ?? defaultTrackingNumber;
+    setTrackingNumber(queryNumber);
 
-  const trackingData = useMemo(
-    () => shipments.find((shipment) => shipment.id === searchedNumber),
-    [shipments, searchedNumber],
-  );
+    let active = true;
+
+    async function loadTracking() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const data = await getPublicTracking(queryNumber);
+        if (active) {
+          setTrackingData(data);
+        }
+      } catch (requestError) {
+        if (active) {
+          setTrackingData(null);
+          setError(requestError instanceof Error ? requestError.message : 'Nie znaleziono przesyłki.');
+        }
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadTracking();
+
+    return () => {
+      active = false;
+    };
+  }, [searchParams]);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-primary text-white border-b border-primary">
+      <header className="border-b border-primary bg-primary text-white">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-accent rounded-lg flex items-center justify-center">
-                <Package className="w-6 h-6 text-white" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
+                <Package className="h-6 w-6 text-white" />
               </div>
               <span className="text-2xl">PingwinPost</span>
             </Link>
-            
-            <nav className="hidden md:flex items-center gap-6">
-              <Link to="/tracking" className="hover:text-accent transition-colors">Śledź przesyłkę</Link>
-              <Link to="/points" className="hover:text-accent transition-colors">Punkty odbioru</Link>
-              <Link to="/login" className="px-4 py-2 bg-accent rounded-lg hover:bg-accent/90 transition-colors">
+
+            <nav className="hidden items-center gap-6 md:flex">
+              <Link to="/tracking" className="transition-colors hover:text-accent">
+                Śledź przesyłkę
+              </Link>
+              <Link to="/points" className="transition-colors hover:text-accent">
+                Punkty odbioru
+              </Link>
+              <Link to="/login" className="rounded-lg bg-accent px-4 py-2 transition-colors hover:bg-accent/90">
                 Zaloguj się
               </Link>
             </nav>
@@ -50,93 +75,89 @@ export default function Tracking() {
         </div>
       </header>
 
-      {/* Content */}
       <div className="container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl mb-8">Śledź przesyłkę</h1>
+        <div className="mx-auto max-w-4xl">
+          <h1 className="mb-8 text-3xl">Śledź przesyłkę</h1>
 
-          {/* Search Form */}
-          <div className="bg-card rounded-xl p-6 shadow-sm border border-border mb-8">
+          <div className="mb-8 rounded-xl border border-border bg-card p-6 shadow-sm">
             <div className="flex gap-3">
               <input
                 type="text"
-                placeholder="Wpisz numer przesyłki (np. PW123456789PL)"
+                placeholder="Wpisz numer przesyłki"
                 value={trackingNumber}
                 onChange={(event) => setTrackingNumber(event.target.value.toUpperCase())}
-                className="flex-1 px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-input-background"
+                className="flex-1 rounded-lg border border-border bg-input-background px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent"
               />
               <button
                 type="button"
-                onClick={() => {
-                  setSearchedNumber(trackingNumber);
-                  setSearchParams(trackingNumber ? { number: trackingNumber } : {});
-                }}
-                className="px-6 py-3 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors flex items-center gap-2"
+                onClick={() => setSearchParams(trackingNumber ? { number: trackingNumber } : {})}
+                className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-white transition-colors hover:bg-accent/90"
               >
-                <Search className="w-5 h-5" />
-                <span className="hidden sm:inline">Śledź</span>
+                <Search className="h-5 w-5" />
+                <span className="hidden sm:inline">Szukaj</span>
               </button>
             </div>
           </div>
 
-          {/* Tracking Info */}
+          {isLoading ? <div className="rounded-xl bg-card p-6">Ładowanie historii przesyłki...</div> : null}
+          {error ? <div className="rounded-xl bg-destructive/10 p-6 text-destructive">{error}</div> : null}
+
           {trackingData ? (
-            <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden mb-6">
-              <div className="p-6 border-b border-border">
-                <div className="flex items-center justify-between mb-4">
+            <div className="mb-6 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+              <div className="border-b border-border p-6">
+                <div className="mb-4 flex items-center justify-between gap-4">
                   <div>
-                    <div className="text-sm text-muted-foreground mb-1">Numer przesyłki</div>
-                    <div className="text-xl">{trackingData.id}</div>
+                    <div className="mb-1 text-sm text-muted-foreground">Numer przesyłki</div>
+                    <div className="text-xl">{trackingData.trackingNumber}</div>
                   </div>
-                  <StatusBadge status={trackingData.status} />
+                  <StatusBadge status={trackingData.currentStatus} />
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid gap-6 md:grid-cols-2">
                   <div>
-                    <div className="text-sm text-muted-foreground mb-2">Nadawca</div>
+                    <div className="mb-2 text-sm text-muted-foreground">Miejsce docelowe</div>
                     <div className="flex items-start gap-2">
-                      <MapPin className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <div>{trackingData.sender.address}</div>
+                      <MapPin className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground" />
+                      <div>{trackingData.destinationSummary}</div>
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-muted-foreground mb-2">Odbiorca</div>
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                      <div>{trackingData.recipient.address}</div>
-                    </div>
+                    <div className="mb-2 text-sm text-muted-foreground">Typ dostawy</div>
+                    <div>{trackingData.deliveryType === 'COURIER' ? 'Kurier' : trackingData.deliveryType}</div>
                   </div>
                 </div>
 
-                <div className="mt-6 p-4 bg-accent/10 rounded-lg flex items-center gap-3">
-                  <Calendar className="w-5 h-5 text-accent" />
+                <div className="mt-6 flex items-center gap-3 rounded-lg bg-accent/10 p-4">
+                  <Calendar className="h-5 w-5 text-accent" />
                   <div>
-                    <div className="text-sm text-muted-foreground">Przewidywana dostawa</div>
-                    <div>{trackingData.estimatedDelivery}</div>
+                    <div className="text-sm text-muted-foreground">Szacowana dostawa</div>
+                    <div>{formatDate(trackingData.estimatedDeliveryDate)}</div>
                   </div>
                 </div>
               </div>
 
               <div className="p-6">
-                <h3 className="text-lg mb-6">Historia przesyłki</h3>
+                <h3 className="mb-6 text-lg">Historia zdarzeń</h3>
                 <div className="space-y-6">
+                  {trackingData.history.length === 0 ? (
+                    <div className="text-muted-foreground">Brak zdarzeń trackingowych dla tej przesyłki.</div>
+                  ) : null}
+
                   {trackingData.history.map((item, index) => (
-                    <div key={`${item.date}-${item.status}`} className="flex gap-4">
+                    <div key={`${item.eventTime}-${item.status}-${index}`} className="flex gap-4">
                       <div className="flex flex-col items-center">
-                        <div className={`w-3 h-3 rounded-full ${index === 0 ? 'bg-accent' : 'bg-muted'}`}></div>
-                        {index !== trackingData.history.length - 1 ? (
-                          <div className="w-0.5 h-full bg-border mt-2"></div>
-                        ) : null}
+                        <div className={`h-3 w-3 rounded-full ${index === 0 ? 'bg-accent' : 'bg-muted'}`} />
+                        {index !== trackingData.history.length - 1 ? <div className="mt-2 h-full w-0.5 bg-border" /> : null}
                       </div>
                       <div className="flex-1 pb-6">
-                        <div className="flex items-center gap-3 mb-1">
+                        <div className="mb-1 flex items-center gap-3">
                           <StatusBadge status={item.status} />
-                          <span className="text-sm text-muted-foreground">{item.date}</span>
+                          <span className="text-sm text-muted-foreground">{formatDateTime(item.eventTime)}</span>
                         </div>
                         <div className="mb-1">{item.description}</div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
-                          {item.location}
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
+                          {item.locationName}
                         </div>
                       </div>
                     </div>
@@ -144,38 +165,7 @@ export default function Tracking() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="bg-card rounded-xl border border-border p-6 mb-6">
-              <h3 className="text-lg mb-2">Nie znaleziono przesyłki</h3>
-              <p className="text-muted-foreground">
-                Sprawdź numer przesyłki i spróbuj ponownie. Przykładowe numery:
-                {' '}
-                {shipments.slice(0, 3).map((shipment) => shipment.id).join(', ')}.
-              </p>
-            </div>
-          )}
-
-          {/* Help Section */}
-          <div className="bg-secondary p-6 rounded-xl">
-            <h3 className="text-lg mb-3">Potrzebujesz pomocy?</h3>
-            <p className="text-muted-foreground mb-4">
-              Jeśli masz pytania dotyczące swojej przesyłki, skontaktuj się z naszym działem obsługi klienta.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                to="/login"
-                className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors"
-              >
-                Zgłoś problem
-              </Link>
-              <Link
-                to="/info/contact"
-                className="px-4 py-2 bg-card border border-border rounded-lg hover:bg-muted transition-colors"
-              >
-                Kontakt
-              </Link>
-            </div>
-          </div>
+          ) : null}
         </div>
       </div>
     </div>

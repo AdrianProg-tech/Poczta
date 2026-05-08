@@ -1,216 +1,155 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useReducer,
-  type ReactNode,
-} from 'react';
-import { initialAppState } from '../mock-data';
-import type {
-  AppState,
-  AppUser,
-  Claim,
-  Shipment,
-  ShipmentDraft,
-  UserRole,
-} from '../types';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { getCurrentUser, getPublicPoints, userFromAuthResponse } from '../api';
+import type { AppState, AppUser, UserRole } from '../types';
 
-const STORAGE_KEY = 'pingwinpost-app-state-v1';
+const STORAGE_KEY = 'pingwinpost-live-session-v1';
 
-type AppAction =
-  | { type: 'LOGIN'; payload: { user: AppUser } }
-  | { type: 'LOGOUT' }
-  | { type: 'CREATE_SHIPMENT'; payload: { shipment: Shipment } }
-  | { type: 'CREATE_CLAIM'; payload: { claim: Claim } };
+interface StoredSession {
+  role: UserRole;
+  email?: string;
+  pointCode?: string;
+}
 
 interface AppStateContextValue {
   state: AppState;
-  loginAsRole: (role: UserRole, email?: string) => void;
+  loginAsRole: (role: UserRole, identifier?: string) => Promise<void>;
   logout: () => void;
-  createShipment: (draft: ShipmentDraft) => string;
-  createClaim: (shipmentId: string, subject: string, description: string) => void;
 }
 
 const AppStateContext = createContext<AppStateContextValue | null>(null);
 
-function appReducer(state: AppState, action: AppAction): AppState {
-  switch (action.type) {
-    case 'LOGIN':
-      return {
-        ...state,
-        currentUser: action.payload.user,
-      };
-    case 'LOGOUT':
-      return {
-        ...state,
-        currentUser: null,
-      };
-    case 'CREATE_SHIPMENT':
-      return {
-        ...state,
-        shipments: [action.payload.shipment, ...state.shipments],
-      };
-    case 'CREATE_CLAIM':
-      return {
-        ...state,
-        claims: [action.payload.claim, ...state.claims],
-      };
-    default:
-      return state;
-  }
-}
-
-function loadInitialState() {
+function readStoredSession(): StoredSession | null {
   if (typeof window === 'undefined') {
-    return initialAppState;
+    return null;
   }
 
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (!stored) {
-    return initialAppState;
+  const raw = window.sessionStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    return null;
   }
 
   try {
-    return JSON.parse(stored) as AppState;
+    return JSON.parse(raw) as StoredSession;
   } catch {
-    return initialAppState;
+    window.sessionStorage.removeItem(STORAGE_KEY);
+    return null;
   }
 }
 
-function formatDate(offsetDays = 0) {
-  const date = new Date();
-  date.setDate(date.getDate() + offsetDays);
-  return new Intl.DateTimeFormat('pl-PL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date);
+function persistStoredSession(session: StoredSession | null) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (!session) {
+    window.sessionStorage.removeItem(STORAGE_KEY);
+    return;
+  }
+
+  window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session));
 }
 
-function formatDateTime() {
-  return new Intl.DateTimeFormat('pl-PL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date());
+async function buildPointUser(pointCode: string): Promise<AppUser> {
+  const points = await getPublicPoints();
+  const point = points.find((item) => item.pointCode === pointCode);
+
+  if (!point) {
+    throw new Error('Wybrany punkt nie istnieje.');
+  }
+
+  return {
+    role: 'point',
+    name: point.name,
+    pointCode: point.pointCode,
+    location: `${point.city}, ${point.address}`,
+  };
 }
 
-function generateShipmentId() {
-  const suffix = String(Date.now()).slice(-9);
-  return `PW${suffix}PL`;
-}
+async function resolveUserFromSession(session: StoredSession): Promise<AppUser> {
+  if (session.role === 'point') {
+    if (!session.pointCode) {
+      throw new Error('Brakuje kodu punktu.');
+    }
 
-function generateClaimId(existingClaims: Claim[]) {
-  const nextNumber = existingClaims.length + 1;
-  return `REK${String(nextNumber).padStart(3, '0')}`;
+    return buildPointUser(session.pointCode);
+  }
+
+  if (!session.email) {
+    throw new Error('Brakuje adresu e-mail.');
+  }
+
+  const authUser = await getCurrentUser(session.email);
+  return userFromAuthResponse(session.role, authUser);
 }
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(appReducer, undefined, loadInitialState);
+  const [state, setState] = useState<AppState>({
+    currentUser: null,
+    isLoading: true,
+  });
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    let active = true;
 
-  const loginAsRole = useCallback(
-    (role: UserRole, email?: string) => {
-      const fallbackUser = initialAppState.users.find((user) => user.role === role);
-      const matchedUser =
-        state.users.find((user) => user.role === role && (!email || user.email === email)) ?? fallbackUser;
+    async function restoreSession() {
+      const storedSession = readStoredSession();
 
-      if (!matchedUser) {
+      if (!storedSession) {
+        if (active) {
+          setState({ currentUser: null, isLoading: false });
+        }
         return;
       }
 
-      dispatch({
-        type: 'LOGIN',
-        payload: { user: matchedUser },
-      });
-    },
-    [state.users],
-  );
+      try {
+        const currentUser = await resolveUserFromSession(storedSession);
+        if (active) {
+          setState({ currentUser, isLoading: false });
+        }
+      } catch {
+        persistStoredSession(null);
+        if (active) {
+          setState({ currentUser: null, isLoading: false });
+        }
+      }
+    }
 
-  const logout = useCallback(() => {
-    dispatch({ type: 'LOGOUT' });
+    void restoreSession();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const createShipment = useCallback(
-    (draft: ShipmentDraft) => {
-      const currentUser = state.currentUser ?? initialAppState.users[0];
-      const shipmentId = generateShipmentId();
-      const createdAt = formatDateTime();
-      const paymentStatus =
-        draft.paymentMethod === 'Płatność w punkcie' ? 'Offline — do potwierdzenia' : 'Opłacona';
-      const shipment: Shipment = {
-        id: shipmentId,
-        clientId: currentUser.id,
-        pointId: 'point-warsaw',
-        assignedCourierId: 'courier-marek',
-        status: paymentStatus === 'Opłacona' ? 'Utworzona' : 'Nadana',
-        created: createdAt,
-        estimatedDelivery: formatDate(2),
-        sender: draft.sender,
-        recipient: draft.recipient,
-        package: draft.package,
-        payment: {
-          status: paymentStatus,
-          method: draft.paymentMethod,
-          amount: draft.paymentMethod === 'Płatność w punkcie' ? '26.99 PLN' : '24.99 PLN',
-          date: createdAt,
-        },
-        history: [
-          {
-            date: createdAt,
-            location: 'Online',
-            status: 'Utworzona',
-            description: 'Przesyłka utworzona',
-          },
-        ],
-      };
+  const loginAsRole = useCallback(async (role: UserRole, identifier?: string) => {
+    const session: StoredSession =
+      role === 'point'
+        ? {
+            role,
+            pointCode: identifier,
+          }
+        : {
+            role,
+            email: identifier,
+          };
 
-      dispatch({
-        type: 'CREATE_SHIPMENT',
-        payload: { shipment },
-      });
+    const currentUser = await resolveUserFromSession(session);
+    persistStoredSession(session);
+    setState({ currentUser, isLoading: false });
+  }, []);
 
-      return shipmentId;
-    },
-    [state.currentUser],
-  );
-
-  const createClaim = useCallback(
-    (shipmentId: string, subject: string, description: string) => {
-      const claim: Claim = {
-        id: generateClaimId(state.claims),
-        shipmentId,
-        clientId: state.currentUser?.id ?? 'client-jan',
-        subject,
-        description,
-        status: 'Nowa',
-        created: formatDateTime(),
-      };
-
-      dispatch({
-        type: 'CREATE_CLAIM',
-        payload: { claim },
-      });
-    },
-    [state.claims, state.currentUser],
-  );
+  const logout = useCallback(() => {
+    persistStoredSession(null);
+    setState({ currentUser: null, isLoading: false });
+  }, []);
 
   const value = useMemo(
     () => ({
       state,
       loginAsRole,
       logout,
-      createShipment,
-      createClaim,
     }),
-    [state, loginAsRole, logout, createShipment, createClaim],
+    [loginAsRole, logout, state],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

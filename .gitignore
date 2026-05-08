@@ -15,5 +15,9 @@ frontend/.npm/
 # Backend
 backend/**/target/
 
+# Python scripts / generated seed data
+scripts/__pycache__/
+scripts/generated_api_csv/
+
 # Logs
 *.log

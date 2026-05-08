@@ -10,4 +10,10 @@ import java.util.UUID;
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     List<Payment> findAllByShipment_Id(UUID shipmentId);
+
+    List<Payment> findAllByShipment_IdOrderByCreatedAtDesc(UUID shipmentId);
+
+    List<Payment> findAllByShipment_Creator_IdOrderByCreatedAtDesc(UUID creatorId);
+
+    List<Payment> findAllByOrderByCreatedAtDesc();
 }

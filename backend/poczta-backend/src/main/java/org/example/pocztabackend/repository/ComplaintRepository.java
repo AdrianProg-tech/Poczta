@@ -12,4 +12,8 @@ public interface ComplaintRepository extends JpaRepository<Complaint, UUID> {
     List<Complaint> findAllByShipment_Id(UUID shipmentId);
 
     List<Complaint> findAllByUser_Id(UUID userId);
+
+    List<Complaint> findAllByUser_IdOrderBySubmittedAtDesc(UUID userId);
+
+    List<Complaint> findAllByOrderBySubmittedAtDesc();
 }

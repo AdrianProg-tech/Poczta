@@ -11,9 +11,13 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) {
   const {
-    state: { currentUser },
+    state: { currentUser, isLoading },
   } = useAppStateContext();
   const location = useLocation();
+
+  if (isLoading) {
+    return <div className="min-h-screen bg-background" />;
+  }
 
   if (!currentUser) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
