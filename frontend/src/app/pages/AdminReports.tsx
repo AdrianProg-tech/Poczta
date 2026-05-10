@@ -1,16 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getAdminComplaints, getAdminPayments, getOpsDashboardSummary, getPublicPoints } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
+import { useAppStateContext } from '../state/AppStateContext';
 
 export default function AdminReports() {
+  const {
+    state: { currentUser },
+  } = useAppStateContext();
   const [cards, setCards] = useState<Array<{ label: string; value: number }>>([]);
 
   const loadReports = useCallback(async () => {
+    if (!currentUser?.email) {
+      setCards([]);
+      return;
+    }
+
     const [summary, points, payments, complaints] = await Promise.all([
-      getOpsDashboardSummary(),
+      getOpsDashboardSummary(currentUser.email),
       getPublicPoints(),
-      getAdminPayments(),
-      getAdminComplaints(),
+      getAdminPayments(currentUser.email),
+      getAdminComplaints(currentUser.email),
     ]);
 
     setCards([
@@ -21,7 +30,7 @@ export default function AdminReports() {
       { label: 'Płatności', value: payments.length },
       { label: 'Reklamacje', value: complaints.length },
     ]);
-  }, []);
+  }, [currentUser?.email]);
 
   useEffect(() => {
     void loadReports();

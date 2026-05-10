@@ -1,7 +1,5 @@
 package org.example.pocztabackend.service;
 
-import org.example.pocztabackend.dto.AdminAssignCourierRequest;
-import org.example.pocztabackend.dto.AdminAssignCourierResponse;
 import org.example.pocztabackend.dto.CompleteDeliveryRequest;
 import org.example.pocztabackend.dto.CourierTaskDetailsResponse;
 import org.example.pocztabackend.dto.CourierTaskListItemResponse;
@@ -21,7 +19,6 @@ import org.example.pocztabackend.repository.DeliveryAttemptRepository;
 import org.example.pocztabackend.repository.PointRepository;
 import org.example.pocztabackend.repository.ShipmentRepository;
 import org.example.pocztabackend.repository.TrackingEventRepository;
-import org.example.pocztabackend.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,69 +34,40 @@ public class CourierTaskContractService {
 
     private final CourierTaskRepository courierTaskRepository;
     private final ShipmentRepository shipmentRepository;
-    private final UserRepository userRepository;
     private final TrackingEventRepository trackingEventRepository;
     private final ShipmentWorkflowService shipmentWorkflowService;
     private final DeliveryAttemptRepository deliveryAttemptRepository;
     private final PointRepository pointRepository;
+    private final OperationalActorResolver operationalActorResolver;
 
     public CourierTaskContractService(
             CourierTaskRepository courierTaskRepository,
             ShipmentRepository shipmentRepository,
-            UserRepository userRepository,
             TrackingEventRepository trackingEventRepository,
             ShipmentWorkflowService shipmentWorkflowService,
             DeliveryAttemptRepository deliveryAttemptRepository,
-            PointRepository pointRepository
+            PointRepository pointRepository,
+            OperationalActorResolver operationalActorResolver
     ) {
         this.courierTaskRepository = courierTaskRepository;
         this.shipmentRepository = shipmentRepository;
-        this.userRepository = userRepository;
         this.trackingEventRepository = trackingEventRepository;
         this.shipmentWorkflowService = shipmentWorkflowService;
         this.deliveryAttemptRepository = deliveryAttemptRepository;
         this.pointRepository = pointRepository;
+        this.operationalActorResolver = operationalActorResolver;
     }
 
-    @Transactional
-    public AdminAssignCourierResponse assignCourier(UUID shipmentId, AdminAssignCourierRequest request) {
-        Shipment shipment = shipmentRepository.findById(shipmentId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
+    public List<CourierTaskListItemResponse> getCourierTasks(String userEmailHeader) {
+        User courier = operationalActorResolver.requireCourierActor(userEmailHeader);
 
-        User courier = userRepository.findById(request.courierId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Courier user not found"));
-
-        CourierTask task = new CourierTask();
-        task.setShipment(shipment);
-        task.setCourier(courier);
-        task.setTaskDate(request.taskDate());
-        task.setAssignedAt(LocalDateTime.now());
-        task.setStatus("ASSIGNED");
-
-        CourierTask savedTask = courierTaskRepository.save(task);
-        addTrackingEvent(
-                shipment,
-                shipment.getStatus() == null ? ShipmentStatus.CREATED : shipment.getStatus(),
-                "Courier assignment",
-                "Shipment assigned to courier " + courier.getEmail(),
-                LocalDateTime.now()
-        );
-        return new AdminAssignCourierResponse(shipment.getId(), courier.getId(), savedTask.getId());
-    }
-
-    public List<CourierTaskListItemResponse> getCourierTasks(UUID courierId) {
-        if (!userRepository.existsById(courierId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Courier user not found");
-        }
-
-        return courierTaskRepository.findAllByCourier_IdOrderByTaskDateAscAssignedAtAsc(courierId).stream()
+        return courierTaskRepository.findAllByCourier_IdOrderByTaskDateAscAssignedAtAsc(courier.getId()).stream()
                 .map(CourierTaskListItemResponse::fromEntity)
                 .toList();
     }
 
-    public CourierTaskDetailsResponse getCourierTask(UUID taskId) {
-        CourierTask task = courierTaskRepository.findById(taskId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Courier task not found"));
+    public CourierTaskDetailsResponse getCourierTask(String userEmailHeader, UUID taskId) {
+        CourierTask task = getTaskForCourier(userEmailHeader, taskId);
 
         List<TrackingHistoryItemResponse> history = task.getShipment() == null
                 ? List.of()
@@ -123,8 +91,8 @@ public class CourierTaskContractService {
     }
 
     @Transactional
-    public CourierTaskStateChangeResponse acceptCourierTask(UUID courierId, UUID taskId) {
-        CourierTask task = getTaskForCourier(courierId, taskId);
+    public CourierTaskStateChangeResponse acceptCourierTask(String userEmailHeader, UUID taskId) {
+        CourierTask task = getTaskForCourier(userEmailHeader, taskId);
         requireTaskStatus(task, "ASSIGNED");
         task.setStatus("ACCEPTED");
         courierTaskRepository.save(task);
@@ -132,8 +100,8 @@ public class CourierTaskContractService {
     }
 
     @Transactional
-    public CourierTaskStateChangeResponse startCourierTask(UUID courierId, UUID taskId) {
-        CourierTask task = getTaskForCourier(courierId, taskId);
+    public CourierTaskStateChangeResponse startCourierTask(String userEmailHeader, UUID taskId) {
+        CourierTask task = getTaskForCourier(userEmailHeader, taskId);
         requireTaskStatus(task, "ACCEPTED");
 
         Shipment shipment = requireShipment(task);
@@ -145,8 +113,12 @@ public class CourierTaskContractService {
     }
 
     @Transactional
-    public CourierTaskStateChangeResponse completeDelivery(UUID courierId, UUID taskId, CompleteDeliveryRequest request) {
-        CourierTask task = getTaskForCourier(courierId, taskId);
+    public CourierTaskStateChangeResponse completeDelivery(
+            String userEmailHeader,
+            UUID taskId,
+            CompleteDeliveryRequest request
+    ) {
+        CourierTask task = getTaskForCourier(userEmailHeader, taskId);
         requireTaskStatus(task, "IN_PROGRESS");
 
         Shipment shipment = requireShipment(task);
@@ -167,8 +139,12 @@ public class CourierTaskContractService {
     }
 
     @Transactional
-    public DeliveryAttemptRecordedResponse recordAttempt(UUID courierId, UUID taskId, RecordDeliveryAttemptRequest request) {
-        CourierTask task = getTaskForCourier(courierId, taskId);
+    public DeliveryAttemptRecordedResponse recordAttempt(
+            String userEmailHeader,
+            UUID taskId,
+            RecordDeliveryAttemptRequest request
+    ) {
+        CourierTask task = getTaskForCourier(userEmailHeader, taskId);
         requireTaskStatus(task, "IN_PROGRESS");
 
         Shipment shipment = requireShipment(task);
@@ -218,19 +194,13 @@ public class CourierTaskContractService {
         );
     }
 
-    private CourierTask getTaskForCourier(UUID courierId, UUID taskId) {
-        if (courierId == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "X-Courier-Id header is required");
-        }
-
-        if (!userRepository.existsById(courierId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Courier user not found");
-        }
+    private CourierTask getTaskForCourier(String userEmailHeader, UUID taskId) {
+        User courier = operationalActorResolver.requireCourierActor(userEmailHeader);
 
         CourierTask task = courierTaskRepository.findById(taskId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Courier task not found"));
 
-        if (task.getCourier() == null || !courierId.equals(task.getCourier().getId())) {
+        if (task.getCourier() == null || !courier.getId().equals(task.getCourier().getId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Task is not assigned to this courier");
         }
 

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Building2, Lock, Package, ShieldCheck, Truck, User } from 'lucide-react';
-import { demoRoleOptions, getPublicPoints, type PublicPoint } from '../api';
+import { demoRoleOptions } from '../api';
 import { getDashboardPath } from '../navigation';
 import { useAppStateContext } from '../state/AppStateContext';
 import type { UserRole } from '../types';
@@ -10,7 +10,6 @@ import type { UserRole } from '../types';
 interface LoginFormValues {
   email: string;
   password: string;
-  pointCode: string;
 }
 
 const roleIcons = {
@@ -25,7 +24,6 @@ export default function Login() {
   const location = useLocation();
   const { loginAsRole } = useAppStateContext();
   const [selectedRole, setSelectedRole] = useState<UserRole>('client');
-  const [points, setPoints] = useState<PublicPoint[]>([]);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -38,47 +36,15 @@ export default function Login() {
     defaultValues: {
       email: demoRoleOptions[0].defaultEmail ?? '',
       password: 'demo1234',
-      pointCode: '',
     },
   });
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadPoints() {
-      try {
-        const data = await getPublicPoints();
-        if (!active) {
-          return;
-        }
-
-        setPoints(data);
-        if (data[0]) {
-          setValue('pointCode', data[0].pointCode);
-        }
-      } catch {
-        if (active) {
-          setPoints([]);
-        }
-      }
-    }
-
-    void loadPoints();
-
-    return () => {
-      active = false;
-    };
-  }, [setValue]);
-
-  const pointOptions = useMemo(() => points.filter((point) => point.active), [points]);
 
   const onSubmit = handleSubmit(async (values) => {
     setAuthError(null);
     setIsSubmitting(true);
 
     try {
-      const identifier = selectedRole === 'point' ? values.pointCode : values.email;
-      await loginAsRole(selectedRole, identifier);
+      await loginAsRole(selectedRole, values.email, values.password);
 
       const requestedPath =
         typeof location.state === 'object' &&
@@ -92,7 +58,7 @@ export default function Login() {
         replace: true,
       });
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Nie udało się zalogować.');
+      setAuthError(error instanceof Error ? error.message : 'Nie udalo sie zalogowac.');
     } finally {
       setIsSubmitting(false);
     }
@@ -108,7 +74,7 @@ export default function Login() {
             </div>
             <span className="text-3xl">PingwinPost</span>
           </Link>
-          <p className="mt-2 text-white/70">Wersja demo podpięta do żywego backendu</p>
+          <p className="mt-2 text-white/70">Wersja demo podlaczona do zywego backendu</p>
         </div>
 
         <div className="rounded-xl bg-card p-8 shadow-xl">
@@ -141,52 +107,35 @@ export default function Login() {
           </div>
 
           <form className="space-y-5" onSubmit={onSubmit}>
-            {selectedRole === 'point' ? (
-              <div>
-                <label className="mb-2 block text-sm">Punkt operacyjny</label>
-                <select
-                  {...register('pointCode', { required: 'Wybierz punkt.' })}
-                  className="w-full rounded-lg border border-border bg-input-background px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent"
-                >
-                  {pointOptions.map((point) => (
-                    <option key={point.pointCode} value={point.pointCode}>
-                      {point.name} ({point.pointCode})
-                    </option>
-                  ))}
-                </select>
-                {errors.pointCode ? <p className="mt-1 text-sm text-destructive">{errors.pointCode.message}</p> : null}
+            <div>
+              <label className="mb-2 block text-sm">Email</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  {...register('email', {
+                    required: 'Podaj adres email.',
+                    pattern: {
+                      value: /\S+@\S+\.\S+/,
+                      message: 'Podaj poprawny adres email.',
+                    },
+                  })}
+                  type="email"
+                  className="w-full rounded-lg border border-border bg-input-background py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-accent"
+                />
               </div>
-            ) : (
-              <div>
-                <label className="mb-2 block text-sm">Email</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    {...register('email', {
-                      required: 'Podaj adres email.',
-                      pattern: {
-                        value: /\S+@\S+\.\S+/,
-                        message: 'Podaj poprawny adres email.',
-                      },
-                    })}
-                    type="email"
-                    className="w-full rounded-lg border border-border bg-input-background py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-accent"
-                  />
-                </div>
-                {errors.email ? <p className="mt-1 text-sm text-destructive">{errors.email.message}</p> : null}
-              </div>
-            )}
+              {errors.email ? <p className="mt-1 text-sm text-destructive">{errors.email.message}</p> : null}
+            </div>
 
             <div>
-              <label className="mb-2 block text-sm">Hasło</label>
+              <label className="mb-2 block text-sm">Haslo</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <input
                   {...register('password', {
-                    required: 'Podaj hasło.',
+                    required: 'Podaj haslo.',
                     minLength: {
                       value: 6,
-                      message: 'Hasło powinno mieć co najmniej 6 znaków.',
+                      message: 'Haslo powinno miec co najmniej 6 znakow.',
                     },
                   })}
                   type="password"
@@ -208,14 +157,13 @@ export default function Login() {
           </form>
 
           <div className="mt-6 rounded-lg bg-secondary p-4 text-sm text-muted-foreground">
-            Dla ról klient, kurier i admin używane jest `auth/me` z demo e-mailami. Rola punktu działa na żywym
-            `pointCode`, bo backend nie ma jeszcze osobnych kont punktów.
+            Wszystkie role w wersji demo korzystaja z kont testowych i tymczasowej sesji bearer z haslem `demo1234`.
           </div>
         </div>
 
         <div className="mt-6 text-center">
           <Link to="/" className="text-sm text-white/70 transition-colors hover:text-white">
-            Wróć do strony głównej
+            Wroc do strony glownej
           </Link>
         </div>
       </div>

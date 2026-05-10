@@ -10,6 +10,9 @@ from urllib import error, request
 
 
 DEFAULT_INPUT_DIR = Path(__file__).resolve().parent / "generated_api_csv"
+ADMIN_REVIEW_EMAIL = "admin.review@example.com"
+DISPATCHER_EMAIL = "ops.dispatch@example.com"
+DEMO_PASSWORD = "demo1234"
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,6 +58,22 @@ def http_json(
         raise RuntimeError(f"{method} {url} failed with {exc.code}: {details}") from exc
 
 
+def login_and_get_headers(base_url: str, timeout: int, email: str) -> dict[str, str]:
+    response = http_json(
+        "POST",
+        f"{base_url}/api/auth/login",
+        payload={"email": email, "password": DEMO_PASSWORD},
+        timeout=timeout,
+    )
+    access_token = response["accessToken"]
+    return {"Authorization": f"Bearer {access_token}"}
+
+
+def build_auth_headers(base_url: str, timeout: int, emails: list[str]) -> dict[str, dict[str, str]]:
+    unique_emails = sorted({email for email in emails if email and email.strip()})
+    return {email: login_and_get_headers(base_url, timeout, email) for email in unique_emails}
+
+
 def to_bool(value: str) -> bool:
     return value.strip().lower() == "true"
 
@@ -83,6 +102,9 @@ def load_users(rows: list[dict[str, str]], base_url: str, timeout: int, user_map
             "lastName": row["lastName"],
             "email": email,
             "phone": row["phone"],
+            "persona": row["persona"],
+            "serviceCity": row["serviceCity"] or None,
+            "pointCode": row["pointCode"] or None,
         }
         response = http_json("POST", f"{base_url}/api/users", payload=payload, timeout=timeout)
         user_map[email] = response["id"]
@@ -113,7 +135,12 @@ def load_points(rows: list[dict[str, str]], base_url: str, timeout: int, point_m
     return created
 
 
-def create_shipments(rows: list[dict[str, str]], base_url: str, timeout: int) -> tuple[int, dict[str, dict[str, str]]]:
+def create_shipments(
+    rows: list[dict[str, str]],
+    base_url: str,
+    timeout: int,
+    auth_headers_by_email: dict[str, dict[str, str]],
+) -> tuple[int, dict[str, dict[str, str]]]:
     created = 0
     shipment_refs: dict[str, dict[str, str]] = {}
     for row in rows:
@@ -147,7 +174,7 @@ def create_shipments(rows: list[dict[str, str]], base_url: str, timeout: int) ->
             f"{base_url}/api/client/shipments",
             payload=payload,
             timeout=timeout,
-            extra_headers={"X-User-Email": row["creatorEmail"]},
+            extra_headers=auth_headers_by_email[row["creatorEmail"]],
         )
         shipment_refs[row["shipmentKey"]] = {
             "shipmentId": response["shipmentId"],
@@ -171,6 +198,7 @@ def apply_payment_actions(
     base_url: str,
     timeout: int,
     shipment_refs: dict[str, dict[str, str]],
+    auth_headers_by_email: dict[str, dict[str, str]],
 ) -> tuple[int, dict[str, str]]:
     applied = 0
     payment_ids_by_shipment_key: dict[str, str] = {}
@@ -182,16 +210,32 @@ def apply_payment_actions(
 
         action = row["action"].strip().upper()
         if action == "MARK_PAID":
-            http_json("POST", f"{base_url}/api/admin/payments/{payment_id}/mark-paid", timeout=timeout)
+            http_json(
+                "POST",
+                f"{base_url}/api/admin/payments/{payment_id}/mark-paid",
+                timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
+            )
             http_json(
                 "POST",
                 f"{base_url}/api/admin/shipments/{shipment_ref['shipmentId']}/prepare-for-dispatch",
                 timeout=timeout,
+                extra_headers=auth_headers_by_email[DISPATCHER_EMAIL],
             )
         elif action == "FAIL":
-            http_json("POST", f"{base_url}/api/admin/payments/{payment_id}/fail", timeout=timeout)
+            http_json(
+                "POST",
+                f"{base_url}/api/admin/payments/{payment_id}/fail",
+                timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
+            )
         elif action == "CANCEL":
-            http_json("POST", f"{base_url}/api/admin/payments/{payment_id}/cancel", timeout=timeout)
+            http_json(
+                "POST",
+                f"{base_url}/api/admin/payments/{payment_id}/cancel",
+                timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
+            )
         elif action != "NONE":
             raise RuntimeError(f"Unsupported payment action: {row['action']}")
         applied += 1
@@ -204,10 +248,22 @@ def build_user_personas(rows: list[dict[str, str]], user_map: dict[str, str]) ->
             "id": user_map[row["email"]],
             "persona": row["persona"].strip().upper(),
             "serviceCity": row["serviceCity"].strip().upper(),
+            "pointCode": row["pointCode"].strip().upper(),
         }
         for row in rows
         if row["email"] in user_map
     }
+
+
+def build_point_staff_emails_by_code(user_personas: dict[str, dict[str, str]]) -> dict[str, str]:
+    result: dict[str, str] = {}
+    for email, persona in user_personas.items():
+        if persona["persona"] != "POINT_WORKER":
+            continue
+        point_code = persona["pointCode"]
+        if point_code:
+            result[point_code] = email
+    return result
 
 
 def choose_courier(
@@ -243,6 +299,7 @@ def assign_couriers(
     timeout: int,
     shipment_refs: dict[str, dict[str, str]],
     user_personas: dict[str, dict[str, str]],
+    auth_headers_by_email: dict[str, dict[str, str]],
 ) -> tuple[int, dict[str, dict[str, str]]]:
     created = 0
     courier_loads: dict[str, int] = {}
@@ -255,6 +312,7 @@ def assign_couriers(
             f"{base_url}/api/admin/shipments/{shipment_ref['shipmentId']}/assign-courier",
             payload={"courierId": courier["id"], "taskDate": row["taskDate"]},
             timeout=timeout,
+            extra_headers=auth_headers_by_email[DISPATCHER_EMAIL],
         )
         task_refs[row["shipmentKey"]] = {
             "taskId": response["createdTaskId"],
@@ -271,11 +329,12 @@ def run_courier_actions(
     base_url: str,
     timeout: int,
     task_refs: dict[str, dict[str, str]],
+    auth_headers_by_email: dict[str, dict[str, str]],
 ) -> int:
     applied = 0
     for row in rows:
         task_ref = task_refs[row["shipmentKey"]]
-        headers = {"X-Courier-Id": task_ref["courierId"]}
+        headers = auth_headers_by_email[task_ref["courierEmail"]]
         task_id = task_ref["taskId"]
 
         action = row["action"].strip().upper()
@@ -328,11 +387,17 @@ def run_point_actions(
     timeout: int,
     shipment_refs: dict[str, dict[str, str]],
     payment_ids_by_shipment_key: dict[str, str],
+    point_staff_emails_by_code: dict[str, str],
+    auth_headers_by_email: dict[str, dict[str, str]],
 ) -> int:
     applied = 0
     for row in rows:
         shipment_ref = shipment_refs[row["shipmentKey"]]
-        headers = {"X-Point-Code": row["pointCode"]}
+        point_code = row["pointCode"].strip().upper()
+        point_staff_email = point_staff_emails_by_code.get(point_code)
+        if not point_staff_email:
+            raise RuntimeError(f"No point worker email found for pointCode={row['pointCode']}")
+        headers = auth_headers_by_email[point_staff_email]
         tracking_number = shipment_ref["trackingNumber"]
         action = row["action"].strip().upper()
         if action == "ACCEPT":
@@ -379,6 +444,7 @@ def run_complaint_actions(
     base_url: str,
     timeout: int,
     shipment_refs: dict[str, dict[str, str]],
+    auth_headers_by_email: dict[str, dict[str, str]],
 ) -> int:
     applied = 0
     for row in rows:
@@ -392,7 +458,7 @@ def run_complaint_actions(
                 "description": row["description"],
             },
             timeout=timeout,
-            extra_headers={"X-User-Email": row["userEmail"]},
+            extra_headers=auth_headers_by_email[row["userEmail"]],
         )
         complaint_id = create_response["complaintId"]
 
@@ -401,41 +467,80 @@ def run_complaint_actions(
         if action == "NONE":
             pass
         elif action == "START_REVIEW_ONLY":
-            http_json("POST", f"{base_url}/api/admin/complaints/{complaint_id}/start-review", timeout=timeout)
+            http_json(
+                "POST",
+                f"{base_url}/api/admin/complaints/{complaint_id}/start-review",
+                timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
+            )
         elif action == "ACCEPT_ONLY":
-            http_json("POST", f"{base_url}/api/admin/complaints/{complaint_id}/start-review", timeout=timeout)
+            http_json(
+                "POST",
+                f"{base_url}/api/admin/complaints/{complaint_id}/start-review",
+                timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
+            )
             http_json(
                 "POST",
                 f"{base_url}/api/admin/complaints/{complaint_id}/accept",
                 payload=resolution_payload,
                 timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
             )
         elif action == "ACCEPT_AND_CLOSE":
-            http_json("POST", f"{base_url}/api/admin/complaints/{complaint_id}/start-review", timeout=timeout)
+            http_json(
+                "POST",
+                f"{base_url}/api/admin/complaints/{complaint_id}/start-review",
+                timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
+            )
             http_json(
                 "POST",
                 f"{base_url}/api/admin/complaints/{complaint_id}/accept",
                 payload=resolution_payload,
                 timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
             )
-            http_json("POST", f"{base_url}/api/admin/complaints/{complaint_id}/close", timeout=timeout)
+            http_json(
+                "POST",
+                f"{base_url}/api/admin/complaints/{complaint_id}/close",
+                timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
+            )
         elif action == "REJECT_ONLY":
-            http_json("POST", f"{base_url}/api/admin/complaints/{complaint_id}/start-review", timeout=timeout)
+            http_json(
+                "POST",
+                f"{base_url}/api/admin/complaints/{complaint_id}/start-review",
+                timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
+            )
             http_json(
                 "POST",
                 f"{base_url}/api/admin/complaints/{complaint_id}/reject",
                 payload=resolution_payload,
                 timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
             )
         elif action == "REJECT_AND_CLOSE":
-            http_json("POST", f"{base_url}/api/admin/complaints/{complaint_id}/start-review", timeout=timeout)
+            http_json(
+                "POST",
+                f"{base_url}/api/admin/complaints/{complaint_id}/start-review",
+                timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
+            )
             http_json(
                 "POST",
                 f"{base_url}/api/admin/complaints/{complaint_id}/reject",
                 payload=resolution_payload,
                 timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
             )
-            http_json("POST", f"{base_url}/api/admin/complaints/{complaint_id}/close", timeout=timeout)
+            http_json(
+                "POST",
+                f"{base_url}/api/admin/complaints/{complaint_id}/close",
+                timeout=timeout,
+                extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
+            )
         else:
             raise RuntimeError(f"Unsupported complaint admin action: {row['adminAction']}")
         applied += 1
@@ -459,15 +564,27 @@ def main() -> None:
     user_map, point_map = load_existing_maps(base_url, args.timeout)
 
     summary: list[tuple[str, int]] = []
-    summary.append(("users", load_users(users_rows, base_url, args.timeout, user_map)))
     summary.append(("points", load_points(points_rows, base_url, args.timeout, point_map)))
+    summary.append(("users", load_users(users_rows, base_url, args.timeout, user_map)))
 
     user_personas = build_user_personas(users_rows, user_map)
+    point_staff_emails_by_code = build_point_staff_emails_by_code(user_personas)
+    auth_headers_by_email = build_auth_headers(
+        base_url,
+        args.timeout,
+        [row["email"] for row in users_rows] + [ADMIN_REVIEW_EMAIL, DISPATCHER_EMAIL],
+    )
 
-    shipment_count, shipment_refs = create_shipments(shipments_rows, base_url, args.timeout)
+    shipment_count, shipment_refs = create_shipments(shipments_rows, base_url, args.timeout, auth_headers_by_email)
     summary.append(("shipments", shipment_count))
 
-    payment_action_count, _payment_ids = apply_payment_actions(payment_rows, base_url, args.timeout, shipment_refs)
+    payment_action_count, _payment_ids = apply_payment_actions(
+        payment_rows,
+        base_url,
+        args.timeout,
+        shipment_refs,
+        auth_headers_by_email,
+    )
     summary.append(("payment_actions", payment_action_count))
 
     assignment_count, task_refs = assign_couriers(
@@ -476,18 +593,27 @@ def main() -> None:
         args.timeout,
         shipment_refs,
         user_personas,
+        auth_headers_by_email,
     )
     summary.append(("courier_assignments", assignment_count))
 
-    summary.append(("courier_task_actions", run_courier_actions(courier_action_rows, base_url, args.timeout, task_refs)))
+    summary.append((
+        "courier_task_actions",
+        run_courier_actions(courier_action_rows, base_url, args.timeout, task_refs, auth_headers_by_email),
+    ))
     summary.append(("point_actions", run_point_actions(
         point_action_rows,
         base_url,
         args.timeout,
         shipment_refs,
         _payment_ids,
+        point_staff_emails_by_code,
+        auth_headers_by_email,
     )))
-    summary.append(("complaints", run_complaint_actions(complaint_rows, base_url, args.timeout, shipment_refs)))
+    summary.append((
+        "complaints",
+        run_complaint_actions(complaint_rows, base_url, args.timeout, shipment_refs, auth_headers_by_email),
+    ))
 
     print("Scenario import summary:")
     for name, count in summary:

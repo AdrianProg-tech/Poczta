@@ -11,20 +11,29 @@ import {
 } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
+import { useAppStateContext } from '../state/AppStateContext';
 
 export default function AdminClaims() {
+  const {
+    state: { currentUser },
+  } = useAppStateContext();
   const [complaints, setComplaints] = useState<AdminComplaintSummary[]>([]);
   const [busyComplaintId, setBusyComplaintId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadComplaints = useCallback(async () => {
+    if (!currentUser?.email) {
+      setComplaints([]);
+      return;
+    }
+
     try {
-      setComplaints(await getAdminComplaints());
+      setComplaints(await getAdminComplaints(currentUser.email));
       setError(null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Nie udało się pobrać reklamacji.');
     }
-  }, []);
+  }, [currentUser?.email]);
 
   useEffect(() => {
     void loadComplaints();
@@ -72,18 +81,22 @@ export default function AdminClaims() {
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  disabled={isBusy}
-                  onClick={() => runComplaintAction(complaint.complaintId, () => startComplaintReview(complaint.complaintId))}
+                  disabled={isBusy || !currentUser?.email}
+                  onClick={() =>
+                    currentUser?.email &&
+                    runComplaintAction(complaint.complaintId, () => startComplaintReview(currentUser.email, complaint.complaintId))
+                  }
                   className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                 >
                   Start review
                 </button>
                 <button
                   type="button"
-                  disabled={isBusy}
+                  disabled={isBusy || !currentUser?.email}
                   onClick={() =>
+                    currentUser?.email &&
                     runComplaintAction(complaint.complaintId, () =>
-                      acceptComplaint(complaint.complaintId, 'Accepted from live admin panel'),
+                      acceptComplaint(currentUser.email, complaint.complaintId, 'Accepted from live admin panel'),
                     )
                   }
                   className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
@@ -92,10 +105,11 @@ export default function AdminClaims() {
                 </button>
                 <button
                   type="button"
-                  disabled={isBusy}
+                  disabled={isBusy || !currentUser?.email}
                   onClick={() =>
+                    currentUser?.email &&
                     runComplaintAction(complaint.complaintId, () =>
-                      rejectComplaint(complaint.complaintId, 'Rejected from live admin panel'),
+                      rejectComplaint(currentUser.email, complaint.complaintId, 'Rejected from live admin panel'),
                     )
                   }
                   className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
@@ -104,8 +118,11 @@ export default function AdminClaims() {
                 </button>
                 <button
                   type="button"
-                  disabled={isBusy}
-                  onClick={() => runComplaintAction(complaint.complaintId, () => closeComplaint(complaint.complaintId))}
+                  disabled={isBusy || !currentUser?.email}
+                  onClick={() =>
+                    currentUser?.email &&
+                    runComplaintAction(complaint.complaintId, () => closeComplaint(currentUser.email, complaint.complaintId))
+                  }
                   className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                 >
                   Close

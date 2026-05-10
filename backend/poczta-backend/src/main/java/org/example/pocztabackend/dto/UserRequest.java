@@ -12,6 +12,9 @@ public record UserRequest(
         @Email(message = "email must be valid")
         String email,
         @NotBlank(message = "phone is required")
-        String phone
+        String phone,
+        String persona,
+        String serviceCity,
+        String pointCode
 ) {
 }

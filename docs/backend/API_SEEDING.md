@@ -34,6 +34,13 @@ Generator tworzy:
 Przed loadem musi dzialac:
 - Oracle w Dockerze
 - backend na `http://localhost:8081`
+- aktywny endpoint `POST /api/auth/login`
+
+Haslo demo dla seedowanych kont:
+
+```text
+demo1234
+```
 
 ## Bardzo wazna zasada
 
@@ -64,7 +71,7 @@ Domyslny rozsadny zestaw:
 
 ```powershell
 cd H:\poczta
-python .\scripts\generate_api_csvs.py --users 18 --points 8 --shipments 24
+python .\scripts\generate_api_csvs.py --users 24 --points 8 --shipments 36
 ```
 
 Przyklad wiekszego zestawu:
@@ -77,8 +84,10 @@ python .\scripts\generate_api_csvs.py --users 24 --points 8 --shipments 40
 
 ```powershell
 cd H:\poczta
-python .\scripts\load_api_csvs.py
+python .\scripts\load_api_csvs.py --timeout 60
 ```
+
+Loader sam loguje wymagane konta testowe i wykonuje operacje przez bearer tokeny.
 
 Mozna tez podac inny base URL:
 
@@ -90,8 +99,8 @@ python .\scripts\load_api_csvs.py --base-url http://localhost:8081
 
 Loader pracuje w tej kolejnosci:
 
-1. users
-2. points
+1. points
+2. users
 3. shipments
 4. payment actions
 5. courier assignments
@@ -122,18 +131,24 @@ Ten flow zostal sprawdzony lokalnie na czystej bazie:
 1. reset Oracle przez `docker compose down -v`
 2. start Oracle
 3. start backendu
-4. generate CSV
-5. load przez API
+4. jesli backend byl uruchomiony przed gotowoscia Oracle albo przed resetem, zrestartowac go recznie
+5. generate CSV
+6. load przez API
 
 Loader zakonczyl sie sukcesem dla zestawu:
-- `users: 18`
+- `users: 24`
 - `points: 8`
-- `shipments: 24`
-- `payment_actions: 24`
-- `courier_assignments: 14`
-- `courier_task_actions: 12`
-- `point_actions: 3`
-- `complaints: 2`
+- `shipments: 36`
+- `payment_actions: 36`
+- `courier_assignments: 20`
+- `courier_task_actions: 18`
+- `point_actions: 6`
+- `complaints: 4`
+
+Nowy seed zawiera tez:
+- point worker users z przypisaniem do konkretnych punktow
+- courier users z `CourierProfile.serviceCity`
+- demo loginy gotowe do `auth/me` dla client, courier, point i admin
 
 ## Ograniczenie, o ktorym trzeba wiedziec
 

@@ -2,6 +2,7 @@ package org.example.pocztabackend.service;
 
 import org.example.pocztabackend.dto.OfflinePaymentConfirmedResponse;
 import org.example.pocztabackend.dto.PaymentResponse;
+import org.example.pocztabackend.dto.PointCheckoutResponse;
 import org.example.pocztabackend.dto.PointQueueItemResponse;
 import org.example.pocztabackend.dto.PointQueueResponse;
 import org.example.pocztabackend.dto.ShipmentStateChangeResponse;
@@ -32,6 +33,7 @@ public class PointOperationContractService {
     private final PaymentRepository paymentRepository;
     private final PaymentService paymentService;
     private final TrackingEventRepository trackingEventRepository;
+    private final OperationalActorResolver operationalActorResolver;
 
     public PointOperationContractService(
             PointRepository pointRepository,
@@ -39,7 +41,8 @@ public class PointOperationContractService {
             ShipmentWorkflowService shipmentWorkflowService,
             PaymentRepository paymentRepository,
             PaymentService paymentService,
-            TrackingEventRepository trackingEventRepository
+            TrackingEventRepository trackingEventRepository,
+            OperationalActorResolver operationalActorResolver
     ) {
         this.pointRepository = pointRepository;
         this.shipmentRepository = shipmentRepository;
@@ -47,10 +50,11 @@ public class PointOperationContractService {
         this.paymentRepository = paymentRepository;
         this.paymentService = paymentService;
         this.trackingEventRepository = trackingEventRepository;
+        this.operationalActorResolver = operationalActorResolver;
     }
 
-    public PointQueueResponse getQueue(String pointCode) {
-        Point point = getPoint(pointCode);
+    public PointQueueResponse getQueue(String userEmailHeader) {
+        Point point = getPoint(userEmailHeader);
 
         List<PointQueueItemResponse> acceptQueue = shipmentRepository.findAll().stream()
                 .filter(shipment -> canBeAcceptedAtPoint(shipment, point))
@@ -74,8 +78,8 @@ public class PointOperationContractService {
     }
 
     @Transactional
-    public ShipmentStateChangeResponse acceptShipment(String pointCode, String trackingNumber) {
-        Point point = getPoint(pointCode);
+    public ShipmentStateChangeResponse acceptShipment(String userEmailHeader, String trackingNumber) {
+        Point point = getPoint(userEmailHeader);
         Shipment shipment = getShipment(trackingNumber);
 
         if (shipment.getStatus() == ShipmentStatus.PAID) {
@@ -98,8 +102,8 @@ public class PointOperationContractService {
     }
 
     @Transactional
-    public ShipmentStateChangeResponse postShipment(String pointCode, String trackingNumber) {
-        Point point = getPoint(pointCode);
+    public ShipmentStateChangeResponse postShipment(String userEmailHeader, String trackingNumber) {
+        Point point = getPoint(userEmailHeader);
         Shipment shipment = getShipment(trackingNumber);
 
         if (!samePoint(point, shipment.getCurrentPoint())) {
@@ -114,8 +118,8 @@ public class PointOperationContractService {
     }
 
     @Transactional
-    public ShipmentStateChangeResponse releaseShipment(String pointCode, String trackingNumber) {
-        Point point = getPoint(pointCode);
+    public ShipmentStateChangeResponse releaseShipment(String userEmailHeader, String trackingNumber) {
+        Point point = getPoint(userEmailHeader);
         Shipment shipment = getShipment(trackingNumber);
 
         if (!samePoint(point, shipment.getCurrentPoint())) {
@@ -130,8 +134,8 @@ public class PointOperationContractService {
     }
 
     @Transactional
-    public OfflinePaymentConfirmedResponse confirmOfflinePayment(String pointCode, java.util.UUID paymentId) {
-        Point point = getPoint(pointCode);
+    public OfflinePaymentConfirmedResponse confirmOfflinePayment(String userEmailHeader, java.util.UUID paymentId) {
+        Point point = getPoint(userEmailHeader);
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payment not found"));
 
@@ -144,17 +148,76 @@ public class PointOperationContractService {
         return new OfflinePaymentConfirmedResponse(
                 response.id(),
                 response.status() == null ? null : response.status().name(),
-                "PAID"
+                shipment.getStatus() == null ? null : shipment.getStatus().name()
         );
     }
 
-    private Point getPoint(String pointCode) {
-        if (pointCode == null || pointCode.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "X-Point-Code header is required");
+    @Transactional
+    public PointCheckoutResponse collectOfflinePaymentAndReleaseShipment(
+            String userEmailHeader,
+            String trackingNumber
+    ) {
+        Point point = getPoint(userEmailHeader);
+        Shipment shipment = getShipment(trackingNumber);
+
+        if (!belongsToPointHandling(shipment, point)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Shipment is not available in this point checkout flow");
+        }
+        if (shipment.getStatus() == ShipmentStatus.DELIVERED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Shipment is already delivered");
         }
 
-        return pointRepository.findByPointCode(pointCode.trim())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Point not found"));
+        Payment payment = paymentRepository.findAllByShipment_IdOrderByCreatedAtDesc(shipment.getId()).stream()
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "No payment found for shipment"));
+
+        if (payment.getStatus() != PaymentStatus.OFFLINE_PENDING) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Shipment does not require offline payment checkout");
+        }
+
+        PaymentResponse paymentResponse = paymentService.confirmOfflinePayment(payment.getId());
+
+        if (!samePoint(point, shipment.getCurrentPoint())) {
+            shipment.setCurrentPoint(point);
+        }
+
+        if (shipment.getStatus() == ShipmentStatus.PAID) {
+            shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.AWAITING_PICKUP);
+            shipmentRepository.save(shipment);
+            addTrackingEvent(
+                    shipment,
+                    ShipmentStatus.AWAITING_PICKUP,
+                    point.getName(),
+                    "Offline payment collected at point; shipment is ready for recipient release"
+            );
+        }
+
+        if (shipment.getStatus() != ShipmentStatus.AWAITING_PICKUP) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Shipment is not ready for pickup release after offline payment confirmation"
+            );
+        }
+
+        shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.DELIVERED);
+        shipmentRepository.save(shipment);
+        addTrackingEvent(
+                shipment,
+                ShipmentStatus.DELIVERED,
+                point.getName(),
+                "Offline payment collected and shipment released to recipient at point"
+        );
+
+        return new PointCheckoutResponse(
+                shipment.getTrackingNumber(),
+                paymentResponse.id(),
+                paymentResponse.status() == null ? null : paymentResponse.status().name(),
+                shipment.getStatus() == null ? null : shipment.getStatus().name()
+        );
+    }
+
+    private Point getPoint(String userEmailHeader) {
+        return operationalActorResolver.requirePointActorPoint(userEmailHeader);
     }
 
     private Shipment getShipment(String trackingNumber) {
@@ -208,7 +271,13 @@ public class PointOperationContractService {
         if (shipment == null) {
             return false;
         }
-        return belongsToPointHandling(shipment, point);
+        if (!belongsToPointHandling(shipment, point)) {
+            return false;
+        }
+        ShipmentStatus status = shipment.getStatus();
+        return status != ShipmentStatus.DELIVERED
+                && status != ShipmentStatus.CANCELED
+                && status != ShipmentStatus.RETURNED;
     }
 
     private boolean belongsToPointHandling(Shipment shipment, Point point) {

@@ -2,6 +2,8 @@ package org.example.pocztabackend.dto;
 
 import org.example.pocztabackend.model.User;
 import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 public record UserResponse(
@@ -11,7 +13,8 @@ public record UserResponse(
         String email,
         String phone,
         boolean isActive,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        List<String> roles
 ) {
     public static UserResponse fromEntity(User user) {
         return new UserResponse(
@@ -21,7 +24,11 @@ public record UserResponse(
                 user.getEmail(),
                 user.getPhone(),
                 user.isActive(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.getRoles() == null ? List.of() : user.getRoles().stream()
+                        .map(role -> role.getName())
+                        .sorted(Comparator.naturalOrder())
+                        .toList()
         );
     }
 }

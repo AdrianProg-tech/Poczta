@@ -22,7 +22,10 @@ export function Sidebar({ role }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const { logout } = useAppStateContext();
+  const {
+    state: { currentUser },
+    logout,
+  } = useAppStateContext();
 
   const getMenuItems = () => {
     switch (role) {
@@ -43,6 +46,12 @@ export function Sidebar({ role }: SidebarProps) {
           { icon: Package, label: 'Przesyłki', path: '/point/shipments' },
         ];
       case 'admin':
+        if (currentUser?.adminScope === 'DISPATCHER') {
+          return [
+            { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
+            { icon: Package, label: 'PrzesyĹ‚ki', path: '/admin/shipments' },
+          ];
+        }
         return [
           { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
           { icon: Users, label: 'Użytkownicy', path: '/admin/users' },

@@ -11,20 +11,29 @@ import {
 } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
+import { useAppStateContext } from '../state/AppStateContext';
 
 export default function AdminPayments() {
+  const {
+    state: { currentUser },
+  } = useAppStateContext();
   const [payments, setPayments] = useState<AdminPaymentSummary[]>([]);
   const [busyPaymentId, setBusyPaymentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadPayments = useCallback(async () => {
+    if (!currentUser?.email) {
+      setPayments([]);
+      return;
+    }
+
     try {
-      setPayments(await getAdminPayments());
+      setPayments(await getAdminPayments(currentUser.email));
       setError(null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Nie udało się pobrać płatności.');
     }
-  }, []);
+  }, [currentUser?.email]);
 
   useEffect(() => {
     void loadPayments();
@@ -72,24 +81,33 @@ export default function AdminPayments() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      disabled={isBusy}
-                      onClick={() => runPaymentAction(payment.paymentId, () => markPaymentPaid(payment.paymentId))}
+                      disabled={isBusy || !currentUser?.email}
+                      onClick={() =>
+                        currentUser?.email &&
+                        runPaymentAction(payment.paymentId, () => markPaymentPaid(currentUser.email, payment.paymentId))
+                      }
                       className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                     >
                       Mark paid
                     </button>
                     <button
                       type="button"
-                      disabled={isBusy}
-                      onClick={() => runPaymentAction(payment.paymentId, () => failPayment(payment.paymentId))}
+                      disabled={isBusy || !currentUser?.email}
+                      onClick={() =>
+                        currentUser?.email &&
+                        runPaymentAction(payment.paymentId, () => failPayment(currentUser.email, payment.paymentId))
+                      }
                       className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                     >
                       Fail
                     </button>
                     <button
                       type="button"
-                      disabled={isBusy}
-                      onClick={() => runPaymentAction(payment.paymentId, () => cancelPayment(payment.paymentId))}
+                      disabled={isBusy || !currentUser?.email}
+                      onClick={() =>
+                        currentUser?.email &&
+                        runPaymentAction(payment.paymentId, () => cancelPayment(currentUser.email, payment.paymentId))
+                      }
                       className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                     >
                       Cancel

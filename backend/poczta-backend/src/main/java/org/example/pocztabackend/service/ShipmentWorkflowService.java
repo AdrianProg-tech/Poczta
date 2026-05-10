@@ -19,7 +19,7 @@ public class ShipmentWorkflowService {
     public ShipmentWorkflowService() {
         allowedTransitions.put(ShipmentStatus.REGISTERED, EnumSet.of(ShipmentStatus.CREATED, ShipmentStatus.CANCELED));
         allowedTransitions.put(ShipmentStatus.CREATED, EnumSet.of(ShipmentStatus.PAID, ShipmentStatus.READY_FOR_POSTING, ShipmentStatus.CANCELED));
-        allowedTransitions.put(ShipmentStatus.PAID, EnumSet.of(ShipmentStatus.READY_FOR_POSTING, ShipmentStatus.CANCELED));
+        allowedTransitions.put(ShipmentStatus.PAID, EnumSet.of(ShipmentStatus.READY_FOR_POSTING, ShipmentStatus.AWAITING_PICKUP, ShipmentStatus.CANCELED));
         allowedTransitions.put(ShipmentStatus.READY_FOR_POSTING, EnumSet.of(ShipmentStatus.POSTED, ShipmentStatus.CANCELED));
         allowedTransitions.put(ShipmentStatus.POSTED, EnumSet.of(ShipmentStatus.IN_TRANSIT, ShipmentStatus.RETURNED));
         allowedTransitions.put(ShipmentStatus.IN_TRANSIT, EnumSet.of(ShipmentStatus.OUT_FOR_DELIVERY, ShipmentStatus.REDIRECTED_TO_PICKUP, ShipmentStatus.AWAITING_PICKUP, ShipmentStatus.RETURNED));

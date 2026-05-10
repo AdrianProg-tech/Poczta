@@ -10,4 +10,5 @@ import java.util.UUID;
 @Repository
 public interface CourierTaskRepository extends JpaRepository<CourierTask, UUID> {
     List<CourierTask> findAllByCourier_IdOrderByTaskDateAscAssignedAtAsc(UUID courierId);
+    List<CourierTask> findAllByShipment_IdOrderByAssignedAtDesc(UUID shipmentId);
 }

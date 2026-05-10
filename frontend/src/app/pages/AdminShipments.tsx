@@ -11,6 +11,7 @@ import {
 } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
+import { useAppStateContext } from '../state/AppStateContext';
 
 function formatOwner(owner: string) {
   const labels: Record<string, string> = {
@@ -45,6 +46,9 @@ function formatAction(action: string) {
 }
 
 export default function AdminShipments() {
+  const {
+    state: { currentUser },
+  } = useAppStateContext();
   const [shipments, setShipments] = useState<OpsShipmentBoardItem[]>([]);
   const [dispatch, setDispatch] = useState<OpsCourierDispatchResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,9 +64,19 @@ export default function AdminShipments() {
   );
 
   const loadBoard = useCallback(async () => {
+    if (!currentUser?.email) {
+      setShipments([]);
+      setDispatch(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const [shipmentsData, dispatchData] = await Promise.all([getOpsShipmentBoard(), getOpsCourierDispatch()]);
+      const [shipmentsData, dispatchData] = await Promise.all([
+        getOpsShipmentBoard(currentUser.email),
+        getOpsCourierDispatch(currentUser.email),
+      ]);
       setShipments(shipmentsData);
       setDispatch(dispatchData);
       setError(null);
@@ -71,7 +85,7 @@ export default function AdminShipments() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [currentUser?.email]);
 
   useEffect(() => {
     void loadBoard();
@@ -241,8 +255,13 @@ export default function AdminShipments() {
                         {shipment.nextSuggestedAction === 'PREPARE_FOR_DISPATCH' ? (
                           <button
                             type="button"
-                            disabled={isBusy}
-                            onClick={() => runShipmentAction(shipment.shipmentId, () => prepareShipmentForDispatch(shipment.shipmentId))}
+                            disabled={isBusy || !currentUser?.email}
+                            onClick={() =>
+                              currentUser?.email &&
+                              runShipmentAction(shipment.shipmentId, () =>
+                                prepareShipmentForDispatch(currentUser.email, shipment.shipmentId),
+                              )
+                            }
                             className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
                           >
                             Prepare
@@ -252,10 +271,11 @@ export default function AdminShipments() {
                         {shipment.nextSuggestedAction === 'ASSIGN_COURIER' && suggestion?.suggestedCourierId ? (
                           <button
                             type="button"
-                            disabled={isBusy}
+                            disabled={isBusy || !currentUser?.email}
                             onClick={() =>
+                              currentUser?.email &&
                               runShipmentAction(shipment.shipmentId, () =>
-                                assignCourierToShipment(shipment.shipmentId, suggestion.suggestedCourierId!),
+                                assignCourierToShipment(currentUser.email, shipment.shipmentId, suggestion.suggestedCourierId!),
                               )
                             }
                             className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"

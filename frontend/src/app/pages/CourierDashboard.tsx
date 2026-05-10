@@ -13,7 +13,7 @@ export default function CourierDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadTasks = useCallback(async () => {
-    if (!currentUser?.id) {
+    if (!currentUser?.email) {
       setTasks([]);
       setIsLoading(false);
       return;
@@ -21,11 +21,11 @@ export default function CourierDashboard() {
 
     setIsLoading(true);
     try {
-      setTasks(await getCourierTasks(currentUser.id));
+      setTasks(await getCourierTasks(currentUser.email));
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.email]);
 
   useEffect(() => {
     void loadTasks();

@@ -12,12 +12,8 @@ Ten stan projektu obejmuje:
 - podlaczenie frontendu do backendu bez mockow
 - contract endpointy dla client, courier, point, admin i ops dashboard
 - skrypty seedujace, ktore potrafia wypelnic czysta baze realnymi scenariuszami operacyjnymi
-
-Proponowana nazwa commita:
-
-```text
-feat: finalize backend flows and connect frontend to live API
-```
+- runtime role model v1 z profilami kuriera i przypisaniem pracownika punktu
+- bearer auth/session v1 dla zywych rol w frontendzie i loaderze
 
 ## Wymagania
 
@@ -73,12 +69,18 @@ Backend startuje na:
 
 Jesli pojawi sie blad `Port 8081 was already in use`, trzeba zatrzymac stary proces Java, ktory wisi w tle.
 
+Haslo demo dla wszystkich seedowanych kont:
+
+```text
+demo1234
+```
+
 ### 3. Uruchom frontend
 
 ```powershell
 cd H:\poczta\frontend
 npm install
-npm run dev
+npm run dev -- --host 127.0.0.1 --port 4173
 ```
 
 Frontend startuje domyslnie na:
@@ -109,21 +111,25 @@ docker compose logs -f oracle-db
 
 Po komunikacie `DATABASE IS READY TO USE!` uruchom backend jeszcze raz.
 
+Jesli backend byl uruchomiony przed pelna gotowoscia Oracle albo przed resetem bazy, zrestartuj go recznie po tym kroku.
+
 ### Seeder krok po kroku
 
 1. Wygeneruj dane CSV:
 
 ```powershell
 cd H:\poczta
-python .\scripts\generate_api_csvs.py --users 18 --points 8 --shipments 24
+python .\scripts\generate_api_csvs.py --users 24 --points 8 --shipments 36
 ```
 
 2. Zaladuj dane przez API do dzialajacego backendu:
 
 ```powershell
 cd H:\poczta
-python .\scripts\load_api_csvs.py
+python .\scripts\load_api_csvs.py --timeout 60
 ```
+
+Loader sam loguje konta testowe przez `POST /api/auth/login` i korzysta z `Authorization: Bearer ...`.
 
 Generator zapisuje pliki do:
 - `scripts/generated_api_csv/`
@@ -141,8 +147,8 @@ Potwierdzilem lokalnie, ze na czystej bazie ten flow dziala:
 1. `docker compose down -v`
 2. `docker compose up -d oracle-db`
 3. start backendu
-4. `python .\scripts\generate_api_csvs.py --users 18 --points 8 --shipments 24`
-5. `python .\scripts\load_api_csvs.py`
+4. `python .\scripts\generate_api_csvs.py --users 24 --points 8 --shipments 36`
+5. `python .\scripts\load_api_csvs.py --timeout 60`
 
 Po tym baza zostaje wypelniona m.in.:
 - users
@@ -201,11 +207,17 @@ Po seedzie mozna korzystac z przykladowych kont:
 
 - klient: `jan.kowalski.client@example.com`
 - kurier: `courier.warsaw.1@example.com`
-- admin: `ops.dispatch@example.com`
+- dispatcher: `ops.dispatch@example.com`
+- admin: `admin.review@example.com`
+- punkt: `point.warsaw.pop-waw-01@example.com`
 
-Dla roli point frontend korzysta z `pointCode` zamiast maila, np.:
-- `POP-WAW-01`
-- `POP-KRK-01`
+Haslo dla wszystkich:
+
+```text
+demo1234
+```
+
+Rola point korzysta teraz z normalnego konta usera z przypisaniem do punktu, a nie z samego `pointCode`.
 
 ## Dodatkowe notatki
 

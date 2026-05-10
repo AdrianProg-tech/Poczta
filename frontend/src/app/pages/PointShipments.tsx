@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { RefreshCw } from 'lucide-react';
 import {
   acceptPointShipment,
-  confirmOfflinePayment,
+  collectOfflinePaymentAndReleaseShipment,
   formatDateTime,
   getPointQueue,
   postPointShipment,
@@ -96,7 +96,7 @@ export default function PointShipments() {
   const [error, setError] = useState<string | null>(null);
 
   const loadQueue = useCallback(async () => {
-    if (!currentUser?.pointCode) {
+    if (!currentUser?.email) {
       setQueue(null);
       setIsLoading(false);
       return;
@@ -104,14 +104,14 @@ export default function PointShipments() {
 
     setIsLoading(true);
     try {
-      setQueue(await getPointQueue(currentUser.pointCode));
+      setQueue(await getPointQueue(currentUser.email));
       setError(null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac kolejki punktu.');
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser?.pointCode]);
+  }, [currentUser?.email]);
 
   useEffect(() => {
     void loadQueue();
@@ -131,6 +131,7 @@ export default function PointShipments() {
   }
 
   const pointCode = currentUser?.pointCode;
+  const pointUserEmail = currentUser?.email;
   const queueStats = useMemo(
     () => [
       { label: 'Do przyjecia', value: queue?.acceptQueue.length ?? 0 },
@@ -183,10 +184,10 @@ export default function PointShipments() {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  disabled={!pointCode || busyKey === `accept-${item.trackingNumber}`}
+                  disabled={!pointUserEmail || busyKey === `accept-${item.trackingNumber}`}
                   onClick={() =>
-                    pointCode &&
-                    runPointAction(`accept-${item.trackingNumber}`, () => acceptPointShipment(pointCode, item.trackingNumber))
+                    pointUserEmail &&
+                    runPointAction(`accept-${item.trackingNumber}`, () => acceptPointShipment(pointUserEmail, item.trackingNumber))
                   }
                   className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
                 >
@@ -194,9 +195,10 @@ export default function PointShipments() {
                 </button>
                 <button
                   type="button"
-                  disabled={!pointCode || busyKey === `post-${item.trackingNumber}`}
+                  disabled={!pointUserEmail || busyKey === `post-${item.trackingNumber}`}
                   onClick={() =>
-                    pointCode && runPointAction(`post-${item.trackingNumber}`, () => postPointShipment(pointCode, item.trackingNumber))
+                    pointUserEmail &&
+                    runPointAction(`post-${item.trackingNumber}`, () => postPointShipment(pointUserEmail, item.trackingNumber))
                   }
                   className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                 >
@@ -213,9 +215,10 @@ export default function PointShipments() {
             renderAction={(item) => (
               <button
                 type="button"
-                disabled={!pointCode || busyKey === `release-${item.trackingNumber}`}
+                disabled={!pointUserEmail || busyKey === `release-${item.trackingNumber}`}
                 onClick={() =>
-                  pointCode && runPointAction(`release-${item.trackingNumber}`, () => releasePointShipment(pointCode, item.trackingNumber))
+                  pointUserEmail &&
+                  runPointAction(`release-${item.trackingNumber}`, () => releasePointShipment(pointUserEmail, item.trackingNumber))
                 }
                 className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
               >
@@ -225,21 +228,23 @@ export default function PointShipments() {
           />
 
           <QueueSection
-            title="Platnosci offline"
+            title="Offline checkout"
             items={queue.offlinePaymentQueue}
-            emptyText="Brak platnosci offline do potwierdzenia."
+            emptyText="Brak przesylek offline do rozliczenia i wydania."
             renderAction={(item) => (
               <button
                 type="button"
-                disabled={!pointCode || !item.paymentId || busyKey === `offline-${item.paymentId}`}
+                disabled={!pointUserEmail || !item.paymentId || busyKey === `offline-${item.paymentId}`}
                 onClick={() =>
-                  pointCode &&
+                  pointUserEmail &&
                   item.paymentId &&
-                  runPointAction(`offline-${item.paymentId}`, () => confirmOfflinePayment(pointCode, item.paymentId!))
+                  runPointAction(`offline-${item.paymentId}`, () =>
+                    collectOfflinePaymentAndReleaseShipment(pointUserEmail, item.trackingNumber),
+                  )
                 }
                 className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
               >
-                Potwierdz platnosc
+                Pobierz platnosc i wydaj
               </button>
             )}
           />

@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -39,33 +38,28 @@ public class ClientShipmentController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ShipmentCreatedResponse createShipment(
-            @RequestHeader(name = "X-User-Email", required = false) String userEmail,
             @Valid @RequestBody CreateClientShipmentRequest request
     ) {
-        return clientShipmentCommandService.createShipment(userEmail, request);
+        return clientShipmentCommandService.createShipment(null, request);
     }
 
     @GetMapping
-    public List<ClientShipmentListItemResponse> getClientShipments(
-            @RequestHeader(name = "X-User-Email", required = false) String userEmail
-    ) {
-        return contractShipmentQueryService.getClientShipments(userEmail);
+    public List<ClientShipmentListItemResponse> getClientShipments() {
+        return contractShipmentQueryService.getClientShipments(null);
     }
 
     @GetMapping("/{trackingNumber}")
     public ClientShipmentDetailsResponse getShipmentDetails(
-            @RequestHeader(name = "X-User-Email", required = false) String userEmail,
             @PathVariable String trackingNumber
     ) {
-        return contractShipmentQueryService.getShipmentDetails(userEmail, trackingNumber);
+        return contractShipmentQueryService.getShipmentDetails(null, trackingNumber);
     }
 
     @PostMapping("/{trackingNumber}/redirect")
     public ClientShipmentRedirectResponse requestRedirect(
-            @RequestHeader(name = "X-User-Email", required = false) String userEmail,
             @PathVariable String trackingNumber,
             @Valid @RequestBody ClientShipmentRedirectRequest request
     ) {
-        return clientShipmentCommandService.requestRedirect(userEmail, trackingNumber, request);
+        return clientShipmentCommandService.requestRedirect(null, trackingNumber, request);
     }
 }

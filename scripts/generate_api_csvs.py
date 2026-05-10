@@ -9,7 +9,7 @@ DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "generated_api_csv"
 
 ADMIN_TEMPLATES = [
     {
-        "persona": "ADMIN",
+        "persona": "DISPATCHER",
         "serviceCity": "",
         "firstName": "Damian",
         "lastName": "Dispatcher",
@@ -143,19 +143,44 @@ def cleanup_output_dir(output_dir: Path, expected_files: set[str]) -> None:
                 pass
 
 
-def build_users(target_count: int) -> list[dict[str, object]]:
-    effective_count = max(target_count, 12)
+def build_point_staff_users(points: list[dict[str, object]]) -> list[dict[str, object]]:
+    rows: list[dict[str, object]] = []
+    for point in points:
+        if point["type"] != "PICKUP_POINT":
+            continue
+        city = str(point["city"]).strip()
+        point_code = str(point["pointCode"]).strip()
+        city_slug = city.lower().replace(" ", ".")
+        rows.append(
+            {
+                "persona": "POINT_WORKER",
+                "serviceCity": city.upper(),
+                "pointCode": point_code,
+                "firstName": "Point",
+                "lastName": city,
+                "email": f"point.{city_slug}.{point_code.lower()}@example.com",
+                "phone": "+48530100000",
+            }
+        )
+    return rows
+
+
+def build_users(target_count: int, points: list[dict[str, object]]) -> list[dict[str, object]]:
+    effective_count = max(target_count, 14)
     users: list[dict[str, object]] = list(ADMIN_TEMPLATES)
+    point_workers = build_point_staff_users(points)
 
     remaining = effective_count - len(users)
     courier_count = min(len(COURIER_TEMPLATES), max(5, remaining // 3))
-    client_count = min(len(CLIENT_TEMPLATES), effective_count - len(users) - courier_count)
+    point_worker_count = min(len(point_workers), max(1, remaining // 4))
+    client_count = min(len(CLIENT_TEMPLATES), max(0, effective_count - len(users) - courier_count - point_worker_count))
 
     for service_city, first_name, last_name, email, phone in COURIER_TEMPLATES[:courier_count]:
         users.append(
             {
                 "persona": "COURIER",
                 "serviceCity": service_city,
+                "pointCode": "",
                 "firstName": first_name,
                 "lastName": last_name,
                 "email": email,
@@ -163,11 +188,14 @@ def build_users(target_count: int) -> list[dict[str, object]]:
             }
         )
 
+    users.extend(point_workers[:point_worker_count])
+
     for first_name, last_name, email, phone in CLIENT_TEMPLATES[:client_count]:
         users.append(
             {
                 "persona": "CLIENT",
                 "serviceCity": "",
+                "pointCode": "",
                 "firstName": first_name,
                 "lastName": last_name,
                 "email": email,
@@ -446,12 +474,12 @@ def write_summary(output_dir: Path, tables: dict[str, list[dict[str, object]]]) 
 
 def main() -> None:
     args = parse_args()
-    users = build_users(args.users)
     points = build_points(args.points)
+    users = build_users(args.users, points)
     tables = build_dataset(users, points, args.shipments)
 
     headers = {
-        "users.csv": ["persona", "serviceCity", "firstName", "lastName", "email", "phone"],
+        "users.csv": ["persona", "serviceCity", "pointCode", "firstName", "lastName", "email", "phone"],
         "points.csv": ["pointCode", "name", "type", "city", "address", "postalCode", "phone", "openingHours", "active"],
         "shipments.csv": [
             "shipmentKey",

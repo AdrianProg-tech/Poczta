@@ -4,6 +4,7 @@ import org.example.pocztabackend.dto.OpsCourierDispatchResponse;
 import org.example.pocztabackend.dto.OpsCourierSummaryResponse;
 import org.example.pocztabackend.dto.OpsDashboardSummaryResponse;
 import org.example.pocztabackend.dto.OpsDispatchCandidateResponse;
+import org.example.pocztabackend.dto.OpsReassignmentCandidateResponse;
 import org.example.pocztabackend.dto.OpsRecentEventResponse;
 import org.example.pocztabackend.dto.OpsShipmentBoardItemResponse;
 import org.example.pocztabackend.model.Complaint;
@@ -25,6 +26,7 @@ import org.example.pocztabackend.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.AbstractMap;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -142,10 +144,19 @@ public class OperationsConsoleQueryService {
                 .filter(this::isCourierFlow)
                 .filter(shipment -> shipment.getStatus() == ShipmentStatus.READY_FOR_POSTING)
                 .filter(shipment -> findLatestTaskForShipment(shipment, tasks) == null)
-                .map(shipment -> toDispatchCandidate(shipment, courierSummaries))
+                .map(shipment -> toDispatchCandidate(shipment, courierSummaries, null))
                 .toList();
 
-        return new OpsCourierDispatchResponse(courierSummaries, pendingAssignments);
+        List<OpsReassignmentCandidateResponse> reassignmentCandidates = shipments.stream()
+                .filter(this::isCourierFlow)
+                .filter(shipment -> shipment.getStatus() == ShipmentStatus.READY_FOR_POSTING)
+                .map(shipment -> new AbstractMap.SimpleEntry<>(shipment, findLatestTaskForShipment(shipment, tasks)))
+                .filter(entry -> entry.getValue() != null)
+                .filter(entry -> isReassignmentEligible(entry.getValue()))
+                .map(entry -> toReassignmentCandidate(entry.getKey(), entry.getValue(), courierSummaries))
+                .toList();
+
+        return new OpsCourierDispatchResponse(courierSummaries, pendingAssignments, reassignmentCandidates);
     }
 
     public List<OpsRecentEventResponse> getRecentEvents() {
@@ -222,16 +233,11 @@ public class OperationsConsoleQueryService {
 
     private OpsDispatchCandidateResponse toDispatchCandidate(
             Shipment shipment,
-            List<OpsCourierSummaryResponse> courierSummaries
+            List<OpsCourierSummaryResponse> courierSummaries,
+            UUID excludedCourierId
     ) {
         String destinationCity = getDestinationCity(shipment);
-        OpsCourierSummaryResponse suggestedCourier = courierSummaries.stream()
-                .sorted(Comparator
-                        .comparing((OpsCourierSummaryResponse courier) -> !matchesCity(courier.inferredServiceCity(), destinationCity))
-                        .thenComparingLong(OpsCourierSummaryResponse::openTaskCount)
-                        .thenComparing(OpsCourierSummaryResponse::courierEmail, Comparator.nullsLast(String::compareToIgnoreCase)))
-                .findFirst()
-                .orElse(null);
+        OpsCourierSummaryResponse suggestedCourier = suggestCourier(courierSummaries, destinationCity, excludedCourierId);
 
         String suggestionReason = suggestedCourier == null
                 ? "No courier profiles available"
@@ -248,6 +254,48 @@ public class OperationsConsoleQueryService {
                 suggestedCourier == null ? null : suggestedCourier.courierEmail(),
                 suggestionReason
         );
+    }
+
+    private OpsReassignmentCandidateResponse toReassignmentCandidate(
+            Shipment shipment,
+            CourierTask latestTask,
+            List<OpsCourierSummaryResponse> courierSummaries
+    ) {
+        UUID currentCourierId = latestTask.getCourier() == null ? null : latestTask.getCourier().getId();
+        OpsDispatchCandidateResponse suggestion = toDispatchCandidate(shipment, courierSummaries, currentCourierId);
+
+        return new OpsReassignmentCandidateResponse(
+                shipment.getId(),
+                latestTask.getId(),
+                shipment.getTrackingNumber(),
+                suggestion.destinationCity(),
+                suggestion.shipmentStatus(),
+                latestTask.getCourier() == null ? null : latestTask.getCourier().getEmail(),
+                latestTask.getStatus(),
+                suggestion.suggestedCourierId(),
+                suggestion.suggestedCourierEmail(),
+                suggestion.suggestionReason()
+        );
+    }
+
+    private OpsCourierSummaryResponse suggestCourier(
+            List<OpsCourierSummaryResponse> courierSummaries,
+            String destinationCity,
+            UUID excludedCourierId
+    ) {
+        return courierSummaries.stream()
+                .filter(courier -> excludedCourierId == null || !excludedCourierId.equals(courier.courierId()))
+                .sorted(Comparator
+                        .comparing((OpsCourierSummaryResponse courier) -> !matchesCity(courier.inferredServiceCity(), destinationCity))
+                        .thenComparingLong(OpsCourierSummaryResponse::openTaskCount)
+                        .thenComparing(OpsCourierSummaryResponse::courierEmail, Comparator.nullsLast(String::compareToIgnoreCase)))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private boolean isReassignmentEligible(CourierTask task) {
+        String normalizedStatus = normalize(task.getStatus());
+        return normalizedStatus.equals("ASSIGNED") || normalizedStatus.equals("ACCEPTED");
     }
 
     private ShipmentBoardAdvice getShipmentBoardAdvice(Shipment shipment, Payment latestPayment, CourierTask latestTask) {

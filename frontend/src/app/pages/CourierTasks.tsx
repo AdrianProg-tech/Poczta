@@ -30,7 +30,7 @@ export default function CourierTasks() {
   const [redirectPointByTaskId, setRedirectPointByTaskId] = useState<Record<string, string>>({});
 
   const loadTasks = useCallback(async () => {
-    if (!currentUser?.id) {
+    if (!currentUser?.email) {
       setTasks([]);
       setIsLoading(false);
       return;
@@ -38,7 +38,7 @@ export default function CourierTasks() {
 
     setIsLoading(true);
     try {
-      const [taskData, pointsData] = await Promise.all([getCourierTasks(currentUser.id), getPublicPoints()]);
+      const [taskData, pointsData] = await Promise.all([getCourierTasks(currentUser.email), getPublicPoints()]);
       setTasks(taskData);
       setPoints(pointsData);
       setError(null);
@@ -61,7 +61,7 @@ export default function CourierTasks() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.email]);
 
   useEffect(() => {
     void loadTasks();
@@ -189,8 +189,10 @@ export default function CourierTasks() {
                   {task.taskStatus === 'ASSIGNED' ? (
                     <button
                       type="button"
-                      disabled={isBusy || !currentUser?.id}
-                      onClick={() => currentUser?.id && runTaskAction(task.taskId, () => acceptCourierTask(currentUser.id!, task.taskId))}
+                      disabled={isBusy || !currentUser?.email}
+                      onClick={() =>
+                        currentUser?.email && runTaskAction(task.taskId, () => acceptCourierTask(currentUser.email!, task.taskId))
+                      }
                       className="w-full rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
                     >
                       Przyjmij zadanie
@@ -200,8 +202,10 @@ export default function CourierTasks() {
                   {(task.taskStatus === 'ASSIGNED' || task.taskStatus === 'ACCEPTED') ? (
                     <button
                       type="button"
-                      disabled={isBusy || !currentUser?.id}
-                      onClick={() => currentUser?.id && runTaskAction(task.taskId, () => startCourierTask(currentUser.id!, task.taskId))}
+                      disabled={isBusy || !currentUser?.email}
+                      onClick={() =>
+                        currentUser?.email && runTaskAction(task.taskId, () => startCourierTask(currentUser.email!, task.taskId))
+                      }
                       className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                     >
                       <Truck className="h-4 w-4" />
@@ -213,9 +217,10 @@ export default function CourierTasks() {
                     <>
                       <button
                         type="button"
-                        disabled={isBusy || !currentUser?.id}
+                        disabled={isBusy || !currentUser?.email}
                         onClick={() =>
-                          currentUser?.id && runTaskAction(task.taskId, () => completeCourierTask(currentUser.id!, task.taskId, 'Delivered from courier UI'))
+                          currentUser?.email &&
+                          runTaskAction(task.taskId, () => completeCourierTask(currentUser.email!, task.taskId, 'Delivered from courier UI'))
                         }
                         className="flex w-full items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                       >
@@ -243,12 +248,12 @@ export default function CourierTasks() {
                         </select>
                         <button
                           type="button"
-                          disabled={isBusy || !currentUser?.id || !redirectPoint}
+                          disabled={isBusy || !currentUser?.email || !redirectPoint}
                           onClick={() =>
-                            currentUser?.id &&
+                            currentUser?.email &&
                             redirectPoint &&
                             runTaskAction(task.taskId, () =>
-                              recordCourierAttempt(currentUser.id!, task.taskId, {
+                              recordCourierAttempt(currentUser.email!, task.taskId, {
                                 result: 'RECIPIENT_ABSENT',
                                 note: 'Recipient unavailable during frontend demo',
                                 redirectToPickup: true,

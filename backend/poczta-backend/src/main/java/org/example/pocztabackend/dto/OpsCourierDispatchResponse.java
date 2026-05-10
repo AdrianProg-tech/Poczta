@@ -4,6 +4,7 @@ import java.util.List;
 
 public record OpsCourierDispatchResponse(
         List<OpsCourierSummaryResponse> couriers,
-        List<OpsDispatchCandidateResponse> shipmentsAwaitingAssignment
+        List<OpsDispatchCandidateResponse> shipmentsAwaitingAssignment,
+        List<OpsReassignmentCandidateResponse> shipmentsAwaitingReassignment
 ) {
 }

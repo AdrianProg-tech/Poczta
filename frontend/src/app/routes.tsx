@@ -125,27 +125,27 @@ export const router = createBrowserRouter([
       },
       {
         path: '/admin/users',
-        Component: AdminUsers,
+        Component: () => <ProtectedRoute allowedRoles={['admin']} allowedAdminScopes={['ADMIN']} children={<AdminUsers />} />,
       },
       {
         path: '/admin/points',
-        Component: AdminPoints,
+        Component: () => <ProtectedRoute allowedRoles={['admin']} allowedAdminScopes={['ADMIN']} children={<AdminPoints />} />,
       },
       {
         path: '/admin/shipments',
-        Component: AdminShipments,
+        Component: () => <ProtectedRoute allowedRoles={['admin']} allowedAdminScopes={['ADMIN', 'DISPATCHER']} children={<AdminShipments />} />,
       },
       {
         path: '/admin/payments',
-        Component: AdminPayments,
+        Component: () => <ProtectedRoute allowedRoles={['admin']} allowedAdminScopes={['ADMIN']} children={<AdminPayments />} />,
       },
       {
         path: '/admin/claims',
-        Component: AdminClaims,
+        Component: () => <ProtectedRoute allowedRoles={['admin']} allowedAdminScopes={['ADMIN']} children={<AdminClaims />} />,
       },
       {
         path: '/admin/reports',
-        Component: AdminReports,
+        Component: () => <ProtectedRoute allowedRoles={['admin']} allowedAdminScopes={['ADMIN']} children={<AdminReports />} />,
       },
     ],
   },

@@ -89,8 +89,10 @@ public class PaymentService {
         payment.setStatus(PaymentStatus.OFFLINE_CONFIRMED);
 
         Shipment shipment = payment.getShipment();
-        shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.PAID);
-        shipmentRepository.save(shipment);
+        if (shipment != null && shipment.getStatus() == ShipmentStatus.CREATED) {
+            shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.PAID);
+            shipmentRepository.save(shipment);
+        }
 
         return PaymentResponse.fromEntity(paymentRepository.save(payment));
     }

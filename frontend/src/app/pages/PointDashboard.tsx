@@ -12,7 +12,7 @@ export default function PointDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadQueue = useCallback(async () => {
-    if (!currentUser?.pointCode) {
+    if (!currentUser?.email) {
       setQueue(null);
       setIsLoading(false);
       return;
@@ -20,11 +20,11 @@ export default function PointDashboard() {
 
     setIsLoading(true);
     try {
-      setQueue(await getPointQueue(currentUser.pointCode));
+      setQueue(await getPointQueue(currentUser.email));
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser?.pointCode]);
+  }, [currentUser?.email]);
 
   useEffect(() => {
     void loadQueue();

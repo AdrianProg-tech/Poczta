@@ -1,4 +1,5 @@
-import type { AppUser, UserRole } from './types';
+import { readStoredSession } from './authSession';
+import type { AdminScope, AppUser, UserRole } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
@@ -36,12 +37,13 @@ export const demoRoleOptions: DemoRoleOption[] = [
     role: 'point',
     label: 'Punkt',
     hint: 'Kolejka punktu i odbiory',
+    defaultEmail: 'point.warsaw.pop-waw-01@example.com',
   },
   {
     role: 'admin',
     label: 'Administrator',
     hint: 'Operacje, płatności i reklamacje',
-    defaultEmail: 'ops.dispatch@example.com',
+    defaultEmail: 'admin.review@example.com',
   },
 ];
 
@@ -50,7 +52,15 @@ export interface CurrentUserResponse {
   email: string;
   displayName: string;
   roles: string[];
+  adminScope: AdminScope | null;
   pointCode: string | null;
+  pointName: string | null;
+  serviceCity: string | null;
+}
+
+export interface AuthLoginResponse {
+  accessToken: string;
+  currentUser: CurrentUserResponse;
 }
 
 export interface PublicPoint {
@@ -242,9 +252,23 @@ export interface OpsDispatchCandidate {
   suggestionReason: string;
 }
 
+export interface OpsReassignmentCandidate {
+  shipmentId: string;
+  currentTaskId: string;
+  trackingNumber: string;
+  destinationCity: string | null;
+  shipmentStatus: string;
+  currentCourierEmail: string | null;
+  currentTaskStatus: string;
+  suggestedCourierId: string | null;
+  suggestedCourierEmail: string | null;
+  suggestionReason: string;
+}
+
 export interface OpsCourierDispatchResponse {
   couriers: OpsCourierSummary[];
   shipmentsAwaitingAssignment: OpsDispatchCandidate[];
+  shipmentsAwaitingReassignment: OpsReassignmentCandidate[];
 }
 
 export interface OpsRecentEvent {
@@ -275,6 +299,18 @@ export interface AdminComplaintSummary {
   status: string;
   resolutionNote: string | null;
   submittedAt: string;
+}
+
+export interface AdminUserSummary {
+  userId: string;
+  displayName: string;
+  email: string;
+  active: boolean;
+  roles: string[];
+  serviceCity: string | null;
+  pointCode: string | null;
+  pointName: string | null;
+  createdAt: string;
 }
 
 export interface CreateClientShipmentPayload {
@@ -324,11 +360,13 @@ function removeEmptyHeaders(headers: Record<string, string | undefined>) {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const storedSession = readStoredSession();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? 'GET',
     headers: removeEmptyHeaders({
       Accept: 'application/json',
       'Content-Type': options.body ? 'application/json' : undefined,
+      Authorization: storedSession?.accessToken ? `Bearer ${storedSession.accessToken}` : undefined,
       ...options.headers,
     }),
     body: options.body ? JSON.stringify(options.body) : undefined,
@@ -347,7 +385,27 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 }
 
 function userHeader(email: string | undefined) {
+  const storedSession = readStoredSession();
+  if (storedSession?.accessToken) {
+    return {};
+  }
   return email ? { 'X-User-Email': email } : {};
+}
+
+export async function login(email: string, password: string) {
+  return request<AuthLoginResponse>('/api/auth/login', {
+    method: 'POST',
+    body: {
+      email,
+      password,
+    },
+  });
+}
+
+export async function logout() {
+  return request<void>('/api/auth/logout', {
+    method: 'POST',
+  });
 }
 
 export function formatDate(dateTime: string | null | undefined) {
@@ -552,7 +610,7 @@ export function formatOpsOwner(owner: string | null | undefined) {
   }
 }
 
-export async function getCurrentUser(email: string) {
+export async function getCurrentUser(email?: string) {
   return request<CurrentUserResponse>('/api/auth/me', {
     headers: userHeader(email),
   });
@@ -635,30 +693,30 @@ export async function requestClientShipmentRedirect(
   });
 }
 
-export async function getCourierTasks(courierId: string) {
+export async function getCourierTasks(userEmail: string) {
   return request<CourierTaskListItem[]>('/api/courier/tasks', {
-    headers: { 'X-Courier-Id': courierId },
+    headers: userHeader(userEmail),
   });
 }
 
-export async function acceptCourierTask(courierId: string, taskId: string) {
+export async function acceptCourierTask(userEmail: string, taskId: string) {
   return request(`/api/courier/tasks/${taskId}/accept`, {
     method: 'POST',
-    headers: { 'X-Courier-Id': courierId },
+    headers: userHeader(userEmail),
   });
 }
 
-export async function startCourierTask(courierId: string, taskId: string) {
+export async function startCourierTask(userEmail: string, taskId: string) {
   return request(`/api/courier/tasks/${taskId}/start`, {
     method: 'POST',
-    headers: { 'X-Courier-Id': courierId },
+    headers: userHeader(userEmail),
   });
 }
 
-export async function completeCourierTask(courierId: string, taskId: string, note?: string) {
+export async function completeCourierTask(userEmail: string, taskId: string, note?: string) {
   return request(`/api/courier/tasks/${taskId}/complete-delivery`, {
     method: 'POST',
-    headers: { 'X-Courier-Id': courierId },
+    headers: userHeader(userEmail),
     body: {
       deliveredAt: new Date().toISOString(),
       note: note || null,
@@ -667,76 +725,93 @@ export async function completeCourierTask(courierId: string, taskId: string, not
 }
 
 export async function recordCourierAttempt(
-  courierId: string,
+  userEmail: string,
   taskId: string,
   payload: { result: string; note?: string; redirectToPickup?: boolean; redirectPointCode?: string },
 ) {
   return request(`/api/courier/tasks/${taskId}/record-attempt`, {
     method: 'POST',
-    headers: { 'X-Courier-Id': courierId },
+    headers: userHeader(userEmail),
     body: payload,
   });
 }
 
-export async function getPointQueue(pointCode: string) {
+export async function getPointQueue(userEmail: string) {
   return request<PointQueueResponse>('/api/point/queue', {
-    headers: { 'X-Point-Code': pointCode },
+    headers: userHeader(userEmail),
   });
 }
 
-export async function acceptPointShipment(pointCode: string, trackingNumber: string) {
+export async function acceptPointShipment(userEmail: string, trackingNumber: string) {
   return request(`/api/point/shipments/${trackingNumber}/accept`, {
     method: 'POST',
-    headers: { 'X-Point-Code': pointCode },
+    headers: userHeader(userEmail),
   });
 }
 
-export async function postPointShipment(pointCode: string, trackingNumber: string) {
+export async function postPointShipment(userEmail: string, trackingNumber: string) {
   return request(`/api/point/shipments/${trackingNumber}/post`, {
     method: 'POST',
-    headers: { 'X-Point-Code': pointCode },
+    headers: userHeader(userEmail),
   });
 }
 
-export async function releasePointShipment(pointCode: string, trackingNumber: string) {
+export async function releasePointShipment(userEmail: string, trackingNumber: string) {
   return request(`/api/point/shipments/${trackingNumber}/release`, {
     method: 'POST',
-    headers: { 'X-Point-Code': pointCode },
+    headers: userHeader(userEmail),
   });
 }
 
-export async function confirmOfflinePayment(pointCode: string, paymentId: string) {
+export async function confirmOfflinePayment(userEmail: string, paymentId: string) {
   return request(`/api/point/payments/${paymentId}/confirm-offline`, {
     method: 'POST',
-    headers: { 'X-Point-Code': pointCode },
+    headers: userHeader(userEmail),
   });
 }
 
-export async function getOpsDashboardSummary() {
-  return request<OpsDashboardSummary>('/api/ops/dashboard-summary');
+export async function collectOfflinePaymentAndReleaseShipment(userEmail: string, trackingNumber: string) {
+  return request(`/api/point/shipments/${trackingNumber}/collect-offline-and-release`, {
+    method: 'POST',
+    headers: userHeader(userEmail),
+  });
 }
 
-export async function getOpsShipmentBoard() {
-  return request<OpsShipmentBoardItem[]>('/api/ops/shipments-board');
+export async function getOpsDashboardSummary(userEmail: string) {
+  return request<OpsDashboardSummary>('/api/ops/dashboard-summary', {
+    headers: userHeader(userEmail),
+  });
 }
 
-export async function getOpsCourierDispatch() {
-  return request<OpsCourierDispatchResponse>('/api/ops/courier-dispatch');
+export async function getOpsShipmentBoard(userEmail: string) {
+  return request<OpsShipmentBoardItem[]>('/api/ops/shipments-board', {
+    headers: userHeader(userEmail),
+  });
 }
 
-export async function getOpsRecentEvents() {
-  return request<OpsRecentEvent[]>('/api/ops/recent-events');
+export async function getOpsCourierDispatch(userEmail: string) {
+  return request<OpsCourierDispatchResponse>('/api/ops/courier-dispatch', {
+    headers: userHeader(userEmail),
+  });
 }
 
-export async function prepareShipmentForDispatch(shipmentId: string) {
+export async function getOpsRecentEvents(userEmail: string) {
+  return request<OpsRecentEvent[]>('/api/ops/recent-events', {
+    headers: userHeader(userEmail),
+  });
+}
+
+export async function prepareShipmentForDispatch(userEmail: string, shipmentId: string) {
   return request(`/api/admin/shipments/${shipmentId}/prepare-for-dispatch`, {
     method: 'POST',
+    headers: userHeader(userEmail),
   });
 }
 
-export async function assignCourierToShipment(shipmentId: string, courierId: string) {
+export async function assignCourierToShipment(userEmail: string, shipmentId: string, courierId: string) {
   return request(`/api/admin/shipments/${shipmentId}/assign-courier`, {
     method: 'POST',
+    headers: userHeader(userEmail),
     body: {
       courierId,
       taskDate: new Date().toISOString().slice(0, 10),
@@ -744,64 +819,104 @@ export async function assignCourierToShipment(shipmentId: string, courierId: str
   });
 }
 
-export async function getAdminPayments() {
-  return request<AdminPaymentSummary[]>('/api/admin/payments');
+export async function reassignCourierForShipment(userEmail: string, shipmentId: string, courierId: string) {
+  return request(`/api/admin/shipments/${shipmentId}/reassign-courier`, {
+    method: 'POST',
+    headers: userHeader(userEmail),
+    body: {
+      courierId,
+      taskDate: new Date().toISOString().slice(0, 10),
+    },
+  });
 }
 
-export async function markPaymentPaid(paymentId: string) {
+export async function getAdminPayments(userEmail: string) {
+  return request<AdminPaymentSummary[]>('/api/admin/payments', {
+    headers: userHeader(userEmail),
+  });
+}
+
+export async function markPaymentPaid(userEmail: string, paymentId: string) {
   return request(`/api/admin/payments/${paymentId}/mark-paid`, {
     method: 'POST',
+    headers: userHeader(userEmail),
   });
 }
 
-export async function failPayment(paymentId: string) {
+export async function failPayment(userEmail: string, paymentId: string) {
   return request(`/api/admin/payments/${paymentId}/fail`, {
     method: 'POST',
+    headers: userHeader(userEmail),
   });
 }
 
-export async function cancelPayment(paymentId: string) {
+export async function cancelPayment(userEmail: string, paymentId: string) {
   return request(`/api/admin/payments/${paymentId}/cancel`, {
     method: 'POST',
+    headers: userHeader(userEmail),
   });
 }
 
-export async function getAdminComplaints() {
-  return request<AdminComplaintSummary[]>('/api/admin/complaints');
+export async function getAdminComplaints(userEmail: string) {
+  return request<AdminComplaintSummary[]>('/api/admin/complaints', {
+    headers: userHeader(userEmail),
+  });
 }
 
-export async function startComplaintReview(complaintId: string) {
+export async function getAdminUsers(userEmail: string) {
+  return request<AdminUserSummary[]>('/api/admin/users', {
+    headers: userHeader(userEmail),
+  });
+}
+
+export async function startComplaintReview(userEmail: string, complaintId: string) {
   return request(`/api/admin/complaints/${complaintId}/start-review`, {
     method: 'POST',
+    headers: userHeader(userEmail),
   });
 }
 
-export async function acceptComplaint(complaintId: string, resolutionNote?: string) {
+export async function acceptComplaint(userEmail: string, complaintId: string, resolutionNote?: string) {
   return request(`/api/admin/complaints/${complaintId}/accept`, {
     method: 'POST',
+    headers: userHeader(userEmail),
     body: resolutionNote ? { resolutionNote } : undefined,
   });
 }
 
-export async function rejectComplaint(complaintId: string, resolutionNote?: string) {
+export async function rejectComplaint(userEmail: string, complaintId: string, resolutionNote?: string) {
   return request(`/api/admin/complaints/${complaintId}/reject`, {
     method: 'POST',
+    headers: userHeader(userEmail),
     body: resolutionNote ? { resolutionNote } : undefined,
   });
 }
 
-export async function closeComplaint(complaintId: string) {
+export async function closeComplaint(userEmail: string, complaintId: string) {
   return request(`/api/admin/complaints/${complaintId}/close`, {
     method: 'POST',
+    headers: userHeader(userEmail),
   });
 }
 
 export function userFromAuthResponse(role: UserRole, authUser: CurrentUserResponse): AppUser {
+  if (!authUser.roles.includes(role)) {
+    throw new Error(`Uzytkownik nie ma dostepu do roli ${role}.`);
+  }
+
   return {
     role,
+    availableRoles: authUser.roles.filter((item): item is UserRole =>
+      item === 'client' || item === 'courier' || item === 'point' || item === 'admin',
+    ),
     id: authUser.id,
     email: authUser.email,
     name: authUser.displayName,
     pointCode: authUser.pointCode ?? undefined,
+    pointName: authUser.pointName ?? undefined,
+    serviceCity: authUser.serviceCity ?? undefined,
+    adminScope: authUser.adminScope ?? undefined,
+    location:
+      authUser.pointName && authUser.pointCode ? `${authUser.pointName} (${authUser.pointCode})` : undefined,
   };
 }

@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,17 +29,14 @@ public class ClientPaymentController {
     @PostMapping("/shipments/{trackingNumber}/payments")
     @ResponseStatus(HttpStatus.CREATED)
     public PaymentCreatedResponse createPayment(
-            @RequestHeader(name = "X-User-Email", required = false) String userEmail,
             @PathVariable String trackingNumber,
             @Valid @RequestBody CreatePaymentRequest request
     ) {
-        return clientPaymentContractService.createPayment(userEmail, trackingNumber, request);
+        return clientPaymentContractService.createPayment(null, trackingNumber, request);
     }
 
     @GetMapping("/payments")
-    public List<PaymentSummaryResponse> listPayments(
-            @RequestHeader(name = "X-User-Email", required = false) String userEmail
-    ) {
-        return clientPaymentContractService.listPayments(userEmail);
+    public List<PaymentSummaryResponse> listPayments() {
+        return clientPaymentContractService.listPayments(null);
     }
 }

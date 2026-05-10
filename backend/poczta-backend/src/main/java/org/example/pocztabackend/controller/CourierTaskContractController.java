@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,48 +29,38 @@ public class CourierTaskContractController {
     }
 
     @GetMapping
-    public List<CourierTaskListItemResponse> getCourierTasks(
-            @RequestHeader(name = "X-Courier-Id") UUID courierId
-    ) {
-        return courierTaskContractService.getCourierTasks(courierId);
+    public List<CourierTaskListItemResponse> getCourierTasks() {
+        return courierTaskContractService.getCourierTasks(null);
     }
 
     @GetMapping("/{taskId}")
     public CourierTaskDetailsResponse getCourierTask(@PathVariable UUID taskId) {
-        return courierTaskContractService.getCourierTask(taskId);
+        return courierTaskContractService.getCourierTask(null, taskId);
     }
 
     @PostMapping("/{taskId}/accept")
-    public CourierTaskStateChangeResponse acceptCourierTask(
-            @RequestHeader(name = "X-Courier-Id") UUID courierId,
-            @PathVariable UUID taskId
-    ) {
-        return courierTaskContractService.acceptCourierTask(courierId, taskId);
+    public CourierTaskStateChangeResponse acceptCourierTask(@PathVariable UUID taskId) {
+        return courierTaskContractService.acceptCourierTask(null, taskId);
     }
 
     @PostMapping("/{taskId}/start")
-    public CourierTaskStateChangeResponse startCourierTask(
-            @RequestHeader(name = "X-Courier-Id") UUID courierId,
-            @PathVariable UUID taskId
-    ) {
-        return courierTaskContractService.startCourierTask(courierId, taskId);
+    public CourierTaskStateChangeResponse startCourierTask(@PathVariable UUID taskId) {
+        return courierTaskContractService.startCourierTask(null, taskId);
     }
 
     @PostMapping("/{taskId}/complete-delivery")
     public CourierTaskStateChangeResponse completeDelivery(
-            @RequestHeader(name = "X-Courier-Id") UUID courierId,
             @PathVariable UUID taskId,
             @Valid @RequestBody CompleteDeliveryRequest request
     ) {
-        return courierTaskContractService.completeDelivery(courierId, taskId, request);
+        return courierTaskContractService.completeDelivery(null, taskId, request);
     }
 
     @PostMapping("/{taskId}/record-attempt")
     public DeliveryAttemptRecordedResponse recordAttempt(
-            @RequestHeader(name = "X-Courier-Id") UUID courierId,
             @PathVariable UUID taskId,
             @Valid @RequestBody RecordDeliveryAttemptRequest request
     ) {
-        return courierTaskContractService.recordAttempt(courierId, taskId, request);
+        return courierTaskContractService.recordAttempt(null, taskId, request);
     }
 }
