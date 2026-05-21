@@ -1,0 +1,28 @@
+Inżynieria Oprogramowania
+Zajęcia będą polegały na wykonaniu obiektowego, wielowątkowego systemu w architekturze klient-serwer
+Typową technologią do wykonania projektu jest Java+baza danych Oracle
+Możliwość użycia innych technologii wymaga indywidualnej zgody prowadzącego.
+PHP oraz MySQL są nieodpowiednie do wykonania tego projektu
+3-4 osobowe zespoły pracują nad jednym tematem
+Tematy mogą zostać zaproponowane przez zespoły
+Tematy wybierane są drogą mailową i przyznawane w kolejności otrzymania maila
+Ostateczny termin wyboru tematów do 2 zajęć
+Podczas realizacji projektu należy korzystać z narzędzia GIT. Zespół jest odpowiedzialny za przygotowanie repozytorium i zapewnienie dostępu dla prowadzącego
+Każdy student ma obowiązek prezentować wyniki prac nad projektem minimum 3 razy w ciągu semestru
+Ocena z projektu zależna jest od: obecności na zajęciach projektowych, prezentacji wyników podczas zajęć, wykorzystania narzędzia GIT, obrony oddawanego projektu
+Przed obroną projektu należy umieścić ostateczną wersję projektu na GIT oraz mailowo poinformować o tym fakcie prowadzącego najpóźniej 24 godziny przed planowaną obroną
+Niespełnienie warunku z poprzedniego punktu skutkuje niedopuszczeniem do obrony projektu
+Osoby, które nie prezentują postępów prac w trakcie semestru nie zostaną dopuszczone do obrony
+Próba oddania plagiatu skutkuje niezaliczeniem we wszystkich terminach
+Wymagana na poszczególną ocenę:
+
+ocena dostateczna: klasy odpowiedzialne za model oraz testy jednostkowe
+ocena dobra: + graficzny interfejs użytkownika oraz połączenie z bazą danych
+ocena bardzo dobra: + wzorce projektowe, testy wzorców oraz klient-serwer
+Najbardziej podstawowa funkcjonalność systemów, która nie będzie oceniana:
+
+Zarządzanie kontami użytkowników (logowanie, rejestracja itp.)
+Zarządzanie pracownikami (zwolnij, zatrudnij pracownika, ustal pensję itp.)
+Funkcjonalność sklepu (kup, sprzedaj itp.)
+Funkcjonalność wypożyczalni (wypożycz, zwróć itp.)
+Funkcjonalność serwisu (napraw, zgłoś usterkę itp.)

@@ -1,5 +1,6 @@
 package org.example.pocztabackend.config;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,11 +27,11 @@ public class SecurityConfig {
     private String frontendUrl;
 
     public SecurityConfig(OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler,
-                          CookieOAuth2AuthorizationRequestRepository cookieAuthRequestRepository,
-                          ClientRegistrationRepository clientRegistrationRepository) {
+                          ObjectProvider<CookieOAuth2AuthorizationRequestRepository> cookieAuthRequestRepositoryProvider,
+                          ObjectProvider<ClientRegistrationRepository> clientRegistrationRepositoryProvider) {
         this.oAuth2LoginSuccessHandler = oAuth2LoginSuccessHandler;
-        this.cookieAuthRequestRepository = cookieAuthRequestRepository;
-        this.clientRegistrationRepository = clientRegistrationRepository;
+        this.cookieAuthRequestRepository = cookieAuthRequestRepositoryProvider.getIfAvailable();
+        this.clientRegistrationRepository = clientRegistrationRepositoryProvider.getIfAvailable();
     }
 
     @Bean
@@ -48,15 +49,19 @@ public class SecurityConfig {
                                 "/error"
                         ).permitAll()
                         .anyRequest().authenticated()
-                )
-                .oauth2Login(oauth2 -> oauth2
-                        .authorizationEndpoint(endpoint -> endpoint
-                                .authorizationRequestRepository(cookieAuthRequestRepository)
-                                .authorizationRequestResolver(promptSelectAccountResolver())
-                        )
-                        .failureUrl(frontendUrl + "/login?error=oauth2")
-                        .successHandler(oAuth2LoginSuccessHandler)
                 );
+
+        if (clientRegistrationRepository != null && cookieAuthRequestRepository != null) {
+            http.oauth2Login(oauth2 -> oauth2
+                    .authorizationEndpoint(endpoint -> endpoint
+                            .authorizationRequestRepository(cookieAuthRequestRepository)
+                            .authorizationRequestResolver(promptSelectAccountResolver())
+                    )
+                    .failureUrl(frontendUrl + "/login?error=oauth2")
+                    .successHandler(oAuth2LoginSuccessHandler)
+            );
+        }
+
         return http.build();
     }
 
