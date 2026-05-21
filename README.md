@@ -3,6 +3,8 @@
 Projekt sklada sie z:
 - backendu Spring Boot z Oracle XE w Dockerze
 - frontendu React + Vite
+- RabbitMQ do asynchronicznych powiadomien
+- Maildev do lokalnego podgladu maili
 - skryptow Python do generowania i ladowania danych testowych przez prawdziwe API
 
 ## Co zostalo zrobione
@@ -11,6 +13,11 @@ Ten stan projektu obejmuje:
 - dopracowanie glownej logiki backendu pod live flow
 - podlaczenie frontendu do backendu bez mockow
 - contract endpointy dla client, courier, point, admin i ops dashboard
+- logowanie przez email/haslo oraz Google OAuth2
+- platnosci online Stripe w trybie sandbox
+- webhook Stripe i flow powrotu na frontend po checkout
+- Swagger / OpenAPI dla biezacego API
+- RabbitMQ + Maildev do lokalnych powiadomien
 - skrypty seedujace, ktore potrafia wypelnic czysta baze realnymi scenariuszami operacyjnymi
 - runtime role model v1 z profilami kuriera i przypisaniem pracownika punktu
 - bearer auth/session v1 dla zywych rol w frontendzie i loaderze
@@ -22,31 +29,42 @@ Ten stan projektu obejmuje:
 - Node.js 20+ i npm
 - Python 3.11+ lub kompatybilny Python 3
 
-## Docker i baza danych
+## Docker i uslugi lokalne
 
-Projekt uzywa Oracle XE w Dockerze.
+Projekt uzywa Docker Compose do uruchamiania Oracle XE, RabbitMQ i Maildev.
 
 Plik:
 - `docker-compose.yml`
 
-Dane:
-- kontener: `oracle-21c-springboot`
-- host DB: `localhost`
-- port DB: `1522`
-- service name: `XEPDB1`
-- user aplikacyjny: `springuser`
-- haslo aplikacyjne: `spring`
-- haslo `SYS` / `SYSTEM`: `Sys123`
+Uslugi:
+- Oracle XE
+  - kontener: `oracle-21c-springboot`
+  - host DB: `localhost`
+  - port DB: `1522`
+  - service name: `XEPDB1`
+  - user aplikacyjny: `springuser`
+  - haslo aplikacyjne: `spring`
+  - haslo `SYS` / `SYSTEM`: `Sys123`
+- RabbitMQ
+  - kontener: `pingwinpost-rabbitmq`
+  - AMQP: `localhost:5672`
+  - panel: [http://localhost:15672](http://localhost:15672)
+  - login: `pingwin`
+  - haslo: `pingwin123`
+- Maildev
+  - kontener: `pingwinpost-maildev`
+  - SMTP: `localhost:1025`
+  - panel: [http://localhost:1080](http://localhost:1080)
 
 ## Szybki start od zera
 
-### 1. Podnies Oracle
+### 1. Podnies uslugi Docker
 
 Z katalogu repo:
 
 ```powershell
 cd H:\poczta
-docker compose up -d oracle-db
+docker compose up -d
 docker compose logs -f oracle-db
 ```
 
@@ -69,6 +87,21 @@ Backend startuje na:
 
 Jesli pojawi sie blad `Port 8081 was already in use`, trzeba zatrzymac stary proces Java, ktory wisi w tle.
 
+Lokalne sekrety do OAuth2 i Stripe:
+- skopiuj [application-local.example.properties](/H:/poczta/backend/poczta-backend/src/main/resources/application-local.example.properties:1) do `backend/poczta-backend/src/main/resources/application-local.properties`
+- uzupelnij lokalne wartosci dla Google OAuth2 i Stripe
+- uruchom backend z profilem `local`:
+
+```powershell
+cd H:\poczta\backend\poczta-backend
+.\mvnw.cmd spring-boot:run "-Dspring-boot.run.profiles=local"
+```
+
+Backend lokalnie korzysta z:
+- Oracle na `localhost:1522`
+- RabbitMQ na `localhost:5672`
+- Maildev SMTP na `localhost:1025`
+
 Haslo demo dla wszystkich seedowanych kont:
 
 ```text
@@ -87,6 +120,8 @@ Frontend startuje domyslnie na:
 - [http://127.0.0.1:4173](http://127.0.0.1:4173)
 
 Frontend ma skonfigurowany proxy `/api -> http://localhost:8081`, wiec backend musi dzialac lokalnie na porcie `8081`.
+
+Po powrocie z Google OAuth2 i Stripe frontend rowniez oczekuje backendu pod `http://localhost:8081`.
 
 ## Jak wypelnic baze danymi
 
@@ -218,6 +253,41 @@ demo1234
 ```
 
 Rola point korzysta teraz z normalnego konta usera z przypisaniem do punktu, a nie z samego `pointCode`.
+
+## Jak testowac platnosci Stripe
+
+Pelna instrukcja:
+- `docs/testowanie-platnosci-stripe.md`
+
+Szybki scenariusz:
+
+1. Uruchom `docker compose up -d`, backend i frontend.
+2. Zaloguj sie jako klient:
+   - `jan.kowalski.client@example.com`
+   - haslo: `demo1234`
+3. Wejdz w `Moje przesylki -> Nadaj przesylke`.
+4. Utworz przesylke z metoda platnosci `Online`.
+5. Przejdz do szczegolow przesylki i kliknij `Zaplac przez Stripe`.
+
+Karty testowe Stripe:
+- sukces: `4242 4242 4242 4242`
+- brak srodkow: `4000 0000 0000 9995`
+- karta odrzucona: `4000 0000 0000 0002`
+
+Przy kartach testowych:
+- data waznosci moze byc dowolna przyszla
+- CVC moze byc dowolne 3-cyfrowe
+- imie moze byc dowolne
+
+Oczekiwane zachowanie:
+- po sukcesie frontend wraca na `/client/shipments/{paymentId}/stripe-success`
+- status platnosci powinien przejsc na oplacona
+- po anulowaniu lub odrzuceniu uzytkownik wraca do szczegolow przesylki i moze sprobowac ponownie
+
+Uwagi techniczne:
+- backend tworzy checkout Stripe i weryfikuje sesje po powrocie
+- webhook Stripe jest wystawiony pod `/api/payments/webhook/stripe`
+- testowe maile mozna podejrzec w Maildev: [http://localhost:1080](http://localhost:1080)
 
 ## Dodatkowe notatki
 
