@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { AlertCircle, CreditCard, Package, RefreshCw, Truck } from 'lucide-react';
 import {
   acceptComplaint,
@@ -211,6 +212,33 @@ export default function AdminDashboard() {
             <p className="mt-2 text-sm text-muted-foreground">{item.description}</p>
           </div>
         ))}
+      </div>
+
+      <div className="mb-8 rounded-xl border border-dashed border-border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h3 className="text-lg">Technical demo tools</h3>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+              Hidden operations pages for demo-only parcel lifecycle simulation, linehaul storytelling, and machine-style
+              pickup/release flows. They are linked only from the admin layer.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/admin/demo-lab"
+              className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90"
+            >
+              Open demo lab
+            </Link>
+            <Link
+              to="/admin/demo/locker"
+              className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
+            >
+              Open locker lab
+            </Link>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

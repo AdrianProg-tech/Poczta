@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, Search } from 'lucide-react';
 import {
+  acceptPointShipment,
   assignCourierToShipment,
+  collectOfflinePaymentAndReleaseShipment,
   formatDateTime,
+  getAdminUsers,
   getOpsCourierDispatch,
   getOpsShipmentBoard,
   prepareShipmentForDispatch,
+  releasePointShipment,
+  type AdminUserSummary,
   type OpsCourierDispatchResponse,
   type OpsShipmentBoardItem,
 } from '../api';
@@ -45,47 +50,74 @@ function formatAction(action: string) {
   return labels[action] ?? action;
 }
 
+function explainAction(action: string) {
+  const explanations: Record<string, string> = {
+    PREPARE_FOR_DISPATCH: 'Ops powinien przepchnac przesylke z oplaty do pierwszego operacyjnego handoffu.',
+    ASSIGN_COURIER: 'Dispatcher powinien wskazac kuriera, aby shipment zszedl z kolejki oczekiwania.',
+    HAND_OVER_TO_COURIER: 'Kolejny ruch jest po stronie kuriera lub punktu przekazujacego shipment do final-mile.',
+    ACCEPT_TASK: 'Task istnieje, ale kurier nie potwierdzil jeszcze przyjecia.',
+    START_ROUTE: 'Task jest przyjety, ale kurier nie ruszyl jeszcze w trase.',
+    COMPLETE_OR_RECORD_ATTEMPT: 'Shipment jest juz w dostawie i wymaga finalnego wyniku po stronie kuriera.',
+    ACCEPT_REDIRECTED_SHIPMENT: 'Punkt powinien przyjac redirect, aby przesylka trafila do odbioru klienta.',
+    PICKUP_AT_POINT: 'Klient moze odebrac przesylke, a punkt powinien pilnowac release flow.',
+    REVIEW_EXCEPTION: 'Shipment utknal w stanie wymagajacym recznego review albo decyzji operacyjnej.',
+    NONE: 'Nie ma sugerowanego kolejnego ruchu w tym read-modelu.',
+  };
+  return explanations[action] ?? 'Sprawdz ten shipment recznie, bo read-model nie ma dla niego prostego playbooka.';
+}
+
 export default function AdminShipments() {
   const {
     state: { currentUser },
   } = useAppStateContext();
   const [shipments, setShipments] = useState<OpsShipmentBoardItem[]>([]);
   const [dispatch, setDispatch] = useState<OpsCourierDispatchResponse | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUserSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyShipmentId, setBusyShipmentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [ownerFilter, setOwnerFilter] = useState<'ALL' | string>('ALL');
   const [actionFilter, setActionFilter] = useState<'ALL' | string>('ALL');
+  const isFullAdmin = currentUser?.adminScope !== 'DISPATCHER';
 
   const suggestions = useMemo(
     () => new Map((dispatch?.shipmentsAwaitingAssignment ?? []).map((item) => [item.shipmentId, item])),
     [dispatch],
   );
+  const pointWorkerEmailByCode = useMemo(() => {
+    const entries = adminUsers
+      .filter((user) => user.roles.includes('point') && user.pointCode)
+      .map((user) => [user.pointCode!, user.email] as const);
+    return new Map(entries);
+  }, [adminUsers]);
 
   const loadBoard = useCallback(async () => {
     if (!currentUser?.email) {
       setShipments([]);
       setDispatch(null);
+      setAdminUsers([]);
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     try {
-      const [shipmentsData, dispatchData] = await Promise.all([
+      const [shipmentsData, dispatchData, adminUsersData] = await Promise.all([
         getOpsShipmentBoard(currentUser.email),
         getOpsCourierDispatch(currentUser.email),
+        isFullAdmin ? getAdminUsers(currentUser.email) : Promise.resolve([]),
       ]);
       setShipments(shipmentsData);
       setDispatch(dispatchData);
+      setAdminUsers(adminUsersData);
       setError(null);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac boardu przesylek.');
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser?.email]);
+  }, [currentUser?.email, isFullAdmin]);
 
   useEffect(() => {
     void loadBoard();
@@ -125,6 +157,18 @@ export default function AdminShipments() {
     });
     return Array.from(counts.entries()).sort((left, right) => right[1] - left[1]);
   }, [shipments]);
+  const boardSummary = useMemo(
+    () => ({
+      prepare: shipments.filter((shipment) => shipment.nextSuggestedAction === 'PREPARE_FOR_DISPATCH').length,
+      assign: shipments.filter((shipment) => shipment.nextSuggestedAction === 'ASSIGN_COURIER').length,
+      point: shipments.filter(
+        (shipment) =>
+          shipment.nextSuggestedAction === 'ACCEPT_REDIRECTED_SHIPMENT' || shipment.nextSuggestedAction === 'PICKUP_AT_POINT',
+      ).length,
+      blocked: shipments.filter((shipment) => Boolean(shipment.blockedReason)).length,
+    }),
+    [shipments],
+  );
 
   const ownerOptions = Array.from(new Set(shipments.map((shipment) => shipment.nextActionOwner)));
   const actionOptions = Array.from(new Set(shipments.map((shipment) => shipment.nextSuggestedAction)));
@@ -196,11 +240,59 @@ export default function AdminShipments() {
       </div>
 
       <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <button
+          type="button"
+          onClick={() => setActionFilter('PREPARE_FOR_DISPATCH')}
+          className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
+        >
+          <div className="text-sm text-muted-foreground">Prepare queue</div>
+          <div className="mt-2 text-2xl">{boardSummary.prepare}</div>
+          <div className="mt-2 text-sm text-muted-foreground">Platnosc potwierdzona, ale jeszcze bez operacyjnego handoffu.</div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActionFilter('ASSIGN_COURIER')}
+          className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
+        >
+          <div className="text-sm text-muted-foreground">Do przydzialu kuriera</div>
+          <div className="mt-2 text-2xl">{boardSummary.assign}</div>
+          <div className="mt-2 text-sm text-muted-foreground">Dispatcher ma tu najwiekszy wplyw na plynne zejscie kolejki.</div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setOwnerFilter('POINT')}
+          className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
+        >
+          <div className="text-sm text-muted-foreground">Punktowe handoffy</div>
+          <div className="mt-2 text-2xl">{boardSummary.point}</div>
+          <div className="mt-2 text-sm text-muted-foreground">Redirecty i pickupy, ktore wymagaja reakcji punktu odbioru.</div>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOwnerFilter('ALL');
+            setActionFilter('ALL');
+          }}
+          className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
+        >
+          <div className="text-sm text-muted-foreground">Zablokowane / do review</div>
+          <div className="mt-2 text-2xl">{boardSummary.blocked}</div>
+          <div className="mt-2 text-sm text-muted-foreground">Shipmenty z `blockedReason`, ktore zwykle wymagaja recznego spojrzenia.</div>
+        </button>
+      </div>
+
+      <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {actionCounts.slice(0, 4).map(([action, count]) => (
-          <div key={action} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+          <button
+            key={action}
+            type="button"
+            onClick={() => setActionFilter(action)}
+            className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
+          >
             <div className="text-sm text-muted-foreground">{formatAction(action)}</div>
             <div className="mt-2 text-2xl">{count}</div>
-          </div>
+            <div className="mt-2 text-sm text-muted-foreground">{explainAction(action)}</div>
+          </button>
         ))}
       </div>
 
@@ -225,6 +317,9 @@ export default function AdminShipments() {
                 {filteredShipments.map((shipment) => {
                   const suggestion = suggestions.get(shipment.shipmentId);
                   const isBusy = busyShipmentId === shipment.shipmentId;
+                  const pointWorkerEmail = shipment.targetPointCode
+                    ? pointWorkerEmailByCode.get(shipment.targetPointCode)
+                    : undefined;
 
                   return (
                     <tr key={shipment.shipmentId} className="align-top transition-colors hover:bg-muted/50">
@@ -247,6 +342,7 @@ export default function AdminShipments() {
                         <div>{formatAction(shipment.nextSuggestedAction)}</div>
                         {shipment.blockedReason ? <div className="mt-1">{shipment.blockedReason}</div> : null}
                         {suggestion?.suggestionReason ? <div className="mt-1">{suggestion.suggestionReason}</div> : null}
+                        <div className="mt-2 rounded-lg bg-secondary p-3 text-sm">{explainAction(shipment.nextSuggestedAction)}</div>
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         {shipment.assignedCourierEmail ?? suggestion?.suggestedCourierEmail ?? 'Brak'}
@@ -284,7 +380,88 @@ export default function AdminShipments() {
                           </button>
                         ) : null}
 
-                        {!['PREPARE_FOR_DISPATCH', 'ASSIGN_COURIER'].includes(shipment.nextSuggestedAction) ? (
+                        {shipment.nextSuggestedAction === 'ACCEPT_REDIRECTED_SHIPMENT' ? (
+                          pointWorkerEmail ? (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() =>
+                                runShipmentAction(shipment.shipmentId, () =>
+                                  acceptPointShipment(pointWorkerEmail, shipment.trackingNumber),
+                                )
+                              }
+                              className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
+                            >
+                              Przyjmij w punkcie
+                            </button>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">
+                              Quick action wymaga przypisanego point workera
+                              {!isFullAdmin ? ' i scope ADMIN.' : '.'}
+                            </div>
+                          )
+                        ) : null}
+
+                        {shipment.nextSuggestedAction === 'CONFIRM_OFFLINE_PAYMENT' ? (
+                          pointWorkerEmail ? (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() =>
+                                runShipmentAction(shipment.shipmentId, () =>
+                                  collectOfflinePaymentAndReleaseShipment(pointWorkerEmail, shipment.trackingNumber),
+                                )
+                              }
+                              className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
+                            >
+                              Pobierz + wydaj
+                            </button>
+                          ) : (
+                            <div className="text-sm text-muted-foreground">
+                              Quick action wymaga przypisanego point workera
+                              {!isFullAdmin ? ' i scope ADMIN.' : '.'}
+                            </div>
+                          )
+                        ) : null}
+
+                        {shipment.nextSuggestedAction === 'PICKUP_AT_POINT' ? (
+                          pointWorkerEmail ? (
+                            shipment.paymentStatus === 'OFFLINE_PENDING' ? (
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() =>
+                                  runShipmentAction(shipment.shipmentId, () =>
+                                    collectOfflinePaymentAndReleaseShipment(pointWorkerEmail, shipment.trackingNumber),
+                                  )
+                                }
+                                className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
+                              >
+                                Pobierz + wydaj
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() =>
+                                  runShipmentAction(shipment.shipmentId, () =>
+                                    releasePointShipment(pointWorkerEmail, shipment.trackingNumber),
+                                  )
+                                }
+                                className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
+                              >
+                                Wydaj w punkcie
+                              </button>
+                            )
+                          ) : (
+                            <div className="text-sm text-muted-foreground">
+                              Quick action wymaga przypisanego point workera
+                              {!isFullAdmin ? ' i scope ADMIN.' : '.'}
+                            </div>
+                          )
+                        ) : null}
+
+                        {!['PREPARE_FOR_DISPATCH', 'ASSIGN_COURIER', 'ACCEPT_REDIRECTED_SHIPMENT', 'PICKUP_AT_POINT', 'CONFIRM_OFFLINE_PAYMENT'].includes(shipment.nextSuggestedAction) ? (
                           <div className="text-sm text-muted-foreground">Brak szybkiej akcji</div>
                         ) : null}
                       </td>

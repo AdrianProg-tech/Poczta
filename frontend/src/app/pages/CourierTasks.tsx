@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckSquare, RefreshCw, RotateCcw, Truck } from 'lucide-react';
+import { Link } from 'react-router';
+import { CheckSquare, RefreshCw, RotateCcw, ScanSearch, Truck } from 'lucide-react';
 import {
   acceptCourierTask,
   completeCourierTask,
@@ -17,6 +18,22 @@ import { useAppStateContext } from '../state/AppStateContext';
 
 type TaskFilter = 'ALL' | 'ASSIGNED' | 'ACCEPTED' | 'IN_PROGRESS' | 'FAILED' | 'COMPLETED';
 
+function getCourierTaskNextStep(taskStatus: string) {
+  if (taskStatus === 'ASSIGNED') {
+    return 'Przyjmij task, zeby dispatcher widzial, ze kurier przejal trase.';
+  }
+  if (taskStatus === 'ACCEPTED') {
+    return 'Rozpocznij trase, gdy wyjazd jest faktycznie gotowy.';
+  }
+  if (taskStatus === 'IN_PROGRESS') {
+    return 'Domknij dostawe sukcesem albo zapisz nieudana probe z redirectem.';
+  }
+  if (taskStatus === 'FAILED') {
+    return 'Task jest po probie nieudanej. Dalszy handoff przejmuje punkt lub ops.';
+  }
+  return 'Task jest zakonczony i nie wymaga juz akcji kuriera.';
+}
+
 export default function CourierTasks() {
   const {
     state: { currentUser },
@@ -27,7 +44,10 @@ export default function CourierTasks() {
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<TaskFilter>('ALL');
+  const [query, setQuery] = useState('');
   const [redirectPointByTaskId, setRedirectPointByTaskId] = useState<Record<string, string>>({});
+  const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [batchRedirectPointCode, setBatchRedirectPointCode] = useState('');
 
   const loadTasks = useCallback(async () => {
     if (!currentUser?.email) {
@@ -44,6 +64,9 @@ export default function CourierTasks() {
       setError(null);
       setRedirectPointByTaskId((current) => {
         const pickupPoint = pointsData.find((point) => point.type === 'PICKUP_POINT') ?? pointsData[0];
+        if (pickupPoint) {
+          setBatchRedirectPointCode((currentValue) => currentValue || pickupPoint.pointCode);
+        }
         if (!pickupPoint) {
           return current;
         }
@@ -80,11 +103,48 @@ export default function CourierTasks() {
     }
   }
 
+  async function runBatchTaskAction(actionKey: string, actions: Array<() => Promise<unknown>>) {
+    if (actions.length === 0) {
+      return false;
+    }
+
+    setBusyTaskId(actionKey);
+    setError(null);
+    try {
+      for (const action of actions) {
+        await action();
+      }
+      await loadTasks();
+      return true;
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Operacja masowa nie powiodla sie.');
+      return false;
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
   const pickupPoints = useMemo(() => points.filter((point) => point.type === 'PICKUP_POINT'), [points]);
-  const filteredTasks = useMemo(
-    () => tasks.filter((task) => filter === 'ALL' || task.taskStatus === filter),
-    [filter, tasks],
-  );
+  const filteredTasks = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return tasks.filter((task) => {
+      const matchesFilter = filter === 'ALL' || task.taskStatus === filter;
+      if (!matchesFilter) {
+        return false;
+      }
+
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      const haystack = [task.trackingNumber, task.recipientName, task.recipientPhone, task.targetAddress, task.taskStatus]
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(normalizedQuery);
+    });
+  }, [filter, query, tasks]);
   const summary = useMemo(
     () => [
       { label: 'Assigned', value: tasks.filter((task) => task.taskStatus === 'ASSIGNED').length },
@@ -94,6 +154,46 @@ export default function CourierTasks() {
     ],
     [tasks],
   );
+  const selectedTasks = useMemo(() => filteredTasks.filter((task) => selectedTaskIds.has(task.taskId)), [filteredTasks, selectedTaskIds]);
+  const selectableTasks = useMemo(
+    () => filteredTasks.filter((task) => ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'].includes(task.taskStatus)),
+    [filteredTasks],
+  );
+  const batchAcceptableTasks = useMemo(
+    () => selectedTasks.filter((task) => task.taskStatus === 'ASSIGNED'),
+    [selectedTasks],
+  );
+  const batchStartableTasks = useMemo(
+    () => selectedTasks.filter((task) => task.taskStatus === 'ASSIGNED' || task.taskStatus === 'ACCEPTED'),
+    [selectedTasks],
+  );
+  const batchCompletableTasks = useMemo(
+    () => selectedTasks.filter((task) => task.taskStatus === 'IN_PROGRESS'),
+    [selectedTasks],
+  );
+
+  useEffect(() => {
+    const visibleIds = new Set(filteredTasks.map((task) => task.taskId));
+    setSelectedTaskIds((current) => new Set([...current].filter((taskId) => visibleIds.has(taskId))));
+  }, [filteredTasks]);
+
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds((current) => {
+      const next = new Set(current);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      return next;
+    });
+  };
+
+  const toggleAllVisibleTasks = () => {
+    setSelectedTaskIds((current) =>
+      current.size === selectableTasks.length ? new Set() : new Set(selectableTasks.map((task) => task.taskId)),
+    );
+  };
 
   return (
     <DashboardShell role="courier" title="Zadania kuriera">
@@ -140,6 +240,169 @@ export default function CourierTasks() {
         ))}
       </div>
 
+      <div className="mb-6 rounded-xl border border-border bg-card p-5 shadow-sm">
+        <label className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+          <ScanSearch className="h-4 w-4" />
+          Numer / odbiorca / telefon / adres
+        </label>
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Wpisz tracking, nazwisko odbiorcy albo fragment adresu"
+          className="w-full rounded-lg border border-border bg-input-background px-4 py-3 outline-none transition-colors focus:border-accent"
+        />
+      </div>
+
+      <div className="mb-6 rounded-xl border border-dashed border-border bg-secondary/60 p-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div>
+            <div className="text-sm">
+              Wybrano <span className="font-medium">{selectedTasks.length}</span> z{' '}
+              <span className="font-medium">{selectableTasks.length}</span> aktywnych taskow w aktualnym widoku.
+            </div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              Batch mode dziala na aktualnym filtrze i pomija taski zamkniete (`FAILED`, `COMPLETED`).
+            </div>
+            <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
+              <div>Do przyjecia: {batchAcceptableTasks.length}</div>
+              <div>Do startu: {batchStartableTasks.length}</div>
+              <div>Do domkniecia: {batchCompletableTasks.length}</div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleAllVisibleTasks}
+              disabled={selectableTasks.length === 0 || busyTaskId !== null}
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted disabled:opacity-70"
+            >
+              {selectedTaskIds.size === selectableTasks.length ? 'Odznacz widoczne' : `Zaznacz widoczne (${selectableTasks.length})`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedTaskIds(new Set())}
+              disabled={selectedTasks.length === 0 || busyTaskId !== null}
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted disabled:opacity-70"
+            >
+              Wyczysc wybor
+            </button>
+            <button
+              type="button"
+              disabled={batchAcceptableTasks.length === 0 || busyTaskId !== null || !currentUser?.email}
+              onClick={() => {
+                if (!currentUser?.email || batchAcceptableTasks.length === 0) {
+                  return;
+                }
+
+                void (async () => {
+                  const success = await runBatchTaskAction(
+                    'batch-accept',
+                    batchAcceptableTasks.map((task) => () => acceptCourierTask(currentUser.email!, task.taskId)),
+                  );
+                  if (success) {
+                    setSelectedTaskIds(new Set());
+                  }
+                })();
+              }}
+              className="rounded-lg bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
+            >
+              Przyjmij zaznaczone
+            </button>
+            <button
+              type="button"
+              disabled={batchStartableTasks.length === 0 || busyTaskId !== null || !currentUser?.email}
+              onClick={() => {
+                if (!currentUser?.email || batchStartableTasks.length === 0) {
+                  return;
+                }
+
+                void (async () => {
+                  const success = await runBatchTaskAction(
+                    'batch-start',
+                    batchStartableTasks.map((task) => () => startCourierTask(currentUser.email!, task.taskId)),
+                  );
+                  if (success) {
+                    setSelectedTaskIds(new Set());
+                  }
+                })();
+              }}
+              className="rounded-lg border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-muted disabled:opacity-70"
+            >
+              Rozpocznij zaznaczone
+            </button>
+            <button
+              type="button"
+              disabled={batchCompletableTasks.length === 0 || busyTaskId !== null || !currentUser?.email}
+              onClick={() => {
+                if (!currentUser?.email || batchCompletableTasks.length === 0) {
+                  return;
+                }
+
+                void (async () => {
+                  const success = await runBatchTaskAction(
+                    'batch-complete',
+                    batchCompletableTasks.map((task) => () =>
+                      completeCourierTask(currentUser.email!, task.taskId, 'Delivered from courier batch UI'),
+                    ),
+                  );
+                  if (success) {
+                    setSelectedTaskIds(new Set());
+                  }
+                })();
+              }}
+              className="rounded-lg bg-success px-4 py-2 text-sm text-white transition-colors hover:bg-success/90 disabled:opacity-70"
+            >
+              Dorecz zaznaczone
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">
+          <label className="text-sm text-muted-foreground">Pickup point dla batch redirectu</label>
+          <select
+            value={batchRedirectPointCode}
+            onChange={(event) => setBatchRedirectPointCode(event.target.value)}
+            className="rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none"
+          >
+            {pickupPoints.map((point) => (
+              <option key={point.pointCode} value={point.pointCode}>
+                {point.pointCode} | {point.city}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            disabled={batchCompletableTasks.length === 0 || busyTaskId !== null || !currentUser?.email || !batchRedirectPointCode}
+            onClick={() => {
+              if (!currentUser?.email || batchCompletableTasks.length === 0 || !batchRedirectPointCode) {
+                return;
+              }
+
+              void (async () => {
+                const success = await runBatchTaskAction(
+                  'batch-attempt',
+                  batchCompletableTasks.map((task) => () =>
+                    recordCourierAttempt(currentUser.email!, task.taskId, {
+                      result: 'RECIPIENT_ABSENT',
+                      note: 'Recipient unavailable during courier batch UI',
+                      redirectToPickup: true,
+                      redirectPointCode: batchRedirectPointCode,
+                    }),
+                  ),
+                );
+                if (success) {
+                  setSelectedTaskIds(new Set());
+                }
+              })();
+            }}
+            className="rounded-lg border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-muted disabled:opacity-70"
+          >
+            Zapisz probe + redirect dla zaznaczonych
+          </button>
+        </div>
+      </div>
+
       {error ? <div className="mb-6 rounded-lg bg-destructive/10 p-4 text-destructive">{error}</div> : null}
 
       {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">Ladowanie zadan...</div> : null}
@@ -160,9 +423,25 @@ export default function CourierTasks() {
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex-1">
                   <div className="mb-3 flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedTaskIds.has(task.taskId)}
+                      disabled={!['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'].includes(task.taskStatus)}
+                      onChange={() => toggleTaskSelection(task.taskId)}
+                      className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                      aria-label={`Zaznacz task ${task.trackingNumber}`}
+                    />
                     <div className="text-lg">{task.trackingNumber}</div>
                     <StatusBadge status={task.shipmentStatus ?? task.taskStatus} />
                     <StatusBadge status={task.taskStatus} />
+                  </div>
+                  <div className="mb-3">
+                    <Link
+                      to={`/courier/tasks/${task.taskId}`}
+                      className="text-sm text-accent transition-colors hover:text-accent/80"
+                    >
+                      Otworz szczegoly tasku
+                    </Link>
                   </div>
                   <div className="grid gap-4 text-sm sm:grid-cols-2">
                     <div>
@@ -183,9 +462,22 @@ export default function CourierTasks() {
                       <div>{formatDate(task.plannedDate)}</div>
                     </div>
                   </div>
+                  <div className="mt-4">
+                    <Link
+                      to={`/courier/tasks/${task.taskId}`}
+                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
+                    >
+                      Szczegoly tasku
+                    </Link>
+                  </div>
                 </div>
 
                 <div className="space-y-3 lg:w-72">
+                  <div className="rounded-lg bg-secondary p-4 text-sm text-muted-foreground">
+                    <div className="mb-2 text-foreground">Nastepny krok</div>
+                    <div>{getCourierTaskNextStep(task.taskStatus)}</div>
+                  </div>
+
                   {task.taskStatus === 'ASSIGNED' ? (
                     <button
                       type="button"

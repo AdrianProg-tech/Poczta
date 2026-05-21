@@ -49,7 +49,7 @@ public class BridgeRoleAccessInterceptor implements HandlerInterceptor {
         }
 
         if (path.startsWith("/api/point/")) {
-            operationalActorResolver.requirePointActorPoint();
+            operationalActorResolver.requirePointActorPoint(request.getHeader("X-User-Email"));
             return true;
         }
 

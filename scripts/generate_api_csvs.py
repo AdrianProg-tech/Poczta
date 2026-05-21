@@ -246,6 +246,21 @@ def build_courier_emails_by_city(users: list[dict[str, object]]) -> dict[str, li
     return result
 
 
+def choose_city_for_scenario(
+    scenario_name: str,
+    fallback_city_code: str,
+    pickup_points_by_city: dict[str, list[str]],
+    courier_emails_by_city: dict[str, list[str]],
+) -> str:
+    if (
+        scenario_name == "REDIRECT_PENDING_POINT_ACCEPT"
+        and "WARSAW" in pickup_points_by_city
+        and "WARSAW" in courier_emails_by_city
+    ):
+        return "WARSAW"
+    return fallback_city_code
+
+
 def shipment_key_for(scenario_name: str, index: int) -> str:
     return f"{scenario_name.lower()}_{index + 1:03d}"
 
@@ -272,7 +287,12 @@ def build_dataset(
     for index in range(max(8, shipment_count)):
         scenario_name = SCENARIO_ROTATION[index % len(SCENARIO_ROTATION)]
         client = clients[index % len(clients)]
-        city_code = available_cities[index % len(available_cities)]
+        city_code = choose_city_for_scenario(
+            scenario_name,
+            available_cities[index % len(available_cities)],
+            pickup_points_by_city,
+            courier_emails_by_city,
+        )
         pickup_code = pickup_points_by_city[city_code][0]
         sender_address = SENDER_ADDRESSES[index % len(SENDER_ADDRESSES)]
         recipient_name, recipient_phone = RECIPIENT_POOL[index % len(RECIPIENT_POOL)]

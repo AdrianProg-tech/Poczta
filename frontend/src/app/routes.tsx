@@ -22,15 +22,21 @@ import StripeSuccess from './pages/StripeSuccess';
 
 // Courier pages
 import CourierDashboard from './pages/CourierDashboard';
+import CourierTaskDetails from './pages/CourierTaskDetails';
 import CourierTasks from './pages/CourierTasks';
 
 // Point pages
+import PointAccept from './pages/PointAccept';
 import PointDashboard from './pages/PointDashboard';
+import PointPaymentVerification from './pages/PointPaymentVerification';
+import PointRelease from './pages/PointRelease';
 import PointShipments from './pages/PointShipments';
 
 // Admin pages
+import AdminDemoLab from './pages/AdminDemoLab';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
+import AdminLockerLab from './pages/AdminLockerLab';
 import AdminPoints from './pages/AdminPoints';
 import AdminShipments from './pages/AdminShipments';
 import AdminPayments from './pages/AdminPayments';
@@ -111,6 +117,10 @@ export const router = createBrowserRouter([
         path: '/courier/tasks',
         Component: CourierTasks,
       },
+      {
+        path: '/courier/tasks/:id',
+        Component: CourierTaskDetails,
+      },
     ],
   },
   {
@@ -124,6 +134,18 @@ export const router = createBrowserRouter([
         path: '/point/shipments',
         Component: PointShipments,
       },
+      {
+        path: '/point/accept',
+        Component: PointAccept,
+      },
+      {
+        path: '/point/release',
+        Component: PointRelease,
+      },
+      {
+        path: '/point/payment-verification',
+        Component: PointPaymentVerification,
+      },
     ],
   },
   {
@@ -132,6 +154,14 @@ export const router = createBrowserRouter([
       {
         path: '/admin',
         Component: AdminDashboard,
+      },
+      {
+        path: '/admin/demo-lab',
+        Component: () => <ProtectedRoute allowedRoles={['admin']} allowedAdminScopes={['ADMIN', 'DISPATCHER']} children={<AdminDemoLab />} />,
+      },
+      {
+        path: '/admin/demo/locker',
+        Component: () => <ProtectedRoute allowedRoles={['admin']} allowedAdminScopes={['ADMIN', 'DISPATCHER']} children={<AdminLockerLab />} />,
       },
       {
         path: '/admin/users',

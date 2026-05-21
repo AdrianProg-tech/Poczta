@@ -14,6 +14,7 @@ export class ApiError extends Error {
 }
 
 export interface DemoRoleOption {
+  id: string;
   role: UserRole;
   label: string;
   hint: string;
@@ -22,28 +23,39 @@ export interface DemoRoleOption {
 
 export const demoRoleOptions: DemoRoleOption[] = [
   {
+    id: 'client',
     role: 'client',
     label: 'Klient',
     hint: 'Nadawanie, śledzenie i reklamacje',
     defaultEmail: 'jan.kowalski.client@example.com',
   },
   {
+    id: 'courier',
     role: 'courier',
     label: 'Kurier',
     hint: 'Zadania doręczeń i próby dostawy',
     defaultEmail: 'courier.warsaw.1@example.com',
   },
   {
+    id: 'point',
     role: 'point',
     label: 'Punkt',
     hint: 'Kolejka punktu i odbiory',
     defaultEmail: 'point.warsaw.pop-waw-01@example.com',
   },
   {
+    id: 'admin',
     role: 'admin',
     label: 'Administrator',
     hint: 'Operacje, płatności i reklamacje',
     defaultEmail: 'admin.review@example.com',
+  },
+  {
+    id: 'dispatcher',
+    role: 'admin',
+    label: 'Dyspozytor',
+    hint: 'Board przesylek i przydzial kurierow',
+    defaultEmail: 'ops.dispatch@example.com',
   },
 ];
 
@@ -187,6 +199,10 @@ export interface CourierTaskListItem {
   plannedDate: string | null;
 }
 
+export interface CourierTaskDetails extends CourierTaskListItem {
+  history: TrackingHistoryItem[];
+}
+
 export interface PointQueueItem {
   trackingNumber: string;
   queueType: string;
@@ -230,6 +246,60 @@ export interface OpsShipmentBoardItem {
   nextSuggestedAction: string;
   blockedReason: string | null;
   createdAt: string;
+}
+
+export interface AdminParcelRecord {
+  id: string;
+  trackingNumber: string;
+  status: string;
+  senderName: string;
+  senderPhone: string;
+  recipientName: string;
+  recipientPhone: string;
+  deliveryType: string;
+  weight: number;
+  sizeCategory: string;
+  createdAt: string;
+}
+
+export interface AdminTrackingEventRecord {
+  id: string;
+  status: string;
+  locationName: string;
+  description: string;
+  eventTime: string;
+}
+
+export interface CreateAdminParcelPayload {
+  trackingNumber: string;
+  status:
+    | 'REGISTERED'
+    | 'CREATED'
+    | 'PAID'
+    | 'READY_FOR_POSTING'
+    | 'POSTED'
+    | 'IN_TRANSIT'
+    | 'OUT_FOR_DELIVERY'
+    | 'DELIVERY_ATTEMPT'
+    | 'REDIRECTED_TO_PICKUP'
+    | 'AWAITING_PICKUP'
+    | 'DELIVERED'
+    | 'RETURNED'
+    | 'CANCELED';
+  senderName: string;
+  senderPhone: string;
+  recipientName: string;
+  recipientPhone: string;
+  deliveryType: 'COURIER' | 'PICKUP_POINT';
+  weight: number;
+  sizeCategory: 'S' | 'M' | 'L';
+}
+
+export interface AddTrackingEventPayload {
+  shipmentId: string;
+  status: CreateAdminParcelPayload['status'];
+  locationName: string;
+  description: string;
 }
 
 export interface OpsCourierSummary {
@@ -386,10 +456,6 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 }
 
 function userHeader(email: string | undefined) {
-  const storedSession = readStoredSession();
-  if (storedSession?.accessToken) {
-    return {};
-  }
   return email ? { 'X-User-Email': email } : {};
 }
 
@@ -714,6 +780,12 @@ export async function getCourierTasks(userEmail: string) {
   });
 }
 
+export async function getCourierTaskDetails(userEmail: string, taskId: string) {
+  return request<CourierTaskDetails>(`/api/courier/tasks/${taskId}`, {
+    headers: userHeader(userEmail),
+  });
+}
+
 export async function acceptCourierTask(userEmail: string, taskId: string) {
   return request(`/api/courier/tasks/${taskId}/accept`, {
     method: 'POST',
@@ -814,6 +886,35 @@ export async function getOpsRecentEvents(userEmail: string) {
   return request<OpsRecentEvent[]>('/api/ops/recent-events', {
     headers: userHeader(userEmail),
   });
+}
+
+export async function getAdminParcels() {
+  return request<AdminParcelRecord[]>('/api/parcels');
+}
+
+export async function createAdminParcel(payload: CreateAdminParcelPayload) {
+  return request<AdminParcelRecord>('/api/parcels', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export async function updateAdminParcelStatus(parcelId: string, status: CreateAdminParcelPayload['status']) {
+  return request<AdminParcelRecord>(`/api/parcels/${parcelId}/status`, {
+    method: 'PATCH',
+    body: { status },
+  });
+}
+
+export async function addAdminTrackingEvent(payload: AddTrackingEventPayload) {
+  return request<AdminTrackingEventRecord>('/api/tracking', {
+    method: 'POST',
+    body: payload,
+  });
+}
+
+export async function getAdminTrackingHistory(shipmentId: string) {
+  return request<AdminTrackingEventRecord[]>(`/api/tracking/${shipmentId}`);
 }
 
 export async function prepareShipmentForDispatch(userEmail: string, shipmentId: string) {

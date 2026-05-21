@@ -5,7 +5,6 @@ import { Building2, Lock, Package, ShieldCheck, Truck, User } from 'lucide-react
 import { demoRoleOptions } from '../api';
 import { getDashboardPath } from '../navigation';
 import { useAppStateContext } from '../state/AppStateContext';
-import type { UserRole } from '../types';
 
 interface LoginFormValues {
   email: string;
@@ -23,9 +22,10 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { loginAsRole } = useAppStateContext();
-  const [selectedRole, setSelectedRole] = useState<UserRole>('client');
+  const [selectedRoleId, setSelectedRoleId] = useState(demoRoleOptions[0]?.id ?? 'client');
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const selectedRoleOption = demoRoleOptions.find((option) => option.id === selectedRoleId) ?? demoRoleOptions[0];
 
   const {
     register,
@@ -44,7 +44,7 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      await loginAsRole(selectedRole, values.email, values.password);
+      await loginAsRole(selectedRoleOption.role, values.email, values.password);
 
       const requestedPath =
         typeof location.state === 'object' &&
@@ -54,7 +54,7 @@ export default function Login() {
           ? location.state.from
           : null;
 
-      navigate(requestedPath && requestedPath !== '/login' ? requestedPath : getDashboardPath(selectedRole), {
+      navigate(requestedPath && requestedPath !== '/login' ? requestedPath : getDashboardPath(selectedRoleOption.role), {
         replace: true,
       });
     } catch (error) {
@@ -74,7 +74,7 @@ export default function Login() {
             </div>
             <span className="text-3xl">PingwinPost</span>
           </Link>
-          <p className="mt-2 text-white/70">Wersja demo podłączona do żywego backendu</p>
+          <p className="mt-2 text-white/70">Wersja demo podlaczona do zywego backendu</p>
         </div>
 
         <div className="rounded-xl bg-card p-8 shadow-xl">
@@ -83,17 +83,17 @@ export default function Login() {
               const Icon = roleIcons[option.role];
               return (
                 <button
-                  key={option.role}
+                  key={option.id}
                   type="button"
                   onClick={() => {
-                    setSelectedRole(option.role);
+                    setSelectedRoleId(option.id);
                     setAuthError(null);
                     if (option.defaultEmail) {
                       setValue('email', option.defaultEmail);
                     }
                   }}
                   className={`rounded-lg border p-3 text-left transition-colors ${
-                    selectedRole === option.role ? 'border-accent bg-accent/10' : 'border-border hover:bg-muted'
+                    selectedRoleId === option.id ? 'border-accent bg-accent/10' : 'border-border hover:bg-muted'
                   }`}
                 >
                   <div className="mb-1 flex items-center gap-2">
@@ -127,15 +127,15 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm">Hasło</label>
+              <label className="mb-2 block text-sm">Haslo</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <input
                   {...register('password', {
-                    required: 'Podaj hasło.',
+                    required: 'Podaj haslo.',
                     minLength: {
                       value: 6,
-                      message: 'Hasło powinno mieć co najmniej 6 znaków.',
+                      message: 'Haslo powinno miec co najmniej 6 znakow.',
                     },
                   })}
                   type="password"
@@ -152,7 +152,7 @@ export default function Login() {
               disabled={isSubmitting}
               className="w-full rounded-lg bg-accent py-3 text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isSubmitting ? 'Logowanie...' : `Zaloguj jako ${demoRoleOptions.find((item) => item.role === selectedRole)?.label}`}
+              {isSubmitting ? 'Logowanie...' : `Zaloguj jako ${selectedRoleOption.label}`}
             </button>
           </form>
 
@@ -170,22 +170,22 @@ export default function Login() {
             className="flex w-full items-center justify-center gap-3 rounded-lg border border-border py-3 transition-colors hover:bg-muted"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
             </svg>
             <span className="text-sm">Zaloguj przez Google</span>
           </a>
 
           <div className="mt-4 rounded-lg bg-secondary p-4 text-sm text-muted-foreground">
-            Wszystkie role w wersji demo korzystają z kont testowych i tymczasowej sesji bearer z hasłem `demo1234`.
+            Wszystkie role w wersji demo korzystaja z kont testowych i tymczasowej sesji bearer z haslem `demo1234`.
           </div>
         </div>
 
         <div className="mt-6 text-center">
           <Link to="/" className="text-sm text-white/70 transition-colors hover:text-white">
-            Wróć do strony głównej
+            Wroc do strony glownej
           </Link>
         </div>
       </div>

@@ -41,7 +41,28 @@ public class OperationalActorResolver {
     }
 
     public User requireUserByEmailHeader(String userEmailHeader) {
-        return authSessionService.resolveAuthenticatedUser(getCurrentAuthorizationHeader());
+        User authenticatedUser = authSessionService.resolveAuthenticatedUser(getCurrentAuthorizationHeader());
+
+        if (userEmailHeader == null || userEmailHeader.isBlank()) {
+            return authenticatedUser;
+        }
+
+        String normalizedHeader = userEmailHeader.trim().toLowerCase(Locale.ROOT);
+        String authenticatedEmail = authenticatedUser.getEmail() == null
+                ? ""
+                : authenticatedUser.getEmail().trim().toLowerCase(Locale.ROOT);
+
+        if (normalizedHeader.equals(authenticatedEmail)) {
+            return authenticatedUser;
+        }
+
+        boolean canImpersonate = hasRole(authenticatedUser, RoleCatalog.ADMIN) || hasRole(authenticatedUser, RoleCatalog.DISPATCHER);
+        if (!canImpersonate) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "User is not allowed to impersonate another operational actor");
+        }
+
+        return userRepository.findByEmail(normalizedHeader)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Operational actor not found for email " + normalizedHeader));
     }
 
     public User requireAuthenticatedUser() {

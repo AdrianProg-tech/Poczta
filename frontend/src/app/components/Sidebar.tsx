@@ -1,17 +1,19 @@
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import {
-  LayoutDashboard,
-  Package,
-  MapPin,
-  Users,
-  CreditCard,
   AlertCircle,
   BarChart3,
+  CreditCard,
+  Download,
+  LayoutDashboard,
   LogOut,
+  MapPin,
   Menu,
-  X
+  Package,
+  Upload,
+  Users,
+  X,
 } from 'lucide-react';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStateContext } from '../state/AppStateContext';
 
@@ -46,6 +48,9 @@ export function Sidebar({ role }: SidebarProps) {
         return [
           { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/point' },
           { icon: Package, label: t('nav.shipments'), path: '/point/shipments' },
+          { icon: Upload, label: t('point.accept'), path: '/point/accept' },
+          { icon: Download, label: t('point.release'), path: '/point/release' },
+          { icon: CreditCard, label: t('point.confirmOffline'), path: '/point/payment-verification' },
         ];
       case 'admin':
         if (currentUser?.adminScope === 'DISPATCHER') {
@@ -70,46 +75,49 @@ export function Sidebar({ role }: SidebarProps) {
 
   const SidebarContent = () => (
     <>
-      <div className="p-6 border-b border-sidebar-border">
+      <div className="border-b border-sidebar-border p-6">
         <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center">
-            <Package className="w-5 h-5 text-white" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent">
+            <Package className="h-5 w-5 text-white" />
           </div>
           <span className="text-xl text-sidebar-foreground">PingwinPost</span>
         </Link>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 space-y-1 p-4">
         {menuItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          const isActive =
+            location.pathname === item.path ||
+            (item.path !== '/' && location.pathname.startsWith(`${item.path}/`));
+
           return (
             <Link
               key={item.path}
               to={item.path}
               onClick={() => setIsOpen(false)}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
                 isActive
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                   : 'text-sidebar-foreground hover:bg-sidebar-accent/50'
               }`}
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="h-5 w-5" />
               <span>{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-sidebar-border">
+      <div className="border-t border-sidebar-border p-4">
         <button
           onClick={() => {
             logout();
             setIsOpen(false);
             navigate('/login');
           }}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors w-full"
+          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sidebar-foreground transition-colors hover:bg-sidebar-accent/50"
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="h-5 w-5" />
           <span>{t('nav.logout')}</span>
         </button>
       </div>
@@ -118,25 +126,17 @@ export function Sidebar({ role }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile menu button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-sidebar rounded-lg text-sidebar-foreground"
+        className="fixed left-4 top-4 z-50 rounded-lg bg-sidebar p-2 text-sidebar-foreground lg:hidden"
       >
-        {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
       </button>
 
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/50 z-30"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
+      {isOpen ? <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setIsOpen(false)} /> : null}
 
-      {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-40 w-64 bg-sidebar flex flex-col transition-transform lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-sidebar transition-transform lg:static lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
