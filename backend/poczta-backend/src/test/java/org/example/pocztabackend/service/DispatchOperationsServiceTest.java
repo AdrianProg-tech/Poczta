@@ -50,13 +50,16 @@ class DispatchOperationsServiceTest {
 
     private DispatchOperationsService dispatchOperationsService;
 
+    @Mock
+    private NotificationService notificationService;
+
     @BeforeEach
     void setUp() {
         dispatchOperationsService = new DispatchOperationsService(
                 shipmentRepository,
                 courierTaskRepository,
                 userRepository,
-                new ShipmentWorkflowService(),
+                new ShipmentWorkflowService(notificationService),
                 trackingEventRepository
         );
     }

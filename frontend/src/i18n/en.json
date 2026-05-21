@@ -1,0 +1,110 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "shipments": "Shipments",
+    "claims": "Claims",
+    "tasks": "Tasks",
+    "users": "Users",
+    "points": "Points",
+    "payments": "Payments",
+    "reports": "Reports",
+    "logout": "Log out"
+  },
+  "roles": {
+    "client": "Client",
+    "courier": "Courier",
+    "point": "Pickup point",
+    "admin": "Administrator",
+    "dispatcher": "Dispatcher"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close",
+    "back": "Back",
+    "search": "Search",
+    "filter": "Filter",
+    "refresh": "Refresh",
+    "actions": "Actions",
+    "status": "Status",
+    "date": "Date",
+    "details": "Details",
+    "noData": "No data",
+    "submit": "Submit",
+    "create": "Create"
+  },
+  "auth": {
+    "login": "Log in",
+    "logout": "Log out",
+    "email": "Email",
+    "password": "Password",
+    "loginAs": "Log in as {{role}}",
+    "loginError": "Login failed.",
+    "backToHome": "Back to home page",
+    "demoNote": "Demo version connected to a live backend",
+    "demoInfo": "All demo roles use test accounts with password `demo1234`."
+  },
+  "shipments": {
+    "title": "Shipments",
+    "create": "Create shipment",
+    "trackingNumber": "Tracking number",
+    "status": "Status",
+    "sender": "Sender",
+    "recipient": "Recipient",
+    "weight": "Weight",
+    "createdAt": "Created at",
+    "details": "Shipment details",
+    "redirect": "Redirect shipment",
+    "pay": "Pay",
+    "noShipments": "No shipments"
+  },
+  "payments": {
+    "title": "Payments",
+    "amount": "Amount",
+    "method": "Method",
+    "status": "Status",
+    "date": "Date",
+    "markPaid": "Mark as paid",
+    "fail": "Fail",
+    "cancel": "Cancel"
+  },
+  "complaints": {
+    "title": "Claims",
+    "create": "File a claim",
+    "subject": "Subject",
+    "description": "Description",
+    "status": "Status",
+    "submittedAt": "Submitted at",
+    "startReview": "Start review",
+    "accept": "Accept",
+    "reject": "Reject",
+    "close": "Close"
+  },
+  "courier": {
+    "tasks": "Tasks",
+    "accept": "Accept",
+    "start": "Start",
+    "complete": "Complete delivery",
+    "recordAttempt": "Record attempt"
+  },
+  "point": {
+    "queue": "Queue",
+    "accept": "Accept",
+    "post": "Post",
+    "release": "Release",
+    "confirmOffline": "Confirm offline payment"
+  },
+  "theme": {
+    "light": "Light theme",
+    "dark": "Dark theme",
+    "toggle": "Toggle theme"
+  },
+  "language": {
+    "pl": "Polish",
+    "en": "English",
+    "toggle": "Change language"
+  }
+}

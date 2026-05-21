@@ -1,8 +1,8 @@
-# Dokumentacja backendu — IV zajęcia
+# Dokumentacja backendu
 
 Projekt: **System zarządzania przesyłkami kurierskimi i pocztowymi**
 
-Ten pakiet zawiera roboczą dokumentację analityczno-projektową backendu na **IV zajęcia**.
+Ten pakiet zawiera dokumentację analityczno-projektową backendu.
 Struktura została przygotowana tak, aby:
 
 - nadawała się do prezentacji,
@@ -36,7 +36,7 @@ Pliki `*.puml` są tekstowe, więc:
 
 ## Sposób użycia
 
-1. Wrzucić cały katalog do repozytorium, np. do `docs/iv-zajecia/backend/`.
+1. Wrzucić cały katalog do repozytorium, np. do `docs/backend/`.
 2. Otworzyć pliki `*.puml` w PlantUML / IntelliJ / VS Code plugin.
 3. Wygenerować PNG albo PDF do prezentacji.
 4. W razie potrzeby dopracować nazwy, atrybuty i relacje już pod implementację.

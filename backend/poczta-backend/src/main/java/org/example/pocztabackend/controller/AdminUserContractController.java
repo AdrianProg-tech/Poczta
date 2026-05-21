@@ -1,5 +1,7 @@
 package org.example.pocztabackend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.example.pocztabackend.dto.AdminUserSummaryResponse;
 import org.example.pocztabackend.service.OperationalActorResolver;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/admin/users")
+@Tag(name = "Użytkownicy (admin)", description = "Przeglądanie użytkowników przez administratora")
 public class AdminUserContractController {
 
     private final AdminUserQueryService adminUserQueryService;
@@ -24,6 +27,7 @@ public class AdminUserContractController {
     }
 
     @GetMapping
+    @Operation(summary = "Pobierz listę wszystkich użytkowników")
     public List<AdminUserSummaryResponse> getUsers() {
         operationalActorResolver.requireAdminActor(true);
         return adminUserQueryService.getAdminUsers();

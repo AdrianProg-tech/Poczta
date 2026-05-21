@@ -1,17 +1,18 @@
 import { Link, useLocation, useNavigate } from 'react-router';
-import { 
-  LayoutDashboard, 
-  Package, 
-  MapPin, 
-  Users, 
-  CreditCard, 
-  AlertCircle, 
+import {
+  LayoutDashboard,
+  Package,
+  MapPin,
+  Users,
+  CreditCard,
+  AlertCircle,
   BarChart3,
   LogOut,
   Menu,
   X
 } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAppStateContext } from '../state/AppStateContext';
 
 interface SidebarProps {
@@ -22,6 +23,7 @@ export function Sidebar({ role }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
+  const { t } = useTranslation();
   const {
     state: { currentUser },
     logout,
@@ -31,35 +33,35 @@ export function Sidebar({ role }: SidebarProps) {
     switch (role) {
       case 'client':
         return [
-          { icon: LayoutDashboard, label: 'Dashboard', path: '/client' },
-          { icon: Package, label: 'Przesyłki', path: '/client/shipments' },
-          { icon: AlertCircle, label: 'Reklamacje', path: '/client/claims' },
+          { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/client' },
+          { icon: Package, label: t('nav.shipments'), path: '/client/shipments' },
+          { icon: AlertCircle, label: t('nav.claims'), path: '/client/claims' },
         ];
       case 'courier':
         return [
-          { icon: LayoutDashboard, label: 'Dashboard', path: '/courier' },
-          { icon: Package, label: 'Zadania', path: '/courier/tasks' },
+          { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/courier' },
+          { icon: Package, label: t('nav.tasks'), path: '/courier/tasks' },
         ];
       case 'point':
         return [
-          { icon: LayoutDashboard, label: 'Dashboard', path: '/point' },
-          { icon: Package, label: 'Przesyłki', path: '/point/shipments' },
+          { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/point' },
+          { icon: Package, label: t('nav.shipments'), path: '/point/shipments' },
         ];
       case 'admin':
         if (currentUser?.adminScope === 'DISPATCHER') {
           return [
-            { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
-            { icon: Package, label: 'PrzesyĹ‚ki', path: '/admin/shipments' },
+            { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/admin' },
+            { icon: Package, label: t('nav.shipments'), path: '/admin/shipments' },
           ];
         }
         return [
-          { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
-          { icon: Users, label: 'Użytkownicy', path: '/admin/users' },
-          { icon: MapPin, label: 'Punkty', path: '/admin/points' },
-          { icon: Package, label: 'Przesyłki', path: '/admin/shipments' },
-          { icon: CreditCard, label: 'Płatności', path: '/admin/payments' },
-          { icon: AlertCircle, label: 'Reklamacje', path: '/admin/claims' },
-          { icon: BarChart3, label: 'Raporty', path: '/admin/reports' },
+          { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/admin' },
+          { icon: Users, label: t('nav.users'), path: '/admin/users' },
+          { icon: MapPin, label: t('nav.points'), path: '/admin/points' },
+          { icon: Package, label: t('nav.shipments'), path: '/admin/shipments' },
+          { icon: CreditCard, label: t('nav.payments'), path: '/admin/payments' },
+          { icon: AlertCircle, label: t('nav.claims'), path: '/admin/claims' },
+          { icon: BarChart3, label: t('nav.reports'), path: '/admin/reports' },
         ];
     }
   };
@@ -108,7 +110,7 @@ export function Sidebar({ role }: SidebarProps) {
           className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors w-full"
         >
           <LogOut className="w-5 h-5" />
-          <span>Wyloguj</span>
+          <span>{t('nav.logout')}</span>
         </button>
       </div>
     </>

@@ -1,5 +1,7 @@
 package org.example.pocztabackend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.pocztabackend.dto.AdminComplaintSummaryResponse;
 import org.example.pocztabackend.dto.ComplaintResolutionRequest;
 import org.example.pocztabackend.dto.ComplaintStateChangeResponse;
@@ -17,6 +19,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/complaints")
+@Tag(name = "Reklamacje (admin)", description = "Przeglądanie i rozpatrywanie reklamacji przez administratora")
 public class AdminComplaintContractController {
 
     private final AdminComplaintContractService adminComplaintContractService;
@@ -31,18 +34,21 @@ public class AdminComplaintContractController {
     }
 
     @GetMapping
+    @Operation(summary = "Pobierz listę wszystkich reklamacji")
     public List<AdminComplaintSummaryResponse> listComplaints() {
         operationalActorResolver.requireAdminActor(false);
         return adminComplaintContractService.listComplaints();
     }
 
     @PostMapping("/{complaintId}/start-review")
+    @Operation(summary = "Rozpocznij rozpatrywanie reklamacji")
     public ComplaintStateChangeResponse startReview(@PathVariable UUID complaintId) {
         operationalActorResolver.requireAdminActor(false);
         return adminComplaintContractService.startReview(complaintId);
     }
 
     @PostMapping("/{complaintId}/accept")
+    @Operation(summary = "Zaakceptuj reklamację")
     public ComplaintStateChangeResponse acceptComplaint(
             @PathVariable UUID complaintId,
             @RequestBody(required = false) ComplaintResolutionRequest request
@@ -52,6 +58,7 @@ public class AdminComplaintContractController {
     }
 
     @PostMapping("/{complaintId}/reject")
+    @Operation(summary = "Odrzuć reklamację")
     public ComplaintStateChangeResponse rejectComplaint(
             @PathVariable UUID complaintId,
             @RequestBody(required = false) ComplaintResolutionRequest request
@@ -61,6 +68,7 @@ public class AdminComplaintContractController {
     }
 
     @PostMapping("/{complaintId}/close")
+    @Operation(summary = "Zamknij reklamację")
     public ComplaintStateChangeResponse closeComplaint(@PathVariable UUID complaintId) {
         operationalActorResolver.requireAdminActor(false);
         return adminComplaintContractService.closeComplaint(complaintId);

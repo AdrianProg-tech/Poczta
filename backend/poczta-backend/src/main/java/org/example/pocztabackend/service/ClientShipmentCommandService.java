@@ -86,9 +86,14 @@ public class ClientShipmentCommandService {
 
         Shipment savedShipment = shipmentRepository.save(shipment);
 
-        BigDecimal paymentAmount = request.parcel().declaredValue() != null && request.parcel().declaredValue().signum() > 0
-                ? request.parcel().declaredValue()
-                : BigDecimal.valueOf(19.99);
+        // Base price + optional extras (same logic as frontend)
+        BigDecimal paymentAmount = new java.math.BigDecimal("19.99");
+        if (request.parcel().declaredValue() != null && request.parcel().declaredValue().signum() > 0) {
+            paymentAmount = paymentAmount.add(new java.math.BigDecimal("5.00")); // insurance
+        }
+        if (Boolean.TRUE.equals(request.parcel().fragile())) {
+            paymentAmount = paymentAmount.add(new java.math.BigDecimal("3.00")); // fragile surcharge
+        }
 
         PaymentResponse payment = paymentService.createPayment(
                 new PaymentRequest(

@@ -1,5 +1,7 @@
 package org.example.pocztabackend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.pocztabackend.dto.PointRequest;
 import org.example.pocztabackend.dto.PointResponse;
@@ -16,6 +18,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/points")
+@Tag(name = "Punkty", description = "Zarządzanie punktami odbioru i paczkomatami")
 public class PointController {
 
     private final PointRepository pointRepository;
@@ -25,6 +28,7 @@ public class PointController {
     }
 
     @GetMapping
+    @Operation(summary = "Pobierz listę wszystkich punktów")
     public List<PointResponse> getAllPoints() {
         return pointRepository.findAll().stream()
                 .map(PointResponse::fromEntity)
@@ -32,6 +36,7 @@ public class PointController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Pobierz punkt po ID")
     public PointResponse getPointById(@PathVariable UUID id) {
         return pointRepository.findById(id)
                 .map(PointResponse::fromEntity)
@@ -40,6 +45,7 @@ public class PointController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Utwórz nowy punkt odbioru")
     public PointResponse createPoint(@Valid @RequestBody PointRequest request) {
         if (!StringUtils.hasText(request.name())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "name is required");

@@ -24,6 +24,13 @@ public class AuthSessionService {
         this.userRepository = userRepository;
     }
 
+    public SessionLoginResult loginOAuth2(User user) {
+        String token = UUID.randomUUID().toString();
+        LocalDateTime now = LocalDateTime.now();
+        sessions.put(token, new SessionRecord(user.getId(), user.getEmail(), now, now));
+        return new SessionLoginResult(token, user);
+    }
+
     public SessionLoginResult login(String email, String password) {
         if (password == null || !DEMO_PASSWORD.equals(password)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid email or password");

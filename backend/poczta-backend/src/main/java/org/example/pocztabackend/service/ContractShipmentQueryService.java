@@ -85,6 +85,7 @@ public class ContractShipmentQueryService {
                 latestPayment == null
                         ? null
                         : new ShipmentPaymentDetailsResponse(
+                        latestPayment.getId(),
                         latestPayment.getStatus() == null ? null : latestPayment.getStatus().name(),
                         latestPayment.getMethod(),
                         latestPayment.getAmount(),

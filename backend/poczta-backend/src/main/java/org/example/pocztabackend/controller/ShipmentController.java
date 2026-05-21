@@ -1,5 +1,7 @@
 package org.example.pocztabackend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.pocztabackend.dto.ShipmentRequest;
 import org.example.pocztabackend.dto.ShipmentResponse;
@@ -19,6 +21,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/parcels")
+@Tag(name = "Przesyłki (zarządzanie)", description = "Niskopoziomowe operacje CRUD na przesyłkach")
 public class ShipmentController {
 
     private final ShipmentRepository parcelRepository;
@@ -30,6 +33,7 @@ public class ShipmentController {
     }
 
     @GetMapping
+    @Operation(summary = "Pobierz wszystkie przesyłki")
     public List<ShipmentResponse> getAllParcels() {
         return parcelRepository.findAll().stream()
                 .map(ShipmentResponse::fromEntity)
@@ -37,6 +41,7 @@ public class ShipmentController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Pobierz przesyłkę po ID")
     public ShipmentResponse getParcelById(@PathVariable UUID id) {
         return parcelRepository.findById(id)
                 .map(ShipmentResponse::fromEntity)
@@ -44,6 +49,7 @@ public class ShipmentController {
     }
 
     @GetMapping("/tracking/{trackingNumber}")
+    @Operation(summary = "Pobierz przesyłkę po numerze śledzenia")
     public ShipmentResponse getParcelByTrackingNumber(@PathVariable String trackingNumber) {
         return parcelRepository.findByTrackingNumber(trackingNumber)
                 .map(ShipmentResponse::fromEntity)
@@ -52,6 +58,7 @@ public class ShipmentController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Utwórz przesyłkę (tryb zarządzania)")
     public ShipmentResponse createShipment(@Valid @RequestBody ShipmentRequest request) {
         if (!StringUtils.hasText(request.trackingNumber())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "trackingNumber is required");
@@ -79,6 +86,7 @@ public class ShipmentController {
     }
 
     @PatchMapping("/{id}/status")
+    @Operation(summary = "Zaktualizuj status przesyłki")
     public ShipmentResponse updateParcelStatus(@PathVariable UUID id, @Valid @RequestBody ShipmentStatusUpdateRequest request) {
         Shipment shipment = parcelRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found"));
@@ -89,6 +97,7 @@ public class ShipmentController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Usuń przesyłkę")
     public void deleteParcel(@PathVariable UUID id) {
         Shipment shipment = parcelRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Parcel not found"));

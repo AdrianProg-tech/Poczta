@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import Tracking from './pages/Tracking';
 import Points from './pages/Points';
 import Login from './pages/Login';
+import OAuth2Callback from './pages/OAuth2Callback';
 import InfoPage from './pages/InfoPage';
 import NotFound from './pages/NotFound';
 
@@ -17,6 +18,7 @@ import ShipmentDetails from './pages/ShipmentDetails';
 import CreateShipment from './pages/CreateShipment';
 import ClientClaims from './pages/ClientClaims';
 import ShipmentRedirect from './pages/ShipmentRedirect';
+import StripeSuccess from './pages/StripeSuccess';
 
 // Courier pages
 import CourierDashboard from './pages/CourierDashboard';
@@ -53,6 +55,10 @@ export const router = createBrowserRouter([
     Component: InfoPage,
   },
   {
+    path: '/oauth2-callback',
+    Component: OAuth2Callback,
+  },
+  {
     Component: () => <PublicOnlyRoute />,
     children: [
       {
@@ -79,6 +85,10 @@ export const router = createBrowserRouter([
       {
         path: '/client/shipments/:id/redirect',
         Component: ShipmentRedirect,
+      },
+      {
+        path: '/client/shipments/:paymentId/stripe-success',
+        Component: StripeSuccess,
       },
       {
         path: '/client/shipments/:id',

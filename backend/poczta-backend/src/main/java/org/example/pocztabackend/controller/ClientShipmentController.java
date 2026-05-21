@@ -1,5 +1,7 @@
 package org.example.pocztabackend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.pocztabackend.dto.ClientShipmentRedirectRequest;
 import org.example.pocztabackend.dto.ClientShipmentRedirectResponse;
@@ -22,6 +24,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/client/shipments")
+@Tag(name = "Przesyłki (klient)", description = "Tworzenie i przeglądanie przesyłek przez klienta")
 public class ClientShipmentController {
 
     private final ClientShipmentCommandService clientShipmentCommandService;
@@ -37,6 +40,7 @@ public class ClientShipmentController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Utwórz nową przesyłkę")
     public ShipmentCreatedResponse createShipment(
             @Valid @RequestBody CreateClientShipmentRequest request
     ) {
@@ -44,11 +48,13 @@ public class ClientShipmentController {
     }
 
     @GetMapping
+    @Operation(summary = "Pobierz listę przesyłek klienta")
     public List<ClientShipmentListItemResponse> getClientShipments() {
         return contractShipmentQueryService.getClientShipments(null);
     }
 
     @GetMapping("/{trackingNumber}")
+    @Operation(summary = "Pobierz szczegóły przesyłki po numerze śledzenia")
     public ClientShipmentDetailsResponse getShipmentDetails(
             @PathVariable String trackingNumber
     ) {
@@ -56,6 +62,7 @@ public class ClientShipmentController {
     }
 
     @PostMapping("/{trackingNumber}/redirect")
+    @Operation(summary = "Złóż wniosek o przekierowanie przesyłki do punktu")
     public ClientShipmentRedirectResponse requestRedirect(
             @PathVariable String trackingNumber,
             @Valid @RequestBody ClientShipmentRedirectRequest request

@@ -45,12 +45,3 @@ Architektura ma być zgodna z wymaganiami przedmiotów ISI i IO:
 - model domenowy oparty na klasach,
 - możliwość rozbudowy o OAuth2, płatności sandbox i kolejki komunikatów.
 
-## Zakres na IV zajęcia
-Na IV zajęcia przygotowywana jest analiza systemu obejmująca:
-- architekturę backendu,
-- technologie,
-- model danych (ERD),
-- diagram przypadków użycia,
-- diagramy klas,
-- diagramy aktywności,
-- statusy procesów.

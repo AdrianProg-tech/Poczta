@@ -1,5 +1,7 @@
 package org.example.pocztabackend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.pocztabackend.dto.UserRequest;
 import org.example.pocztabackend.dto.UserResponse;
@@ -12,6 +14,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
+@Tag(name = "Użytkownicy", description = "Zarządzanie użytkownikami systemu")
 public class UserController {
 
     private final UserService userService;
@@ -21,6 +24,7 @@ public class UserController {
     }
 
     @GetMapping
+    @Operation(summary = "Pobierz listę wszystkich użytkowników")
     public List<UserResponse> getAllUsers() {
         return userService.getAllUsers().stream()
                 .map(UserResponse::fromEntity)
@@ -28,12 +32,14 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Pobierz użytkownika po ID")
     public UserResponse getUserById(@PathVariable UUID id) {
         return UserResponse.fromEntity(userService.getUserById(id));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Utwórz nowego użytkownika")
     public UserResponse createUser(@Valid @RequestBody UserRequest request) {
         return UserResponse.fromEntity(userService.createUser(request));
     }

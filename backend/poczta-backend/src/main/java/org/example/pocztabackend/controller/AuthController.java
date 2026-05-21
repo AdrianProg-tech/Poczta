@@ -1,5 +1,7 @@
 package org.example.pocztabackend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.pocztabackend.dto.AuthLoginRequest;
 import org.example.pocztabackend.dto.AuthLoginResponse;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Autentykacja", description = "Logowanie, wylogowanie i pobieranie danych zalogowanego użytkownika")
 public class AuthController {
 
     private final AuthFacadeService authFacadeService;
@@ -23,11 +26,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @Operation(summary = "Zaloguj się i uzyskaj token Bearer")
     public AuthLoginResponse login(@Valid @RequestBody AuthLoginRequest request) {
         return authFacadeService.login(request.email(), request.password());
     }
 
     @PostMapping("/logout")
+    @Operation(summary = "Wyloguj się (unieważnij token)")
     public void logout(
             @RequestHeader(name = "Authorization", required = false) String authorizationHeader
     ) {
@@ -35,6 +40,7 @@ public class AuthController {
     }
 
     @GetMapping("/me")
+    @Operation(summary = "Pobierz dane aktualnie zalogowanego użytkownika")
     public CurrentUserResponse getCurrentUser() {
         return authFacadeService.getCurrentUser();
     }

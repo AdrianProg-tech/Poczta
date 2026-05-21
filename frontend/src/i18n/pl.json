@@ -1,0 +1,110 @@
+{
+  "nav": {
+    "dashboard": "Panel główny",
+    "shipments": "Przesyłki",
+    "claims": "Reklamacje",
+    "tasks": "Zadania",
+    "users": "Użytkownicy",
+    "points": "Punkty",
+    "payments": "Płatności",
+    "reports": "Raporty",
+    "logout": "Wyloguj"
+  },
+  "roles": {
+    "client": "Klient",
+    "courier": "Kurier",
+    "point": "Punkt odbioru",
+    "admin": "Administrator",
+    "dispatcher": "Dyspozytor"
+  },
+  "common": {
+    "loading": "Ładowanie...",
+    "error": "Błąd",
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "confirm": "Potwierdź",
+    "close": "Zamknij",
+    "back": "Wróć",
+    "search": "Szukaj",
+    "filter": "Filtruj",
+    "refresh": "Odśwież",
+    "actions": "Akcje",
+    "status": "Status",
+    "date": "Data",
+    "details": "Szczegóły",
+    "noData": "Brak danych",
+    "submit": "Wyślij",
+    "create": "Utwórz"
+  },
+  "auth": {
+    "login": "Zaloguj się",
+    "logout": "Wyloguj",
+    "email": "Email",
+    "password": "Hasło",
+    "loginAs": "Zaloguj jako {{role}}",
+    "loginError": "Nie udało się zalogować.",
+    "backToHome": "Wróć do strony głównej",
+    "demoNote": "Wersja demo podłączona do żywego backendu",
+    "demoInfo": "Wszystkie role w wersji demo korzystają z kont testowych z hasłem `demo1234`."
+  },
+  "shipments": {
+    "title": "Przesyłki",
+    "create": "Utwórz przesyłkę",
+    "trackingNumber": "Numer śledzenia",
+    "status": "Status",
+    "sender": "Nadawca",
+    "recipient": "Odbiorca",
+    "weight": "Waga",
+    "createdAt": "Data utworzenia",
+    "details": "Szczegóły przesyłki",
+    "redirect": "Przekieruj przesyłkę",
+    "pay": "Opłać",
+    "noShipments": "Brak przesyłek"
+  },
+  "payments": {
+    "title": "Płatności",
+    "amount": "Kwota",
+    "method": "Metoda",
+    "status": "Status",
+    "date": "Data",
+    "markPaid": "Oznacz jako opłacone",
+    "fail": "Odrzuć",
+    "cancel": "Anuluj"
+  },
+  "complaints": {
+    "title": "Reklamacje",
+    "create": "Złóż reklamację",
+    "subject": "Temat",
+    "description": "Opis",
+    "status": "Status",
+    "submittedAt": "Data zgłoszenia",
+    "startReview": "Rozpocznij weryfikację",
+    "accept": "Przyjmij",
+    "reject": "Odrzuć",
+    "close": "Zamknij"
+  },
+  "courier": {
+    "tasks": "Zadania",
+    "accept": "Przyjmij",
+    "start": "Rozpocznij",
+    "complete": "Zakończ dostawę",
+    "recordAttempt": "Zapisz próbę"
+  },
+  "point": {
+    "queue": "Kolejka",
+    "accept": "Przyjmij",
+    "post": "Nadaj",
+    "release": "Wydaj",
+    "confirmOffline": "Potwierdź płatność offline"
+  },
+  "theme": {
+    "light": "Jasny motyw",
+    "dark": "Ciemny motyw",
+    "toggle": "Przełącz motyw"
+  },
+  "language": {
+    "pl": "Polski",
+    "en": "English",
+    "toggle": "Zmień język"
+  }
+}

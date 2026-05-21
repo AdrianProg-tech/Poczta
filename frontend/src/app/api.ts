@@ -115,6 +115,7 @@ export interface ShipmentParcel {
 }
 
 export interface ShipmentPaymentDetails {
+  paymentId: string | null;
   status: string | null;
   method: string | null;
   amount: number | null;
@@ -673,6 +674,20 @@ export async function createShipmentPayment(email: string, trackingNumber: strin
       body: payload,
     },
   );
+}
+
+export async function initiateOnlinePayment(email: string, paymentId: string) {
+  return request<{ checkoutUrl: string }>(`/api/client/payments/${paymentId}/initiate-online`, {
+    method: 'POST',
+    headers: userHeader(email),
+  });
+}
+
+export async function verifyStripeSession(email: string, paymentId: string, sessionId: string) {
+  return request<{ status: string }>(`/api/client/payments/${paymentId}/verify-session?sessionId=${sessionId}`, {
+    method: 'POST',
+    headers: userHeader(email),
+  });
 }
 
 export async function requestClientShipmentRedirect(

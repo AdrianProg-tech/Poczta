@@ -49,9 +49,12 @@ class PointOperationContractServiceTest {
 
     private PointOperationContractService pointOperationContractService;
 
+    @Mock
+    private NotificationService notificationService;
+
     @BeforeEach
     void setUp() {
-        ShipmentWorkflowService workflowService = new ShipmentWorkflowService();
+        ShipmentWorkflowService workflowService = new ShipmentWorkflowService(notificationService);
         PaymentService paymentService = new PaymentService(paymentRepository, shipmentRepository, workflowService);
         pointOperationContractService = new PointOperationContractService(
                 pointRepository,

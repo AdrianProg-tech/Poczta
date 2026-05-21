@@ -1,228 +1,92 @@
 # Backend Progress
 
-Stan na: `2026-04-24`
+Stan na: `2026-05-21`
 
-## Goal
-Ten plik podsumowuje, co jest gotowe po stronie backendu, co można już pokazać na zajęciach oraz co jeszcze wymaga dopracowania.
+## Zaimplementowane funkcjonalności
 
-## What Is Ready
+### Uwierzytelnianie i autoryzacja
+- Logowanie przez email + hasło z tokenem Bearer (tymczasowa sesja w pamięci)
+- Logowanie przez Google OAuth2 (Spring Security OAuth2 Client)
+  - Automatyczne tworzenie/wyszukiwanie użytkownika po email z Google
+  - Obsługa błędów OAuth2 z przekierowaniem na frontend
+- Ochrona endpointów przez custom `AuthInterceptor`
 
-- Spring Boot backend uruchamia się lokalnie na porcie `8081`
-- Backend łączy się z Oracle w Dockerze przez `localhost:1522/XEPDB1`
-- Model domenowy jest szeroki i obejmuje główne encje systemu przesyłek
-- Działa podstawowy zestaw REST API dla użytkowników, punktów, przesyłek, śledzenia, reklamacji i płatności
-- Dodano pierwszą logikę biznesową:
-  - reguły przejść statusów przesyłki
-  - dodawanie tracking event aktualizuje status przesyłki
-  - podstawowy flow płatności offline
-- Dodano walidację requestów i obsługę części błędów API
-- Testy uruchamiają się lokalnie na H2 bez potrzeby podpinania Oracle
+### Model domenowy
+- Pełny zestaw encji JPA: `User`, `Role`, `Shipment`, `Label`, `TrackingEvent`, `Point`, `Locker`, `LockerCompartment`, `Payment`, `Redirection`, `DeliveryAttempt`, `Notice`, `ReturnProcess`, `Complaint`, `ComplaintAttachment`, `CourierTask`
+- UUID jako identyfikatory przechowywane jako `VARCHAR(36)`
+- `ddl-auto=update` — schemat aktualizuje się automatycznie przy starcie
 
-## Database Status
+### REST API — 21 kontrolerów
+| Kontroler | Ścieżka bazowa | Rola |
+|-----------|---------------|------|
+| `AuthController` | `/api/auth` | publiczne |
+| `PublicTrackingController` | `/api/public/tracking` | publiczne |
+| `PublicPointController` | `/api/public/points` | publiczne |
+| `ClientShipmentController` | `/api/client/shipments` | klient |
+| `ClientComplaintController` | `/api/client/complaints` | klient |
+| `ClientPaymentController` | `/api/client` | klient |
+| `CourierTaskContractController` | `/api/courier/tasks` | kurier |
+| `PointOperationContractController` | `/api/point` | pracownik punktu |
+| `AdminShipmentContractController` | `/api/admin/shipments` | admin |
+| `AdminComplaintContractController` | `/api/admin/complaints` | admin |
+| `AdminPaymentContractController` | `/api/admin/payments` | admin |
+| `AdminUserContractController` | `/api/admin/users` | admin |
+| `OperationsConsoleController` | `/api/ops` | admin |
+| `ShipmentController` | `/api/parcels` | zarządzanie |
+| `UserController` | `/api/users` | zarządzanie |
+| `PointController` | `/api/points` | zarządzanie |
+| `ComplaintController` | `/api/complaints` | zarządzanie |
+| `PaymentController` | `/api/payments` | zarządzanie |
+| `TrackingEventController` | `/api/tracking` | zarządzanie |
+| `StripeWebhookController` | `/api/payments/webhook` | Stripe |
 
-Źródło struktury bazy:
-- encje JPA z `backend/poczta-backend/src/main/java/org/example/pocztabackend/model`
+### Płatności — Stripe Sandbox
+- `POST /api/client/payments/{paymentId}/initiate-online` → tworzy sesję Stripe Checkout, zwraca URL
+- `POST /api/client/payments/{paymentId}/verify-session?sessionId=...` → weryfikuje sesję po powrocie ze Stripe
+- `POST /api/payments/webhook/stripe` → obsługa webhooków Stripe (checkout.session.completed / expired)
+- Klucze testowe w `application.properties`; dokumentacja kart testowych w `docs/testowanie-platnosci-stripe.md`
 
-Jak tworzy się baza:
-- Hibernate uruchamia `ddl-auto=update`
-- przy starcie backendu tworzy lub aktualizuje tabele na podstawie encji
+### RabbitMQ — asynchroniczne powiadomienia
+- `RabbitMQConfig` — konfiguracja exchange, queue, binding
+- `NotificationService` — publikuje zdarzenia zmiany statusu przesyłki do kolejki
+- `NotificationConsumer` — odbiera zdarzenia i wysyła email przez `EmailNotificationService`
+- Maildev dostępny lokalnie na porcie 1025 (odbiór) i 1080 (podgląd w przeglądarce)
 
-Aktualna konfiguracja:
-- plik: `backend/poczta-backend/src/main/resources/application.properties`
-- Oracle: `jdbc:oracle:thin:@localhost:1522/XEPDB1`
-- user: `springuser`
-- hasło: `spring`
+### Logika biznesowa
+- `ShipmentWorkflowService` — pilnuje dozwolonych przejść statusów
+- `ClientShipmentCommandService` — tworzenie przesyłek z obliczaniem ceny
+- `DispatchOperationsService` — dispatch, przydzielanie kurierów
+- `CourierTaskContractService` — zarządzanie zadaniami kuriera
+- `AdminComplaintContractService` — rozpatrywanie reklamacji
+- Poprawne obliczanie kwoty płatności (base 19.99 + opcja deklarowanej wartości + fragile)
 
-Jak zapełnia się baza:
-- przez endpointy REST w Postmanie / IntelliJ HTTP client
-- przykładowe requesty są w `backend/poczta-backend/src/test_api.http`
+### Dokumentacja API
+- Swagger UI dostępny na `http://localhost:8081/swagger-ui.html`
+- `OpenApiConfig` — tytuł "PingwinPost API", wersja "1.0.0"
+- Wszystkie 21 kontrolerów mają `@Tag` + `@Operation` na metodach
 
-Format identyfikatorów:
-- UUID przechowywane jako czytelne `VARCHAR(36)`, a nie `RAW(16)`
+### Testy
+- `PocztaBackendApplicationTests` — test uruchomienia kontekstu
+- `ShipmentWorkflowServiceTest` — przejścia statusów
+- `PaymentServiceTest` — tworzenie i potwierdzanie płatności offline
+- `ClientShipmentCommandServiceTest` — tworzenie przesyłek klienta
+- Testy działają na H2 (profil `test`), bez potrzeby uruchamiania Oracle
 
-## Main Entities
+## Konfiguracja środowiska
 
-Główne encje już istnieją:
-- `User`
-- `Role`
-- `Shipment`
-- `Label`
-- `TrackingEvent`
-- `Point`
-- `Locker`
-- `LockerCompartment`
-- `Payment`
-- `Redirection`
-- `DeliveryAttempt`
-- `Notice`
-- `ReturnProcess`
-- `Complaint`
-- `ComplaintAttachment`
-- `CourierTask`
+- Baza danych: Oracle XE w Docker na `localhost:1522/XEPDB1`
+- RabbitMQ: Docker na `localhost:5672`
+- Maildev: Docker na `localhost:1025` (SMTP) / `localhost:1080` (Web UI)
+- Backend: port `8081`
+- Klucze Stripe: `application.properties` (sandbox)
+- Klucze Google OAuth2: `application.properties`
 
-Wniosek:
-- model domenowy jest w dużej mierze gotowy
-- głównym zadaniem nie jest już tworzenie nowych encji, tylko rozwijanie logiki, API i testów
+## Uruchomienie
 
-## Available API
+```bash
+docker-compose up -d
+cd backend/poczta-backend
+./mvnw spring-boot:run
+```
 
-Kontrolery aktualnie dostępne:
-- `UserController`
-- `PointController`
-- `ShipmentController`
-- `TrackingEventController`
-- `ComplaintController`
-- `PaymentController`
-
-Najważniejsze endpointy do pokazania:
-
-### Users
-- `GET /api/users`
-- `GET /api/users/{id}`
-- `POST /api/users`
-
-### Points
-- `GET /api/points`
-- `GET /api/points/{id}`
-- `POST /api/points`
-
-### Shipments
-- `GET /api/parcels`
-- `GET /api/parcels/{id}`
-- `GET /api/parcels/tracking/{trackingNumber}`
-- `POST /api/parcels`
-- `PATCH /api/parcels/{id}/status`
-- `DELETE /api/parcels/{id}`
-
-### Tracking
-- `POST /api/tracking`
-- `GET /api/tracking/{shipmentId}`
-
-### Complaints
-- `POST /api/complaints`
-- `GET /api/complaints`
-- `GET /api/complaints?shipmentId=...`
-- `GET /api/complaints?userId=...`
-
-### Payments
-- `POST /api/payments`
-- `GET /api/payments`
-- `GET /api/payments?shipmentId=...`
-- `PATCH /api/payments/{paymentId}/confirm-offline`
-
-## Business Logic Already Implemented
-
-### Shipment workflow
-Serwis `ShipmentWorkflowService` pilnuje dozwolonych przejść statusów, np.:
-- `CREATED -> PAID`
-- `PAID -> READY_FOR_POSTING`
-- `READY_FOR_POSTING -> POSTED`
-- `POSTED -> IN_TRANSIT`
-- `IN_TRANSIT -> OUT_FOR_DELIVERY`
-
-Niedozwolone przejścia zwracają błąd `400`.
-
-### Tracking
-Dodanie tracking event:
-- sprawdza istnienie przesyłki
-- zapisuje event do historii
-- aktualizuje status przesyłki zgodnie z workflow
-
-### Payments
-Obsługiwane są dwa tryby:
-- `ONLINE` -> status `PENDING`
-- `OFFLINE` -> status `OFFLINE_PENDING`
-
-Po potwierdzeniu płatności offline:
-- payment przechodzi na `OFFLINE_CONFIRMED`
-- shipment przechodzi na `PAID`
-
-## Validation Examples
-
-Przykładowe walidacje już działające:
-- `UserRequest.email` musi być poprawnym adresem email
-- `ShipmentRequest.trackingNumber` jest wymagany
-- `ShipmentRequest.weight` musi być większy od zera
-- `TrackingEventRequest.status` jest wymagany
-- `PaymentRequest.amount` musi być większy od zera
-
-Przykłady odpowiedzi błędów:
-- `400` dla brakujących lub błędnych danych
-- `404` gdy nie istnieje shipment / user / payment
-- `409` przy próbie zapisania duplikatu email albo usunięcia shipmentu używanego przez inne rekordy
-
-## Tests
-
-Aktualnie istnieją:
-- `PocztaBackendApplicationTests`
-- `ShipmentWorkflowServiceTest`
-- `PaymentServiceTest`
-
-Co testy pokrywają:
-- poprawne przejścia statusów shipment
-- blokowanie niepoprawnych przejść
-- tworzenie offline payment
-- potwierdzanie offline payment
-
-Ważne:
-- testy używają profilu `test`
-- profil `test` działa na H2
-- `mvn test` nie wymaga lokalnie uruchomionego Oracle
-
-## What Can Be Shown On The Milestone
-
-Na ten moment można pokazać:
-
-1. Backend uruchamiający się lokalnie
-2. Połączenie z Oracle w Dockerze
-3. Auto-tworzenie / aktualizację schematu z encji
-4. CRUD-ish flow dla:
-   - users
-   - points
-   - shipments
-5. Tracking flow
-6. Complaint creation flow
-7. Payment offline confirmation flow
-8. Działające testy jednostkowe
-9. Swagger / OpenAPI, jeśli po aktualizacji `springdoc` działa poprawnie
-
-## Recommended Demo Flow
-
-Najbezpieczniejszy scenariusz demo:
-
-1. `POST /api/users`
-2. `POST /api/points`
-3. `POST /api/parcels`
-4. `POST /api/tracking`
-5. `POST /api/payments` z `OFFLINE`
-6. `PATCH /api/payments/{paymentId}/confirm-offline`
-7. `POST /api/complaints`
-8. `GET`-y pokazujące zapisane dane
-
-## What Is Still Missing
-
-Najważniejsze braki po stronie backendu:
-- pełniejszy moduł płatności online
-- OAuth2 / social login
-- realne użycie RabbitMQ / asynchronicznych kolejek
-- więcej testów dla `TrackingEventService`, `ComplaintService`, kontrolerów
-- lepsza dokumentacja API
-- pełniejsze use-case dla admina i operatora
-
-## Priority Before VI zajęcia
-
-Must have:
-- stabilny start backendu
-- działające API z Postmana
-- działająca baza Oracle
-- sensowny demo flow
-- brak krytycznych 500 podczas podstawowych scenariuszy
-
-## Priority Before VIII zajęcia
-
-Should have:
-- mocniejsza logika biznesowa
-- płatności w bardziej kompletnej formie
-- więcej testów
-- dopracowany Swagger
-- początek integracji async / OAuth2
+Swagger: `http://localhost:8081/swagger-ui.html`

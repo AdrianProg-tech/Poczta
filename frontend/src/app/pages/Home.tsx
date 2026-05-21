@@ -1,10 +1,13 @@
 import { Link, useNavigate } from 'react-router';
-import { Package, MapPin, Search, TrendingUp, Shield, Clock } from 'lucide-react';
+import { Package, MapPin, Search, TrendingUp, Shield, Clock, LayoutDashboard } from 'lucide-react';
 import { useState } from 'react';
+import { useAppStateContext } from '../state/AppStateContext';
+import { getDashboardPath } from '../navigation';
 
 export default function Home() {
   const navigate = useNavigate();
   const [trackingNumber, setTrackingNumber] = useState('');
+  const { state: { currentUser } } = useAppStateContext();
 
   return (
     <div className="min-h-screen">
@@ -22,9 +25,19 @@ export default function Home() {
             <nav className="hidden md:flex items-center gap-6">
               <Link to="/tracking" className="hover:text-accent transition-colors">Śledź przesyłkę</Link>
               <Link to="/points" className="hover:text-accent transition-colors">Punkty odbioru</Link>
-              <Link to="/login" className="px-4 py-2 bg-accent rounded-lg hover:bg-accent/90 transition-colors">
-                Zaloguj się
-              </Link>
+              {currentUser ? (
+                <Link
+                  to={getDashboardPath(currentUser.role)}
+                  className="flex items-center gap-2 px-4 py-2 bg-accent rounded-lg hover:bg-accent/90 transition-colors"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  {currentUser.name}
+                </Link>
+              ) : (
+                <Link to="/login" className="px-4 py-2 bg-accent rounded-lg hover:bg-accent/90 transition-colors">
+                  Zaloguj się
+                </Link>
+              )}
             </nav>
           </div>
         </div>
@@ -134,12 +147,21 @@ export default function Home() {
           <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto">
             Załóż konto i wyślij pierwszą przesyłkę już dziś. Prosty proces, niskie ceny.
           </p>
-          <Link
-            to="/login"
-            className="inline-block px-8 py-4 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
-          >
-            Rozpocznij teraz
-          </Link>
+          {currentUser ? (
+            <Link
+              to={getDashboardPath(currentUser.role)}
+              className="inline-block px-8 py-4 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+            >
+              Przejdź do panelu
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="inline-block px-8 py-4 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+            >
+              Rozpocznij teraz
+            </Link>
+          )}
         </div>
       </section>
 

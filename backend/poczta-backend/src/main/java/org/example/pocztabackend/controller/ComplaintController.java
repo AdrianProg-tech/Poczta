@@ -1,5 +1,7 @@
 package org.example.pocztabackend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.pocztabackend.dto.ComplaintRequest;
 import org.example.pocztabackend.dto.ComplaintResponse;
@@ -12,6 +14,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/complaints")
+@Tag(name = "Reklamacje", description = "Niskopoziomowe operacje na reklamacjach")
 public class ComplaintController {
 
     private final ComplaintService complaintService;
@@ -22,11 +25,13 @@ public class ComplaintController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Utwórz reklamację")
     public ComplaintResponse createComplaint(@Valid @RequestBody ComplaintRequest request) {
         return ComplaintResponse.fromEntity(complaintService.createComplaint(request));
     }
 
     @GetMapping
+    @Operation(summary = "Pobierz reklamacje (opcjonalnie filtruj po shipmentId lub userId)")
     public List<ComplaintResponse> getComplaints(
             @RequestParam(required = false) UUID shipmentId,
             @RequestParam(required = false) UUID userId

@@ -2,6 +2,7 @@ package org.example.pocztabackend.service;
 
 import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -15,8 +16,11 @@ import java.util.Set;
 public class ShipmentWorkflowService {
 
     private final Map<ShipmentStatus, Set<ShipmentStatus>> allowedTransitions = new EnumMap<>(ShipmentStatus.class);
+    private final NotificationService notificationService;
 
-    public ShipmentWorkflowService() {
+    public ShipmentWorkflowService(@Lazy NotificationService notificationService) {
+        this.notificationService = notificationService;
+
         allowedTransitions.put(ShipmentStatus.REGISTERED, EnumSet.of(ShipmentStatus.CREATED, ShipmentStatus.CANCELED));
         allowedTransitions.put(ShipmentStatus.CREATED, EnumSet.of(ShipmentStatus.PAID, ShipmentStatus.READY_FOR_POSTING, ShipmentStatus.CANCELED));
         allowedTransitions.put(ShipmentStatus.PAID, EnumSet.of(ShipmentStatus.READY_FOR_POSTING, ShipmentStatus.AWAITING_PICKUP, ShipmentStatus.CANCELED));
@@ -55,6 +59,17 @@ public class ShipmentWorkflowService {
         }
 
         shipment.setStatus(targetStatus);
+
+        String creatorEmail = shipment.getCreator() != null ? shipment.getCreator().getEmail() : null;
+        String creatorName = shipment.getCreator() != null ? shipment.getCreator().getFirstName() : null;
+        notificationService.publishShipmentStatusChanged(
+                shipment.getTrackingNumber(),
+                creatorEmail,
+                creatorName,
+                currentStatus.name(),
+                targetStatus.name()
+        );
+
         return targetStatus;
     }
 }

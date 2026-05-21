@@ -25,11 +25,10 @@ Po stronie frontendu należy oddzielić:
 - raporty admina.
 
 ## Założenia techniczne
-- Axios jako główny klient HTTP,
-- jeden centralny plik konfiguracyjny API,
-- później interceptory do obsługi błędów i autoryzacji,
+- Fetch API jako klient HTTP (bez dodatkowych zależności),
+- jeden centralny plik `api.ts` z typowanymi funkcjami,
+- interceptory Bearer token — każde żądanie zawiera nagłówek `Authorization`,
 - typowane requesty i response’y w TypeScript.
 
-## Etap IV
-Na IV zajęcia wystarczy przygotowanie struktury i założeń.
-Pełna integracja z backendem planowana jest na dalszy etap projektu.
+## Stan realizacji
+Integracja z backendem jest w pełni zrealizowana. Plik `src/app/api.ts` zawiera wszystkie wywołania API dla każdej roli użytkownika.

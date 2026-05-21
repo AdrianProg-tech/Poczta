@@ -58,10 +58,3 @@ Aplikacja będzie zrealizowana jako **web SPA**, responsywna i dostosowana do r�
    - reklamacje,
    - raporty.
 
-## Zakres na IV zajęcia
-Na IV zajęcia przygotowywana jest analiza frontendowa obejmująca:
-- wykorzystywane technologie,
-- architekturę komponentów,
-- routing i widoki,
-- opis ekranów,
-- uproszczone wireframe’y stanowiące bazę pod Figma.

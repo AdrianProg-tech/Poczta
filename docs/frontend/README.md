@@ -1,8 +1,8 @@
-# Dokumentacja frontendu — IV zajęcia
+# Dokumentacja frontendu
 
 Projekt: **System zarządzania przesyłkami kurierskimi i pocztowymi**
 
-Ten pakiet zawiera roboczą dokumentację analityczno-projektową frontendu na **IV zajęcia**.
+Ten pakiet zawiera dokumentację analityczno-projektową frontendu.
 Celem pakietu jest przygotowanie materiałów, które:
 
 - nadają się do prezentacji,
@@ -34,7 +34,7 @@ Celem pakietu jest przygotowanie materiałów, które:
 
 ## Sposób użycia
 
-1. Wrzucić katalog do repozytorium, np. do `docs/iv-zajecia/frontend/`.
+1. Wrzucić katalog do repozytorium, np. do `docs/frontend/`.
 2. Otworzyć plik `03-architektura-komponentow.puml` w PlantUML.
 3. Wykorzystać pliki `07–11` jako bazę do dopracowania Figma.
 4. Wireframe’y SVG potraktować jako prosty szkic układu ekranów.

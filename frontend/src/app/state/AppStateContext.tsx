@@ -6,6 +6,7 @@ import type { AppState, AppUser, UserRole } from '../types';
 interface AppStateContextValue {
   state: AppState;
   loginAsRole: (role: UserRole, identifier?: string, password?: string) => Promise<void>;
+  loginWithToken: (token: string) => Promise<UserRole>;
   logout: () => void;
 }
 
@@ -60,7 +61,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       throw new Error('Brakuje adresu e-mail.');
     }
     if (!password) {
-      throw new Error('Brakuje hasla.');
+      throw new Error('Brakuje hasła.');
     }
 
     const authSession = await login(identifier, password);
@@ -76,6 +77,24 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setState({ currentUser, isLoading: false });
   }, []);
 
+  const loginWithToken = useCallback(async (token: string): Promise<UserRole> => {
+    const tempSession: StoredSession = { role: 'client', email: '', accessToken: token };
+    persistStoredSession(tempSession);
+
+    const authUser = await getCurrentUser();
+    const availableRoles = authUser.roles.filter((r): r is UserRole =>
+      r === 'client' || r === 'courier' || r === 'point' || r === 'admin',
+    );
+    const primaryRole: UserRole = availableRoles[0] ?? 'client';
+
+    const session: StoredSession = { role: primaryRole, email: authUser.email, accessToken: token };
+    persistStoredSession(session);
+
+    const currentUser = userFromAuthResponse(primaryRole, authUser);
+    setState({ currentUser, isLoading: false });
+    return primaryRole;
+  }, []);
+
   const logout = useCallback(() => {
     void logoutRequest().catch(() => {
       // Clear local session even if the temporary backend session has already expired.
@@ -88,9 +107,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     () => ({
       state,
       loginAsRole,
+      loginWithToken,
       logout,
     }),
-    [loginAsRole, logout, state],
+    [loginAsRole, loginWithToken, logout, state],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

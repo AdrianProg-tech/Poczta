@@ -1,5 +1,7 @@
 package org.example.pocztabackend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.pocztabackend.dto.PublicPointResponse;
 import org.example.pocztabackend.repository.PointRepository;
 import org.springframework.util.StringUtils;
@@ -13,6 +15,7 @@ import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/public/points")
+@Tag(name = "Punkty (publiczne)", description = "Publiczne wyszukiwanie punktów odbioru i paczkomatów")
 public class PublicPointController {
 
     private final PointRepository pointRepository;
@@ -22,6 +25,7 @@ public class PublicPointController {
     }
 
     @GetMapping
+    @Operation(summary = "Pobierz listę aktywnych punktów odbioru z filtrowaniem")
     public List<PublicPointResponse> listPublicPoints(
             @RequestParam(required = false) String city,
             @RequestParam(required = false) String type,

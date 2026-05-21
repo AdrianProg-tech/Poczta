@@ -215,7 +215,10 @@ export default function CreateShipment() {
                       <div>
                         <label className="mb-2 block text-sm">Telefon</label>
                         <input
-                          {...register('senderPhone', { required: 'Podaj telefon nadawcy.' })}
+                          {...register('senderPhone', {
+                            required: 'Podaj telefon nadawcy.',
+                            pattern: { value: /^[+\d][\d\s\-()\d]{6,19}$/, message: 'Podaj poprawny numer telefonu.' }
+                          })}
                           className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                         />
                         {errors.senderPhone ? <p className="mt-1 text-sm text-destructive">{errors.senderPhone.message}</p> : null}
@@ -248,7 +251,10 @@ export default function CreateShipment() {
                       <div>
                         <label className="mb-2 block text-sm">Telefon</label>
                         <input
-                          {...register('recipientPhone', { required: 'Podaj telefon odbiorcy.' })}
+                          {...register('recipientPhone', {
+                            required: 'Podaj telefon odbiorcy.',
+                            pattern: { value: /^[+\d][\d\s\-()\d]{6,19}$/, message: 'Podaj poprawny numer telefonu.' }
+                          })}
                           className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                         />
                         {errors.recipientPhone ? <p className="mt-1 text-sm text-destructive">{errors.recipientPhone.message}</p> : null}
@@ -303,11 +309,18 @@ export default function CreateShipment() {
                     <div>
                       <label className="mb-2 block text-sm">Waga (kg)</label>
                       <input
-                        {...register('weight', { required: 'Podaj wagę.', valueAsNumber: true, min: 0.1 })}
+                        {...register('weight', {
+                          required: 'Podaj wagę.',
+                          valueAsNumber: true,
+                          min: { value: 0.1, message: 'Minimalna waga to 0,1 kg.' },
+                          max: { value: 50, message: 'Maksymalna waga to 50 kg.' },
+                        })}
                         type="number"
                         step="0.1"
+                        placeholder="np. 1.5"
                         className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                       />
+                      {errors.weight ? <p className="mt-1 text-sm text-destructive">{errors.weight.message}</p> : null}
                     </div>
                     <div>
                       <label className="mb-2 block text-sm">Gabaryt</label>
@@ -315,18 +328,26 @@ export default function CreateShipment() {
                         {...register('sizeCategory', { required: 'Wybierz gabaryt.' })}
                         className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                       >
-                        <option value="S">S</option>
-                        <option value="M">M</option>
-                        <option value="L">L</option>
+                        <option value="S">S (do 1 kg)</option>
+                        <option value="M">M (1–10 kg)</option>
+                        <option value="L">L (10–50 kg)</option>
                       </select>
+                      {errors.sizeCategory ? <p className="mt-1 text-sm text-destructive">{errors.sizeCategory.message}</p> : null}
                     </div>
                     <div>
-                      <label className="mb-2 block text-sm">Wartość (PLN)</label>
+                      <label className="mb-2 block text-sm">Wartość deklarowana (PLN)</label>
                       <input
-                        {...register('declaredValue', { required: 'Podaj wartość.', valueAsNumber: true, min: 1 })}
+                        {...register('declaredValue', {
+                          required: 'Podaj wartość.',
+                          valueAsNumber: true,
+                          min: { value: 0, message: 'Wartość nie może być ujemna.' },
+                          max: { value: 100000, message: 'Maksymalna wartość to 100 000 PLN.' },
+                        })}
                         type="number"
+                        placeholder="0"
                         className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                       />
+                      {errors.declaredValue ? <p className="mt-1 text-sm text-destructive">{errors.declaredValue.message}</p> : null}
                     </div>
                   </div>
 
@@ -443,10 +464,6 @@ export default function CreateShipment() {
                 <div className="rounded-lg bg-secondary p-3">
                   <div className="mb-1 text-muted-foreground">Docelowy kanał</div>
                   <div>{deliveryType === 'COURIER' ? 'Doręczenie kurierskie' : 'Odbiór w punkcie'}</div>
-                </div>
-                <div className="rounded-lg bg-secondary p-3">
-                  <div className="mb-1 text-muted-foreground">API contract</div>
-                  <div>POST /api/client/shipments</div>
                 </div>
               </div>
             </div>

@@ -1,5 +1,7 @@
 package org.example.pocztabackend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.pocztabackend.dto.OpsCourierDispatchResponse;
 import org.example.pocztabackend.dto.OpsDashboardSummaryResponse;
 import org.example.pocztabackend.dto.OpsRecentEventResponse;
@@ -14,6 +16,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/ops")
+@Tag(name = "Konsola operacyjna", description = "Dashboard i widoki operacyjne dla administratora")
 public class OperationsConsoleController {
 
     private final OperationsConsoleQueryService operationsConsoleQueryService;
@@ -28,24 +31,28 @@ public class OperationsConsoleController {
     }
 
     @GetMapping("/dashboard-summary")
+    @Operation(summary = "Pobierz podsumowanie dashboardu operacyjnego")
     public OpsDashboardSummaryResponse getDashboardSummary() {
         operationalActorResolver.requireAdminActor(true);
         return operationsConsoleQueryService.getDashboardSummary();
     }
 
     @GetMapping("/shipments-board")
+    @Operation(summary = "Pobierz tablicę przesyłek w toku")
     public List<OpsShipmentBoardItemResponse> getShipmentsBoard() {
         operationalActorResolver.requireAdminActor(true);
         return operationsConsoleQueryService.getShipmentBoard();
     }
 
     @GetMapping("/courier-dispatch")
+    @Operation(summary = "Pobierz dane do zarządzania dyspozycją kurierów")
     public OpsCourierDispatchResponse getCourierDispatch() {
         operationalActorResolver.requireAdminActor(true);
         return operationsConsoleQueryService.getCourierDispatch();
     }
 
     @GetMapping("/recent-events")
+    @Operation(summary = "Pobierz ostatnie zdarzenia trackingowe")
     public List<OpsRecentEventResponse> getRecentEvents() {
         operationalActorResolver.requireAdminActor(true);
         return operationsConsoleQueryService.getRecentEvents();

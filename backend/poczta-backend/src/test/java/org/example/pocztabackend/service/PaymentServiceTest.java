@@ -36,6 +36,9 @@ class PaymentServiceTest {
     @Mock
     private ShipmentRepository shipmentRepository;
 
+    @Mock
+    private NotificationService notificationService;
+
     private PaymentService paymentService;
 
     @BeforeEach
@@ -43,7 +46,7 @@ class PaymentServiceTest {
         paymentService = new PaymentService(
                 paymentRepository,
                 shipmentRepository,
-                new ShipmentWorkflowService()
+                new ShipmentWorkflowService(notificationService)
         );
     }
 

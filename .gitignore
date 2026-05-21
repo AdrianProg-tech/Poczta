@@ -21,3 +21,12 @@ scripts/generated_api_csv/
 
 # Logs
 *.log
+
+# Local AI / assistant artifacts
+.claude/
+backup/
+CLAUDE.md
+CONTRIBUTING.md
+
+# Local app secrets
+backend/poczta-backend/src/main/resources/application-local.properties

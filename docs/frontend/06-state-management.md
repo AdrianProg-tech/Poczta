@@ -33,6 +33,5 @@ Zakładamy użycie **Redux Toolkit** jako głównego rozwiązania do zarządzani
 - filtry tabel
 - stan kroków kreatora tworzenia przesyłki
 
-## Etap IV
-Na IV zajęcia ten dokument jest założeniem architektonicznym.
-Implementacja store i integracja widoków ze stanem planowana jest na późniejszy etap.
+## Stan realizacji
+State management jest w pełni zaimplementowany przy użyciu Context API + useReducer w pliku `src/app/state/AppStateContext.tsx`.

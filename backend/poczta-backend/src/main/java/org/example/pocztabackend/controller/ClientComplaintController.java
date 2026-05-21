@@ -1,5 +1,7 @@
 package org.example.pocztabackend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.example.pocztabackend.dto.ComplaintCreatedResponse;
 import org.example.pocztabackend.dto.ComplaintSummaryResponse;
@@ -17,6 +19,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/client/complaints")
+@Tag(name = "Reklamacje (klient)", description = "Składanie i przeglądanie reklamacji przez klienta")
 public class ClientComplaintController {
 
     private final ClientComplaintContractService clientComplaintContractService;
@@ -27,6 +30,7 @@ public class ClientComplaintController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Złóż reklamację")
     public ComplaintCreatedResponse createComplaint(
             @Valid @RequestBody CreateComplaintRequest request
     ) {
@@ -34,6 +38,7 @@ public class ClientComplaintController {
     }
 
     @GetMapping
+    @Operation(summary = "Pobierz listę reklamacji klienta")
     public List<ComplaintSummaryResponse> listComplaints() {
         return clientComplaintContractService.listComplaints(null);
     }

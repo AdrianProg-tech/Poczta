@@ -3,13 +3,30 @@ services:
     image: gvenzl/oracle-xe:21-slim
     container_name: oracle-21c-springboot
     environment:
-      - ORACLE_PASSWORD=Sys123 # Hasło dla użytkowników SYS i SYSTEM
-      - APP_USER=springuser           # Automatycznie tworzy użytkownika
-      - APP_USER_PASSWORD=spring  # Hasło dla powyższego użytkownika
+      - ORACLE_PASSWORD=Sys123
+      - APP_USER=springuser
+      - APP_USER_PASSWORD=spring
     ports:
       - "1522:1521"
     volumes:
       - oracle-data:/opt/oracle/oradata
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: pingwinpost-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=pingwin
+      - RABBITMQ_DEFAULT_PASS=pingwin123
+
+  maildev:
+    image: maildev/maildev
+    container_name: pingwinpost-maildev
+    ports:
+      - "1025:1025"
+      - "1080:1080"
 
 volumes:
   oracle-data:
