@@ -35,6 +35,7 @@ import PointShipments from './pages/PointShipments';
 // Admin pages
 import AdminDemoLab from './pages/AdminDemoLab';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminHandoverLab from './pages/AdminHandoverLab';
 import AdminUsers from './pages/AdminUsers';
 import AdminLockerLab from './pages/AdminLockerLab';
 import AdminPoints from './pages/AdminPoints';
@@ -42,6 +43,7 @@ import AdminShipments from './pages/AdminShipments';
 import AdminPayments from './pages/AdminPayments';
 import AdminClaims from './pages/AdminClaims';
 import AdminReports from './pages/AdminReports';
+import AdminTransitLab from './pages/AdminTransitLab';
 
 export const router = createBrowserRouter([
   {
@@ -162,6 +164,14 @@ export const router = createBrowserRouter([
       {
         path: '/admin/demo/locker',
         Component: () => <ProtectedRoute allowedRoles={['admin']} allowedAdminScopes={['ADMIN', 'DISPATCHER']} children={<AdminLockerLab />} />,
+      },
+      {
+        path: '/admin/demo/transit',
+        Component: () => <ProtectedRoute allowedRoles={['admin']} allowedAdminScopes={['ADMIN', 'DISPATCHER']} children={<AdminTransitLab />} />,
+      },
+      {
+        path: '/admin/demo/handover',
+        Component: () => <ProtectedRoute allowedRoles={['admin']} allowedAdminScopes={['ADMIN', 'DISPATCHER']} children={<AdminHandoverLab />} />,
       },
       {
         path: '/admin/users',

@@ -131,6 +131,7 @@ export interface ShipmentPaymentDetails {
   status: string | null;
   method: string | null;
   amount: number | null;
+  collectionMethod: string | null;
   externalReference: string | null;
 }
 
@@ -173,6 +174,7 @@ export interface PaymentSummary {
   amount: number;
   method: string;
   status: string;
+  collectionMethod: string | null;
   externalReference: string | null;
   createdAt: string;
 }
@@ -197,6 +199,11 @@ export interface CourierTaskListItem {
   recipientPhone: string;
   targetAddress: string;
   plannedDate: string | null;
+  paymentStatus: string | null;
+  paymentMethod: string | null;
+  paymentAmount: number | null;
+  paymentCollectionMethod: string | null;
+  requiresPaymentCollection: boolean;
 }
 
 export interface CourierTaskDetails extends CourierTaskListItem {
@@ -356,6 +363,7 @@ export interface AdminPaymentSummary {
   amount: number;
   method: string;
   status: string;
+  collectionMethod: string | null;
   externalReference: string | null;
   clientEmail: string | null;
   createdAt: string;
@@ -399,7 +407,7 @@ export interface CreateClientShipmentPayload {
     fragile?: boolean;
   };
   payment: {
-    method: 'ONLINE' | 'OFFLINE_AT_POINT';
+    method: 'ONLINE' | 'OFFLINE_AT_POINT' | 'OFFLINE_AT_COURIER';
   };
 }
 
@@ -416,7 +424,7 @@ export interface ClientShipmentRedirectPayload {
 }
 
 export interface CreatePaymentPayload {
-  method: 'ONLINE' | 'OFFLINE_AT_POINT';
+  method: 'ONLINE' | 'OFFLINE_AT_POINT' | 'OFFLINE_AT_COURIER';
   amount: number;
 }
 
@@ -800,13 +808,19 @@ export async function startCourierTask(userEmail: string, taskId: string) {
   });
 }
 
-export async function completeCourierTask(userEmail: string, taskId: string, note?: string) {
+export async function completeCourierTask(
+  userEmail: string,
+  taskId: string,
+  options?: { note?: string; collectPayment?: boolean; collectionMethod?: 'CASH' | 'CARD' },
+) {
   return request(`/api/courier/tasks/${taskId}/complete-delivery`, {
     method: 'POST',
     headers: userHeader(userEmail),
     body: {
       deliveredAt: new Date().toISOString(),
-      note: note || null,
+      note: options?.note || null,
+      collectPayment: options?.collectPayment ?? false,
+      collectionMethod: options?.collectionMethod ?? null,
     },
   });
 }

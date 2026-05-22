@@ -24,6 +24,7 @@ public class Payment {
     @Enumerated(EnumType.STRING)
     private PaymentStatus status;
     private String externalReference;
+    private String collectionMethod;
     private LocalDateTime createdAt;
 
     @ManyToOne
@@ -71,6 +72,14 @@ public class Payment {
 
     public void setExternalReference(String externalReference) {
         this.externalReference = externalReference;
+    }
+
+    public String getCollectionMethod() {
+        return collectionMethod;
+    }
+
+    public void setCollectionMethod(String collectionMethod) {
+        this.collectionMethod = collectionMethod;
     }
 
     public LocalDateTime getCreatedAt() {

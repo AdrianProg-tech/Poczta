@@ -7,6 +7,8 @@ import java.time.LocalDateTime;
 public record CompleteDeliveryRequest(
         @NotNull(message = "deliveredAt is required")
         LocalDateTime deliveredAt,
-        String note
+        String note,
+        Boolean collectPayment,
+        String collectionMethod
 ) {
 }

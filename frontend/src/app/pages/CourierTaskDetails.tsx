@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { ArrowLeft, CheckSquare, MapPin, RefreshCw, RotateCcw, Truck } from 'lucide-react';
+import { ArrowLeft, CheckSquare, CreditCard, MapPin, RefreshCw, RotateCcw, Truck } from 'lucide-react';
 import {
   acceptCourierTask,
   completeCourierTask,
@@ -28,6 +28,7 @@ export default function CourierTaskDetails() {
   const [points, setPoints] = useState<PublicPoint[]>([]);
   const [tracking, setTracking] = useState<PublicTrackingResponse | null>(null);
   const [redirectPointCode, setRedirectPointCode] = useState('');
+  const [collectionMethod, setCollectionMethod] = useState<'CASH' | 'CARD'>('CASH');
   const [isLoading, setIsLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +64,14 @@ export default function CourierTaskDetails() {
   useEffect(() => {
     void loadTask();
   }, [loadTask]);
+
+  useEffect(() => {
+    if (task?.paymentCollectionMethod === 'CARD' || task?.paymentCollectionMethod === 'CASH') {
+      setCollectionMethod(task.paymentCollectionMethod);
+    } else if (task?.requiresPaymentCollection) {
+      setCollectionMethod('CASH');
+    }
+  }, [task?.paymentCollectionMethod, task?.requiresPaymentCollection]);
 
   async function runTaskAction(actionKey: string, action: () => Promise<unknown>) {
     setBusyAction(actionKey);
@@ -104,6 +113,13 @@ export default function CourierTaskDetails() {
     }
 
     if (task.taskStatus === 'IN_PROGRESS') {
+      if (task.requiresPaymentCollection) {
+        return {
+          title: 'Masz aktywna dostawe z pobraniem',
+          description: 'Przed domknieciem tasku kurier musi zebrac platnosc i wskazac, czy byla gotowka czy karta.',
+          bullets: ['Wybierz cash albo card.', 'Dopiero potem zamknij dostawe sukcesem.'],
+        };
+      }
       return {
         title: 'Masz aktywna dostawe',
         description: 'Na tym etapie kurier powinien zamknac dostawe sukcesem albo zapisac nieudana probe z redirectem.',
@@ -199,6 +215,16 @@ export default function CourierTaskDetails() {
                   <div className="mb-1 text-sm text-muted-foreground">Aktualny status shipmentu</div>
                   <div>{task.shipmentStatus ?? 'Brak danych'}</div>
                 </div>
+                <div>
+                  <div className="mb-1 text-sm text-muted-foreground">Platnosc</div>
+                  <div>
+                    {task.paymentMethod ?? 'Brak'} {task.paymentStatus ? `| ${task.paymentStatus}` : ''}
+                  </div>
+                </div>
+                <div>
+                  <div className="mb-1 text-sm text-muted-foreground">Pobranie przy odbiorze</div>
+                  <div>{task.requiresPaymentCollection ? 'Tak, kurier musi zamknac checkout' : 'Nie'}</div>
+                </div>
               </div>
             </div>
 
@@ -278,20 +304,69 @@ export default function CourierTaskDetails() {
 
                 {task.taskStatus === 'IN_PROGRESS' ? (
                   <>
-                    <button
-                      type="button"
-                      disabled={busyAction === 'complete' || !currentUser?.email}
-                      onClick={() =>
-                        currentUser?.email &&
-                        runTaskAction('complete', () =>
-                          completeCourierTask(currentUser.email, task.taskId, 'Delivered from courier details UI'),
-                        )
-                      }
-                      className="flex w-full items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
-                    >
-                      <CheckSquare className="h-4 w-4" />
-                      Oznacz jako doreczona
-                    </button>
+                    {task.requiresPaymentCollection ? (
+                      <div className="space-y-3 rounded-lg border border-border p-4">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <CreditCard className="h-4 w-4" />
+                          Checkout przy odbiorze
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <label className="flex items-center gap-2 rounded-lg border border-border p-3">
+                            <input
+                              type="radio"
+                              name="collectionMethod"
+                              checked={collectionMethod === 'CASH'}
+                              onChange={() => setCollectionMethod('CASH')}
+                            />
+                            <span>Gotowka</span>
+                          </label>
+                          <label className="flex items-center gap-2 rounded-lg border border-border p-3">
+                            <input
+                              type="radio"
+                              name="collectionMethod"
+                              checked={collectionMethod === 'CARD'}
+                              onChange={() => setCollectionMethod('CARD')}
+                            />
+                            <span>Karta</span>
+                          </label>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={busyAction === 'complete' || !currentUser?.email}
+                          onClick={() =>
+                            currentUser?.email &&
+                            runTaskAction('complete', () =>
+                              completeCourierTask(currentUser.email, task.taskId, {
+                                note: 'Delivered from courier details UI',
+                                collectPayment: true,
+                                collectionMethod,
+                              }),
+                            )
+                          }
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
+                        >
+                          <CheckSquare className="h-4 w-4" />
+                          Pobierz platnosc i dorecz
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busyAction === 'complete' || !currentUser?.email}
+                        onClick={() =>
+                          currentUser?.email &&
+                          runTaskAction('complete', () =>
+                            completeCourierTask(currentUser.email, task.taskId, {
+                              note: 'Delivered from courier details UI',
+                            }),
+                          )
+                        }
+                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
+                      >
+                        <CheckSquare className="h-4 w-4" />
+                        Oznacz jako doreczona
+                      </button>
+                    )}
 
                     <div className="space-y-2 rounded-lg border border-border p-3">
                       <div className="text-sm text-muted-foreground">Redirect po nieudanej probie</div>
@@ -360,6 +435,10 @@ export default function CourierTaskDetails() {
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Historia eventow</span>
                   <span>{timelineItems.length}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-muted-foreground">Collection method</span>
+                  <span>{task.paymentCollectionMethod ?? (task.requiresPaymentCollection ? 'Do wyboru przy doreczeniu' : 'Brak')}</span>
                 </div>
               </div>
             </div>

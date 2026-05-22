@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Search } from 'lucide-react';
+import { CreditCard, RefreshCw, Search } from 'lucide-react';
 import {
   acceptPointShipment,
   assignCourierToShipment,
@@ -42,6 +42,7 @@ function formatAction(action: string) {
     ACCEPT_TASK: 'Kurier ma przyjac task',
     START_ROUTE: 'Kurier ma ruszyc w trase',
     COMPLETE_OR_RECORD_ATTEMPT: 'Dorecz albo zapisz probe',
+    COLLECT_PAYMENT_AND_DELIVER: 'Pobierz platnosc i dorecz',
     ACCEPT_REDIRECTED_SHIPMENT: 'Przyjmij w punkcie',
     PICKUP_AT_POINT: 'Odbior przez klienta',
     REVIEW_EXCEPTION: 'Sprawdz wyjatek',
@@ -58,6 +59,7 @@ function explainAction(action: string) {
     ACCEPT_TASK: 'Task istnieje, ale kurier nie potwierdzil jeszcze przyjecia.',
     START_ROUTE: 'Task jest przyjety, ale kurier nie ruszyl jeszcze w trase.',
     COMPLETE_OR_RECORD_ATTEMPT: 'Shipment jest juz w dostawie i wymaga finalnego wyniku po stronie kuriera.',
+    COLLECT_PAYMENT_AND_DELIVER: 'Kurier musi zamknac checkout przy drzwiach, a dopiero potem oznaczyc przesylke jako doreczona.',
     ACCEPT_REDIRECTED_SHIPMENT: 'Punkt powinien przyjac redirect, aby przesylka trafila do odbioru klienta.',
     PICKUP_AT_POINT: 'Klient moze odebrac przesylke, a punkt powinien pilnowac release flow.',
     REVIEW_EXCEPTION: 'Shipment utknal w stanie wymagajacym recznego review albo decyzji operacyjnej.',
@@ -161,6 +163,7 @@ export default function AdminShipments() {
     () => ({
       prepare: shipments.filter((shipment) => shipment.nextSuggestedAction === 'PREPARE_FOR_DISPATCH').length,
       assign: shipments.filter((shipment) => shipment.nextSuggestedAction === 'ASSIGN_COURIER').length,
+      courierCheckout: shipments.filter((shipment) => shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER').length,
       point: shipments.filter(
         (shipment) =>
           shipment.nextSuggestedAction === 'ACCEPT_REDIRECTED_SHIPMENT' || shipment.nextSuggestedAction === 'PICKUP_AT_POINT',
@@ -239,7 +242,7 @@ export default function AdminShipments() {
         </div>
       </div>
 
-      <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <button
           type="button"
           onClick={() => setActionFilter('PREPARE_FOR_DISPATCH')}
@@ -257,6 +260,22 @@ export default function AdminShipments() {
           <div className="text-sm text-muted-foreground">Do przydzialu kuriera</div>
           <div className="mt-2 text-2xl">{boardSummary.assign}</div>
           <div className="mt-2 text-sm text-muted-foreground">Dispatcher ma tu najwiekszy wplyw na plynne zejscie kolejki.</div>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActionFilter('COLLECT_PAYMENT_AND_DELIVER')}
+          className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm text-muted-foreground">Courier checkout</div>
+              <div className="mt-2 text-2xl">{boardSummary.courierCheckout}</div>
+            </div>
+            <CreditCard className="h-5 w-5 text-warning" />
+          </div>
+          <div className="mt-2 text-sm text-muted-foreground">
+            Oplacenie przy drzwiach, ktore musi zamknac kurier przed finalnym `DELIVERED`.
+          </div>
         </button>
         <button
           type="button"
@@ -326,6 +345,12 @@ export default function AdminShipments() {
                       <td className="px-6 py-4">
                         <div>{shipment.trackingNumber}</div>
                         <div className="text-sm text-muted-foreground">{formatDateTime(shipment.createdAt)}</div>
+                        {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
+                          <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-warning/10 px-3 py-1 text-xs text-warning">
+                            <CreditCard className="h-3.5 w-3.5" />
+                            Courier cash/card collection
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-6 py-4">
                         <div className="mb-2">
@@ -336,16 +361,27 @@ export default function AdminShipments() {
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         <div>{shipment.destinationCity ?? 'Brak miasta'}</div>
                         <div>{shipment.targetPointCode ? `Punkt: ${shipment.targetPointCode}` : 'Door delivery'}</div>
+                        {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
+                          <div className="mt-1 text-warning">Platnosc pobraniowa po stronie kuriera.</div>
+                        ) : null}
                       </td>
                       <td className="px-6 py-4 text-sm">{formatOwner(shipment.nextActionOwner)}</td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         <div>{formatAction(shipment.nextSuggestedAction)}</div>
                         {shipment.blockedReason ? <div className="mt-1">{shipment.blockedReason}</div> : null}
                         {suggestion?.suggestionReason ? <div className="mt-1">{suggestion.suggestionReason}</div> : null}
+                        {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
+                          <div className="mt-1">
+                            Courier must collect cash or card payment before closing the delivery task.
+                          </div>
+                        ) : null}
                         <div className="mt-2 rounded-lg bg-secondary p-3 text-sm">{explainAction(shipment.nextSuggestedAction)}</div>
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
-                        {shipment.assignedCourierEmail ?? suggestion?.suggestedCourierEmail ?? 'Brak'}
+                        <div>{shipment.assignedCourierEmail ?? suggestion?.suggestedCourierEmail ?? 'Brak'}</div>
+                        {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
+                          <div className="mt-1 text-warning">Ops should monitor courier-side checkout.</div>
+                        ) : null}
                       </td>
                       <td className="px-6 py-4">
                         {shipment.nextSuggestedAction === 'PREPARE_FOR_DISPATCH' ? (
@@ -461,7 +497,23 @@ export default function AdminShipments() {
                           )
                         ) : null}
 
-                        {!['PREPARE_FOR_DISPATCH', 'ASSIGN_COURIER', 'ACCEPT_REDIRECTED_SHIPMENT', 'PICKUP_AT_POINT', 'CONFIRM_OFFLINE_PAYMENT'].includes(shipment.nextSuggestedAction) ? (
+                        {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <div>Quick action zostaje po stronie kuriera.</div>
+                            <div className="rounded-lg bg-secondary px-3 py-2">
+                              Monitoruj task details i potwierdz, ze checkout zamknie sie przed `DELIVERED`.
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {![
+                          'PREPARE_FOR_DISPATCH',
+                          'ASSIGN_COURIER',
+                          'ACCEPT_REDIRECTED_SHIPMENT',
+                          'PICKUP_AT_POINT',
+                          'CONFIRM_OFFLINE_PAYMENT',
+                          'COLLECT_PAYMENT_AND_DELIVER',
+                        ].includes(shipment.nextSuggestedAction) ? (
                           <div className="text-sm text-muted-foreground">Brak szybkiej akcji</div>
                         ) : null}
                       </td>

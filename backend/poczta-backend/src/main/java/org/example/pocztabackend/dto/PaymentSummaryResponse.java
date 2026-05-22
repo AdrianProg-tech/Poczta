@@ -12,6 +12,7 @@ public record PaymentSummaryResponse(
         BigDecimal amount,
         String method,
         String status,
+        String collectionMethod,
         String externalReference,
         LocalDateTime createdAt
 ) {
@@ -22,6 +23,7 @@ public record PaymentSummaryResponse(
                 payment.getAmount(),
                 payment.getMethod(),
                 payment.getStatus() == null ? null : payment.getStatus().name(),
+                payment.getCollectionMethod(),
                 payment.getExternalReference(),
                 payment.getCreatedAt()
         );

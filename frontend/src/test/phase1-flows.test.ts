@@ -1,5 +1,8 @@
+import { getHandoverDemoParcels, getTransitDemoParcels } from '../app/adminDemoFlows';
 import { describe, expect, it } from 'vitest';
 import { demoRoleOptions, type PointQueueResponse } from '../app/api';
+import { getPointQueueLoad, getPointReadinessLabel } from '../app/pages/AdminPoints';
+import { canShowPaymentShortcut, canShowRedirectShortcut } from '../app/pages/ClientShipments';
 import {
   buildPointQueueCsv,
   filterPointQueueItems,
@@ -105,5 +108,58 @@ describe('point queue selection helpers', () => {
     expect(csv).toContain('trackingNumber,recipientName,queueType,shipmentStatus,paymentStatus,paymentId,createdAt,expiresAt');
     expect(csv).toContain('"PW-123","Jan Kowalski","Do wydania","AWAITING_PICKUP","PAID","","",""');
     expect(csv).toContain('"PW-456","Anna Nowak","Offline payment","CREATED","OFFLINE_PENDING","pay-222","",""');
+  });
+});
+
+describe('admin demo flow filters', () => {
+  const parcels = [
+    { id: '1', status: 'READY_FOR_POSTING', deliveryType: 'COURIER', createdAt: '2026-05-22T10:00:00Z' },
+    { id: '2', status: 'IN_TRANSIT', deliveryType: 'COURIER', createdAt: '2026-05-22T11:00:00Z' },
+    { id: '3', status: 'REDIRECTED_TO_PICKUP', deliveryType: 'PICKUP_POINT', createdAt: '2026-05-22T12:00:00Z' },
+    { id: '4', status: 'DELIVERED', deliveryType: 'COURIER', createdAt: '2026-05-22T09:00:00Z' },
+  ] as any[];
+
+  it('keeps only transit-friendly parcels in descending created order', () => {
+    expect(getTransitDemoParcels(parcels).map((parcel) => parcel.id)).toEqual(['2', '1']);
+  });
+
+  it('keeps only handover-friendly parcels in descending created order', () => {
+    expect(getHandoverDemoParcels(parcels).map((parcel) => parcel.id)).toEqual(['3', '2', '1']);
+  });
+});
+
+describe('client shipment quick actions', () => {
+  it('shows payment shortcut only for pending payments', () => {
+    expect(canShowPaymentShortcut({ paymentStatus: 'PENDING' } as any)).toBe(true);
+    expect(canShowPaymentShortcut({ paymentStatus: 'PAID' } as any)).toBe(false);
+  });
+
+  it('hides redirect shortcut for terminal and pickup states', () => {
+    expect(canShowRedirectShortcut({ currentStatus: 'CREATED' } as any)).toBe(true);
+    expect(canShowRedirectShortcut({ currentStatus: 'AWAITING_PICKUP' } as any)).toBe(false);
+    expect(canShowRedirectShortcut({ currentStatus: 'DELIVERED' } as any)).toBe(false);
+  });
+});
+
+describe('admin points readiness helpers', () => {
+  it('computes readiness and queue load from operators and queue presence', () => {
+    const rowWithoutOperator = {
+      point: { active: true },
+      operators: [],
+      queue: null,
+    } as any;
+    const rowReady = {
+      point: { active: true },
+      operators: [{ userId: '1' }],
+      queue: {
+        acceptQueue: [{ trackingNumber: 'A' }],
+        pickupQueue: [{ trackingNumber: 'B' }, { trackingNumber: 'C' }],
+        offlinePaymentQueue: [],
+      },
+    } as any;
+
+    expect(getPointReadinessLabel(rowWithoutOperator)).toBe('Brak operatora');
+    expect(getPointReadinessLabel(rowReady)).toBe('Gotowy operacyjnie');
+    expect(getPointQueueLoad(rowReady)).toBe(3);
   });
 });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useSearchParams } from 'react-router';
 import {
   createClientComplaint,
   formatComplaintType,
@@ -20,6 +21,8 @@ interface ClaimFormValues {
 }
 
 export default function ClientClaims() {
+  const [searchParams] = useSearchParams();
+  const prefilledTrackingNumber = searchParams.get('tracking');
   const {
     state: { currentUser },
   } = useAppStateContext();
@@ -31,6 +34,7 @@ export default function ClientClaims() {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<ClaimFormValues>({
     defaultValues: {
@@ -62,6 +66,17 @@ export default function ClientClaims() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (!prefilledTrackingNumber) {
+      return;
+    }
+
+    const matchingShipment = shipments.find((shipment) => shipment.trackingNumber === prefilledTrackingNumber);
+    if (matchingShipment) {
+      setValue('trackingNumber', matchingShipment.trackingNumber);
+    }
+  }, [prefilledTrackingNumber, setValue, shipments]);
 
   const onSubmit = handleSubmit(async (values) => {
     if (!currentUser?.email) {

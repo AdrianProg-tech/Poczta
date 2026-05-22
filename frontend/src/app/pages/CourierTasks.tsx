@@ -18,7 +18,7 @@ import { useAppStateContext } from '../state/AppStateContext';
 
 type TaskFilter = 'ALL' | 'ASSIGNED' | 'ACCEPTED' | 'IN_PROGRESS' | 'FAILED' | 'COMPLETED';
 
-function getCourierTaskNextStep(taskStatus: string) {
+function getCourierTaskNextStep(taskStatus: string, requiresPaymentCollection: boolean) {
   if (taskStatus === 'ASSIGNED') {
     return 'Przyjmij task, zeby dispatcher widzial, ze kurier przejal trase.';
   }
@@ -26,6 +26,9 @@ function getCourierTaskNextStep(taskStatus: string) {
     return 'Rozpocznij trase, gdy wyjazd jest faktycznie gotowy.';
   }
   if (taskStatus === 'IN_PROGRESS') {
+    if (requiresPaymentCollection) {
+      return 'Przed domknieciem dostawy kurier musi pobrac platnosc gotowka albo karta.';
+    }
     return 'Domknij dostawe sukcesem albo zapisz nieudana probe z redirectem.';
   }
   if (taskStatus === 'FAILED') {
@@ -168,7 +171,11 @@ export default function CourierTasks() {
     [selectedTasks],
   );
   const batchCompletableTasks = useMemo(
-    () => selectedTasks.filter((task) => task.taskStatus === 'IN_PROGRESS'),
+    () => selectedTasks.filter((task) => task.taskStatus === 'IN_PROGRESS' && !task.requiresPaymentCollection),
+    [selectedTasks],
+  );
+  const selectedTasksNeedingPaymentCollection = useMemo(
+    () => selectedTasks.filter((task) => task.requiresPaymentCollection),
     [selectedTasks],
   );
 
@@ -268,6 +275,11 @@ export default function CourierTasks() {
               <div>Do startu: {batchStartableTasks.length}</div>
               <div>Do domkniecia: {batchCompletableTasks.length}</div>
             </div>
+            {selectedTasksNeedingPaymentCollection.length > 0 ? (
+              <div className="mt-2 text-sm text-warning">
+                {selectedTasksNeedingPaymentCollection.length} zaznaczonych taskow wymaga checkoutu gotowka/karta w szczegolach zadania.
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -343,7 +355,9 @@ export default function CourierTasks() {
                   const success = await runBatchTaskAction(
                     'batch-complete',
                     batchCompletableTasks.map((task) => () =>
-                      completeCourierTask(currentUser.email!, task.taskId, 'Delivered from courier batch UI'),
+                      completeCourierTask(currentUser.email!, task.taskId, {
+                        note: 'Delivered from courier batch UI',
+                      }),
                     ),
                   );
                   if (success) {
@@ -461,6 +475,16 @@ export default function CourierTasks() {
                       <div className="mb-1 text-muted-foreground">Planowana data</div>
                       <div>{formatDate(task.plannedDate)}</div>
                     </div>
+                    <div>
+                      <div className="mb-1 text-muted-foreground">Platnosc</div>
+                      <div>
+                        {task.paymentMethod ?? 'Brak'} {task.paymentStatus ? `| ${task.paymentStatus}` : ''}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-muted-foreground">Pobranie</div>
+                      <div>{task.requiresPaymentCollection ? 'Kuriera czeka checkout przy odbiorze' : 'Brak checkoutu przy doreczeniu'}</div>
+                    </div>
                   </div>
                   <div className="mt-4">
                     <Link
@@ -475,7 +499,7 @@ export default function CourierTasks() {
                 <div className="space-y-3 lg:w-72">
                   <div className="rounded-lg bg-secondary p-4 text-sm text-muted-foreground">
                     <div className="mb-2 text-foreground">Nastepny krok</div>
-                    <div>{getCourierTaskNextStep(task.taskStatus)}</div>
+                    <div>{getCourierTaskNextStep(task.taskStatus, task.requiresPaymentCollection)}</div>
                   </div>
 
                   {task.taskStatus === 'ASSIGNED' ? (
@@ -507,18 +531,32 @@ export default function CourierTasks() {
 
                   {task.taskStatus === 'IN_PROGRESS' ? (
                     <>
-                      <button
-                        type="button"
-                        disabled={isBusy || !currentUser?.email}
-                        onClick={() =>
-                          currentUser?.email &&
-                          runTaskAction(task.taskId, () => completeCourierTask(currentUser.email!, task.taskId, 'Delivered from courier UI'))
-                        }
-                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
-                      >
-                        <CheckSquare className="h-4 w-4" />
-                        Oznacz jako doreczona
-                      </button>
+                      {task.requiresPaymentCollection ? (
+                        <Link
+                          to={`/courier/tasks/${task.taskId}`}
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90"
+                        >
+                          <CheckSquare className="h-4 w-4" />
+                          Pobierz platnosc i dorecz
+                        </Link>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={isBusy || !currentUser?.email}
+                          onClick={() =>
+                            currentUser?.email &&
+                            runTaskAction(task.taskId, () =>
+                              completeCourierTask(currentUser.email!, task.taskId, {
+                                note: 'Delivered from courier UI',
+                              }),
+                            )
+                          }
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
+                        >
+                          <CheckSquare className="h-4 w-4" />
+                          Oznacz jako doreczona
+                        </button>
+                      )}
 
                       <div className="space-y-2 rounded-lg border border-border p-3">
                         <div className="text-sm text-muted-foreground">Redirect po nieudanej probie</div>

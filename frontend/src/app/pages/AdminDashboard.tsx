@@ -126,6 +126,11 @@ export default function AdminDashboard() {
         description: 'Shipmenty gotowe do dispatchu, ale bez taska kuriera.',
       },
       {
+        title: 'Courier checkout',
+        value: shipmentBoard.filter((item) => item.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER').length,
+        description: 'Dostawy z pobraniem, w ktorych kurier musi domknac cash/card przy drzwiach.',
+      },
+      {
         title: 'Redirect do punktu',
         value: summary?.redirectedToPickupShipments ?? 0,
         description: 'Przesylki po nieudanej probie doreczenia, jeszcze nie przyjete w punkcie.',
@@ -136,7 +141,7 @@ export default function AdminDashboard() {
         description: 'Przesylki czekajace na klienta w pickup flow.',
       },
     ],
-    [summary],
+    [shipmentBoard, summary],
   );
 
   const prepareQueue = useMemo(
@@ -154,6 +159,11 @@ export default function AdminDashboard() {
         }))
         .slice(0, 6),
     [dispatch, shipmentBoard],
+  );
+
+  const courierCheckoutQueue = useMemo(
+    () => shipmentBoard.filter((item) => item.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER').slice(0, 6),
+    [shipmentBoard],
   );
 
   const paymentQueue = useMemo(
@@ -204,7 +214,7 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {focusItems.map((item) => (
           <div key={item.title} className="rounded-xl border border-border bg-card p-5 shadow-sm">
             <div className="text-sm text-muted-foreground">{item.title}</div>
@@ -236,6 +246,18 @@ export default function AdminDashboard() {
               className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
             >
               Open locker lab
+            </Link>
+            <Link
+              to="/admin/demo/transit"
+              className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
+            >
+              Open transit lab
+            </Link>
+            <Link
+              to="/admin/demo/handover"
+              className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
+            >
+              Open handover lab
             </Link>
           </div>
         </div>
@@ -379,6 +401,40 @@ export default function AdminDashboard() {
             })
           ) : (
             <div className="text-muted-foreground">Brak taskow oczekujacych na reczne przepisanie kuriera.</div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-xl border border-border bg-card shadow-sm">
+        <div className="border-b border-border p-6">
+          <h3 className="text-lg">Courier checkout queue</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Shipmenty z `OFFLINE_AT_COURIER`, gdzie delivery jest juz po stronie kuriera, ale checkout cash/card musi
+            zostac zamkniety przed finalnym doreczeniem.
+          </p>
+        </div>
+        <div className="space-y-4 p-6">
+          {courierCheckoutQueue.length ? (
+            courierCheckoutQueue.map((shipment) => (
+              <div key={shipment.shipmentId} className="rounded-lg bg-secondary p-4">
+                <div className="mb-1 flex items-center justify-between gap-3">
+                  <div>{shipment.trackingNumber}</div>
+                  <StatusBadge status={shipment.shipmentStatus} />
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Kurier: {shipment.assignedCourierEmail ?? 'brak'} | Cel: {shipment.destinationCity ?? 'brak miasta'}
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  Platnosc: {shipment.paymentStatus ?? 'brak'} | Suggested action: collect payment and deliver
+                </div>
+                <div className="mt-3 rounded-lg bg-card px-3 py-2 text-sm text-muted-foreground">
+                  Ops visibility only: ten checkout zamyka kurier w task details. Po stronie boardu warto monitorowac,
+                  czy shipment nie utknal zbyt dlugo przed `DELIVERED`.
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-muted-foreground">Brak aktywnych courier checkout cases.</div>
           )}
         </div>
       </div>

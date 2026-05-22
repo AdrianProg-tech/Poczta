@@ -13,6 +13,7 @@ public record PaymentResponse(
         BigDecimal amount,
         String method,
         PaymentStatus status,
+        String collectionMethod,
         String externalReference,
         LocalDateTime createdAt
 ) {
@@ -23,6 +24,7 @@ public record PaymentResponse(
                 payment.getAmount(),
                 payment.getMethod(),
                 payment.getStatus(),
+                payment.getCollectionMethod(),
                 payment.getExternalReference(),
                 payment.getCreatedAt()
         );

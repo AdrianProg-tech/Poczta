@@ -8,6 +8,7 @@ public record ShipmentPaymentDetailsResponse(
         String status,
         String method,
         BigDecimal amount,
+        String collectionMethod,
         String externalReference
 ) {
 }

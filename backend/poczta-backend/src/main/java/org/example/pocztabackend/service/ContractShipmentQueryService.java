@@ -89,6 +89,7 @@ public class ContractShipmentQueryService {
                         latestPayment.getStatus() == null ? null : latestPayment.getStatus().name(),
                         latestPayment.getMethod(),
                         latestPayment.getAmount(),
+                        latestPayment.getCollectionMethod(),
                         latestPayment.getExternalReference()
                 ),
                 new ShipmentDeliveryDetailsResponse(

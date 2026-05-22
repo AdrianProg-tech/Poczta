@@ -20,14 +20,21 @@ interface CreateShipmentFormValues {
   declaredValue: number;
   contents: string;
   fragile: boolean;
-  paymentMethod: 'ONLINE' | 'OFFLINE_AT_POINT';
+  paymentMethod: 'ONLINE' | 'OFFLINE_AT_POINT' | 'OFFLINE_AT_COURIER';
 }
+
+const STEP_FIELDS: Record<number, Array<keyof CreateShipmentFormValues>> = {
+  1: ['senderName', 'senderPhone', 'senderAddress', 'recipientName', 'recipientPhone', 'recipientAddress'],
+  2: ['deliveryType', 'targetPointCode', 'weight', 'sizeCategory', 'declaredValue'],
+  3: ['paymentMethod'],
+};
 
 export default function CreateShipment() {
   const navigate = useNavigate();
   const {
     state: { currentUser },
   } = useAppStateContext();
+
   const [step, setStep] = useState(1);
   const [points, setPoints] = useState<PublicPoint[]>([]);
   const [createdTrackingNumber, setCreatedTrackingNumber] = useState<string | null>(null);
@@ -66,11 +73,13 @@ export default function CreateShipment() {
     async function loadPoints() {
       try {
         const data = await getPublicPoints();
-        if (active) {
-          setPoints(data.filter((point) => point.active));
-          if (data[0]) {
-            setValue('targetPointCode', data[0].pointCode);
-          }
+        if (!active) {
+          return;
+        }
+        const activePoints = data.filter((point) => point.active);
+        setPoints(activePoints);
+        if (activePoints[0]) {
+          setValue('targetPointCode', activePoints[0].pointCode);
         }
       } catch {
         if (active) {
@@ -87,8 +96,18 @@ export default function CreateShipment() {
   }, [setValue]);
 
   const deliveryType = watch('deliveryType');
+  const paymentMethod = watch('paymentMethod');
   const declaredValue = watch('declaredValue');
   const fragile = watch('fragile');
+
+  useEffect(() => {
+    if (deliveryType === 'PICKUP_POINT' && paymentMethod === 'OFFLINE_AT_COURIER') {
+      setValue('paymentMethod', 'ONLINE');
+    }
+    if (deliveryType === 'COURIER' && paymentMethod === 'OFFLINE_AT_POINT') {
+      setValue('paymentMethod', 'ONLINE');
+    }
+  }, [deliveryType, paymentMethod, setValue]);
 
   const priceSummary = useMemo(() => {
     const base = 19.99;
@@ -101,12 +120,6 @@ export default function CreateShipment() {
       total: (base + insurance + fragileFee).toFixed(2),
     };
   }, [declaredValue, fragile]);
-
-  const stepFields: Record<number, Array<keyof CreateShipmentFormValues>> = {
-    1: ['senderName', 'senderPhone', 'senderAddress', 'recipientName', 'recipientPhone', 'recipientAddress'],
-    2: ['deliveryType', 'targetPointCode', 'weight', 'sizeCategory', 'declaredValue'],
-    3: ['paymentMethod'],
-  };
 
   const finishShipment = handleSubmit(async (values) => {
     if (!currentUser?.email) {
@@ -148,7 +161,7 @@ export default function CreateShipment() {
       setCreatedTrackingNumber(response.trackingNumber);
       setStep(4);
     } catch (requestError) {
-      setSubmitError(requestError instanceof Error ? requestError.message : 'Nie udało się utworzyć przesyłki.');
+      setSubmitError(requestError instanceof Error ? requestError.message : 'Nie udalo sie utworzyc przesylki.');
     } finally {
       setIsSubmitting(false);
     }
@@ -156,24 +169,24 @@ export default function CreateShipment() {
 
   async function handlePrimaryAction() {
     if (step < 3) {
-      const fields = stepFields[step];
-      const isValid = await trigger(
-        deliveryType === 'PICKUP_POINT' && step === 2 ? fields : fields.filter((field) => field !== 'targetPointCode'),
-      );
+      const fields = STEP_FIELDS[step];
+      const fieldsToValidate =
+        deliveryType === 'PICKUP_POINT' && step === 2 ? fields : fields.filter((field) => field !== 'targetPointCode');
+      const isValid = await trigger(fieldsToValidate);
       if (isValid) {
         setStep(step + 1);
       }
       return;
     }
 
-    const isValid = await trigger(stepFields[3]);
+    const isValid = await trigger(STEP_FIELDS[3]);
     if (isValid) {
       await finishShipment();
     }
   }
 
   return (
-    <DashboardShell role="client" title="Nowa przesyłka">
+    <DashboardShell role="client" title="Nowa przesylka">
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 flex items-center justify-between gap-4">
           {[1, 2, 3, 4].map((stepNumber) => (
@@ -205,9 +218,9 @@ export default function CreateShipment() {
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
-                        <label className="mb-2 block text-sm">Imię i nazwisko</label>
+                        <label className="mb-2 block text-sm">Imie i nazwisko</label>
                         <input
-                          {...register('senderName', { required: 'Podaj nadawcę.' })}
+                          {...register('senderName', { required: 'Podaj nadawce.' })}
                           className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                         />
                         {errors.senderName ? <p className="mt-1 text-sm text-destructive">{errors.senderName.message}</p> : null}
@@ -217,7 +230,7 @@ export default function CreateShipment() {
                         <input
                           {...register('senderPhone', {
                             required: 'Podaj telefon nadawcy.',
-                            pattern: { value: /^[+\d][\d\s\-()\d]{6,19}$/, message: 'Podaj poprawny numer telefonu.' }
+                            pattern: { value: /^[+\d][\d\s\-()\d]{6,19}$/, message: 'Podaj poprawny numer telefonu.' },
                           })}
                           className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                         />
@@ -241,9 +254,9 @@ export default function CreateShipment() {
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
-                        <label className="mb-2 block text-sm">Imię i nazwisko</label>
+                        <label className="mb-2 block text-sm">Imie i nazwisko</label>
                         <input
-                          {...register('recipientName', { required: 'Podaj odbiorcę.' })}
+                          {...register('recipientName', { required: 'Podaj odbiorce.' })}
                           className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                         />
                         {errors.recipientName ? <p className="mt-1 text-sm text-destructive">{errors.recipientName.message}</p> : null}
@@ -253,15 +266,17 @@ export default function CreateShipment() {
                         <input
                           {...register('recipientPhone', {
                             required: 'Podaj telefon odbiorcy.',
-                            pattern: { value: /^[+\d][\d\s\-()\d]{6,19}$/, message: 'Podaj poprawny numer telefonu.' }
+                            pattern: { value: /^[+\d][\d\s\-()\d]{6,19}$/, message: 'Podaj poprawny numer telefonu.' },
                           })}
                           className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                         />
-                        {errors.recipientPhone ? <p className="mt-1 text-sm text-destructive">{errors.recipientPhone.message}</p> : null}
+                        {errors.recipientPhone ? (
+                          <p className="mt-1 text-sm text-destructive">{errors.recipientPhone.message}</p>
+                        ) : null}
                       </div>
                     </div>
                     <div className="mt-4">
-                      <label className="mb-2 block text-sm">Adres doręczenia</label>
+                      <label className="mb-2 block text-sm">Adres doreczenia</label>
                       <input
                         {...register('recipientAddress', { required: 'Podaj adres odbiorcy.' })}
                         className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
@@ -310,14 +325,13 @@ export default function CreateShipment() {
                       <label className="mb-2 block text-sm">Waga (kg)</label>
                       <input
                         {...register('weight', {
-                          required: 'Podaj wagę.',
+                          required: 'Podaj wage.',
                           valueAsNumber: true,
-                          min: { value: 0.1, message: 'Minimalna waga to 0,1 kg.' },
+                          min: { value: 0.1, message: 'Minimalna waga to 0.1 kg.' },
                           max: { value: 50, message: 'Maksymalna waga to 50 kg.' },
                         })}
                         type="number"
                         step="0.1"
-                        placeholder="np. 1.5"
                         className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                       />
                       {errors.weight ? <p className="mt-1 text-sm text-destructive">{errors.weight.message}</p> : null}
@@ -329,30 +343,31 @@ export default function CreateShipment() {
                         className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                       >
                         <option value="S">S (do 1 kg)</option>
-                        <option value="M">M (1–10 kg)</option>
-                        <option value="L">L (10–50 kg)</option>
+                        <option value="M">M (1-10 kg)</option>
+                        <option value="L">L (10-50 kg)</option>
                       </select>
                       {errors.sizeCategory ? <p className="mt-1 text-sm text-destructive">{errors.sizeCategory.message}</p> : null}
                     </div>
                     <div>
-                      <label className="mb-2 block text-sm">Wartość deklarowana (PLN)</label>
+                      <label className="mb-2 block text-sm">Wartosc deklarowana (PLN)</label>
                       <input
                         {...register('declaredValue', {
-                          required: 'Podaj wartość.',
+                          required: 'Podaj wartosc.',
                           valueAsNumber: true,
-                          min: { value: 0, message: 'Wartość nie może być ujemna.' },
-                          max: { value: 100000, message: 'Maksymalna wartość to 100 000 PLN.' },
+                          min: { value: 0, message: 'Wartosc nie moze byc ujemna.' },
+                          max: { value: 100000, message: 'Maksymalna wartosc to 100 000 PLN.' },
                         })}
                         type="number"
-                        placeholder="0"
                         className="w-full rounded-lg border border-border bg-input-background px-4 py-2.5"
                       />
-                      {errors.declaredValue ? <p className="mt-1 text-sm text-destructive">{errors.declaredValue.message}</p> : null}
+                      {errors.declaredValue ? (
+                        <p className="mt-1 text-sm text-destructive">{errors.declaredValue.message}</p>
+                      ) : null}
                     </div>
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm">Zawartość</label>
+                    <label className="mb-2 block text-sm">Zawartosc</label>
                     <textarea
                       {...register('contents')}
                       rows={3}
@@ -362,28 +377,78 @@ export default function CreateShipment() {
 
                   <label className="flex items-center gap-2">
                     <input {...register('fragile')} type="checkbox" className="h-4 w-4 rounded border-border" />
-                    <span className="text-sm">Delikatna obsługa</span>
+                    <span className="text-sm">Delikatna obsluga</span>
                   </label>
                 </div>
               ) : null}
 
               {step === 3 ? (
                 <div className="space-y-4">
-                  <h3 className="text-xl">Płatność</h3>
-                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-4 hover:bg-muted">
-                    <input {...register('paymentMethod', { required: 'Wybierz metodę płatności.' })} type="radio" value="ONLINE" />
-                    <CreditCard className="h-5 w-5 text-muted-foreground" />
-                    <span>Płatność online</span>
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-border p-4 hover:bg-muted">
+                  <div className="space-y-1">
+                    <h3 className="text-xl">Platnosc</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Wybierz kanal rozliczenia zgodny z typem dostawy. Dla kuriera mozesz uruchomic pobranie przy
+                      doreczeniu, a dla punktu rozliczenie przy odbiorze.
+                    </p>
+                  </div>
+
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-4 hover:bg-muted">
                     <input
-                      {...register('paymentMethod', { required: 'Wybierz metodę płatności.' })}
+                      {...register('paymentMethod', { required: 'Wybierz metode platnosci.' })}
                       type="radio"
-                      value="OFFLINE_AT_POINT"
+                      value="ONLINE"
+                      className="mt-1"
                     />
-                    <MapPin className="h-5 w-5 text-muted-foreground" />
-                    <span>Płatność w punkcie</span>
+                    <CreditCard className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <div>Platnosc online</div>
+                      <div className="text-sm text-muted-foreground">
+                        Klient oplaca przesylke od razu po utworzeniu i moze przejsc do checkout bez dodatkowych krokow
+                        operacyjnych.
+                      </div>
+                    </div>
                   </label>
+
+                  {deliveryType === 'PICKUP_POINT' ? (
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-4 hover:bg-muted">
+                      <input
+                        {...register('paymentMethod', { required: 'Wybierz metode platnosci.' })}
+                        type="radio"
+                        value="OFFLINE_AT_POINT"
+                        className="mt-1"
+                      />
+                      <MapPin className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <div>Platnosc w punkcie</div>
+                        <div className="text-sm text-muted-foreground">
+                          Operator punktu potwierdzi platnosc przy wydaniu albo wykona sam krok finansowy w kolejce
+                          punktu.
+                        </div>
+                      </div>
+                    </label>
+                  ) : null}
+
+                  {deliveryType === 'COURIER' ? (
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-4 hover:bg-muted">
+                      <input
+                        {...register('paymentMethod', { required: 'Wybierz metode platnosci.' })}
+                        type="radio"
+                        value="OFFLINE_AT_COURIER"
+                        className="mt-1"
+                      />
+                      <Package className="mt-0.5 h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <div>Platnosc u kuriera</div>
+                        <div className="text-sm text-muted-foreground">
+                          Kurier pobierze oplate przy doreczeniu i zapisze, czy odbiorca zaplacil gotowka czy karta.
+                        </div>
+                      </div>
+                    </label>
+                  ) : null}
+
+                  {errors.paymentMethod ? (
+                    <p className="text-sm text-destructive">{errors.paymentMethod.message}</p>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -392,7 +457,7 @@ export default function CreateShipment() {
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success/10">
                     <Check className="h-8 w-8 text-success" />
                   </div>
-                  <h3 className="mb-2 text-2xl">Przesyłka utworzona</h3>
+                  <h3 className="mb-2 text-2xl">Przesylka utworzona</h3>
                   <p className="mb-6 text-muted-foreground">Tracking number: {createdTrackingNumber}</p>
                   <div className="flex flex-col justify-center gap-3 sm:flex-row">
                     <button
@@ -400,14 +465,14 @@ export default function CreateShipment() {
                       onClick={() => createdTrackingNumber && navigate(`/client/shipments/${createdTrackingNumber}`)}
                       className="rounded-lg bg-accent px-6 py-3 text-white transition-colors hover:bg-accent/90"
                     >
-                      Zobacz szczegóły
+                      Zobacz szczegoly
                     </button>
                     <button
                       type="button"
                       onClick={() => navigate('/client/shipments')}
                       className="rounded-lg border border-border bg-card px-6 py-3 transition-colors hover:bg-muted"
                     >
-                      Wróć do listy
+                      Wroc do listy
                     </button>
                   </div>
                 </div>
@@ -430,7 +495,7 @@ export default function CreateShipment() {
                   disabled={step === 4 || isSubmitting}
                   className="flex items-center gap-2 rounded-lg bg-accent px-6 py-2.5 text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {isSubmitting ? 'Zapisywanie...' : step === 3 ? 'Utwórz przesyłkę' : 'Dalej'}
+                  {isSubmitting ? 'Zapisywanie...' : step === 3 ? 'Utworz przesylke' : 'Dalej'}
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
@@ -443,7 +508,7 @@ export default function CreateShipment() {
 
               <div className="mb-6 space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Opłata bazowa</span>
+                  <span className="text-muted-foreground">Oplata bazowa</span>
                   <span>{priceSummary.base.toFixed(2)} PLN</span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -451,7 +516,7 @@ export default function CreateShipment() {
                   <span>{priceSummary.insurance.toFixed(2)} PLN</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Obsługa delikatna</span>
+                  <span className="text-muted-foreground">Obsluga delikatna</span>
                   <span>{priceSummary.fragileFee ? `${priceSummary.fragileFee.toFixed(2)} PLN` : '-'}</span>
                 </div>
                 <div className="flex justify-between border-t border-border pt-3">
@@ -462,8 +527,18 @@ export default function CreateShipment() {
 
               <div className="space-y-3 text-sm">
                 <div className="rounded-lg bg-secondary p-3">
-                  <div className="mb-1 text-muted-foreground">Docelowy kanał</div>
-                  <div>{deliveryType === 'COURIER' ? 'Doręczenie kurierskie' : 'Odbiór w punkcie'}</div>
+                  <div className="mb-1 text-muted-foreground">Docelowy kanal</div>
+                  <div>{deliveryType === 'COURIER' ? 'Doreczenie kurierskie' : 'Odbior w punkcie'}</div>
+                </div>
+                <div className="rounded-lg bg-secondary p-3">
+                  <div className="mb-1 text-muted-foreground">Kanal platnosci</div>
+                  <div>
+                    {paymentMethod === 'ONLINE'
+                      ? 'Online'
+                      : paymentMethod === 'OFFLINE_AT_POINT'
+                        ? 'Platnosc w punkcie'
+                        : 'Platnosc u kuriera'}
+                  </div>
                 </div>
               </div>
             </div>

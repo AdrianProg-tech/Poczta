@@ -9,13 +9,16 @@ import org.example.pocztabackend.dto.RecordDeliveryAttemptRequest;
 import org.example.pocztabackend.dto.TrackingHistoryItemResponse;
 import org.example.pocztabackend.model.CourierTask;
 import org.example.pocztabackend.model.DeliveryAttempt;
+import org.example.pocztabackend.model.Payment;
 import org.example.pocztabackend.model.Point;
 import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
 import org.example.pocztabackend.model.User;
+import org.example.pocztabackend.model.enums.PaymentStatus;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.CourierTaskRepository;
 import org.example.pocztabackend.repository.DeliveryAttemptRepository;
+import org.example.pocztabackend.repository.PaymentRepository;
 import org.example.pocztabackend.repository.PointRepository;
 import org.example.pocztabackend.repository.ShipmentRepository;
 import org.example.pocztabackend.repository.TrackingEventRepository;
@@ -39,6 +42,8 @@ public class CourierTaskContractService {
     private final DeliveryAttemptRepository deliveryAttemptRepository;
     private final PointRepository pointRepository;
     private final OperationalActorResolver operationalActorResolver;
+    private final PaymentRepository paymentRepository;
+    private final PaymentService paymentService;
 
     public CourierTaskContractService(
             CourierTaskRepository courierTaskRepository,
@@ -47,7 +52,9 @@ public class CourierTaskContractService {
             ShipmentWorkflowService shipmentWorkflowService,
             DeliveryAttemptRepository deliveryAttemptRepository,
             PointRepository pointRepository,
-            OperationalActorResolver operationalActorResolver
+            OperationalActorResolver operationalActorResolver,
+            PaymentRepository paymentRepository,
+            PaymentService paymentService
     ) {
         this.courierTaskRepository = courierTaskRepository;
         this.shipmentRepository = shipmentRepository;
@@ -56,13 +63,15 @@ public class CourierTaskContractService {
         this.deliveryAttemptRepository = deliveryAttemptRepository;
         this.pointRepository = pointRepository;
         this.operationalActorResolver = operationalActorResolver;
+        this.paymentRepository = paymentRepository;
+        this.paymentService = paymentService;
     }
 
     public List<CourierTaskListItemResponse> getCourierTasks(String userEmailHeader) {
         User courier = operationalActorResolver.requireCourierActor(userEmailHeader);
 
         return courierTaskRepository.findAllByCourier_IdOrderByTaskDateAscAssignedAtAsc(courier.getId()).stream()
-                .map(CourierTaskListItemResponse::fromEntity)
+                .map(task -> CourierTaskListItemResponse.fromEntity(task, getLatestPayment(task.getShipment())))
                 .toList();
     }
 
@@ -75,7 +84,8 @@ public class CourierTaskContractService {
                 .map(TrackingHistoryItemResponse::fromEntity)
                 .toList();
 
-        CourierTaskListItemResponse listItem = CourierTaskListItemResponse.fromEntity(task);
+        Payment latestPayment = getLatestPayment(task.getShipment());
+        CourierTaskListItemResponse listItem = CourierTaskListItemResponse.fromEntity(task, latestPayment);
         return new CourierTaskDetailsResponse(
                 listItem.taskId(),
                 listItem.trackingNumber(),
@@ -86,6 +96,11 @@ public class CourierTaskContractService {
                 listItem.recipientPhone(),
                 listItem.targetAddress(),
                 listItem.plannedDate(),
+                listItem.paymentStatus(),
+                listItem.paymentMethod(),
+                listItem.paymentAmount(),
+                listItem.paymentCollectionMethod(),
+                listItem.requiresPaymentCollection(),
                 history
         );
     }
@@ -123,13 +138,37 @@ public class CourierTaskContractService {
 
         Shipment shipment = requireShipment(task);
         moveShipmentToOutForDelivery(shipment);
+        Payment latestPayment = getLatestPayment(shipment);
+        boolean requiresCourierPaymentCollection = requiresCourierPaymentCollection(latestPayment);
+
+        if (requiresCourierPaymentCollection && !Boolean.TRUE.equals(request.collectPayment())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Shipment requires courier payment collection before delivery completion"
+            );
+        }
+        if (!requiresCourierPaymentCollection && Boolean.TRUE.equals(request.collectPayment())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Shipment does not require courier payment collection"
+            );
+        }
+
+        String deliveryDescription = "Shipment delivered to recipient";
+        if (requiresCourierPaymentCollection) {
+            var confirmedPayment = paymentService.confirmOfflinePayment(latestPayment.getId(), request.collectionMethod());
+            deliveryDescription =
+                    "Shipment delivered to recipient. Courier collected offline payment by "
+                            + confirmedPayment.collectionMethod();
+        }
+
         shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.DELIVERED);
         shipmentRepository.save(shipment);
         addTrackingEvent(
                 shipment,
                 ShipmentStatus.DELIVERED,
                 "Delivered",
-                withOptionalNote("Shipment delivered to recipient", request.note()),
+                withOptionalNote(deliveryDescription, request.note()),
                 request.deliveredAt()
         );
 
@@ -212,6 +251,15 @@ public class CourierTaskContractService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Courier task has no shipment assigned");
         }
         return task.getShipment();
+    }
+
+    private Payment getLatestPayment(Shipment shipment) {
+        if (shipment == null || shipment.getId() == null) {
+            return null;
+        }
+        return paymentRepository.findAllByShipment_IdOrderByCreatedAtDesc(shipment.getId()).stream()
+                .findFirst()
+                .orElse(null);
     }
 
     private void requireTaskStatus(CourierTask task, String expectedStatus) {
@@ -300,6 +348,13 @@ public class CourierTaskContractService {
         event.setDescription(description);
         event.setEventTime(eventTime);
         trackingEventRepository.save(event);
+    }
+
+    private boolean requiresCourierPaymentCollection(Payment payment) {
+        return payment != null
+                && payment.getStatus() == PaymentStatus.OFFLINE_PENDING
+                && payment.getMethod() != null
+                && "OFFLINE_AT_COURIER".equalsIgnoreCase(payment.getMethod());
     }
 
     private String withOptionalNote(String baseMessage, String note) {

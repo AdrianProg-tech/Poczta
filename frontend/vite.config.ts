@@ -3,6 +3,18 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
+function manualChunks(id: string) {
+  if (!id.includes('node_modules')) {
+    return undefined
+  }
+
+  if (id.includes('i18next')) {
+    return 'i18n'
+  }
+
+  return 'vendor'
+}
+
 export default defineConfig({
   plugins: [
     // The React and Tailwind plugins are both required for Make, even if
@@ -23,6 +35,16 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8081',
         changeOrigin: true,
+      },
+    },
+  },
+  test: {
+    exclude: ['e2e/**', 'playwright.config.ts'],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks,
       },
     },
   },

@@ -308,6 +308,12 @@ public class OperationsConsoleQueryService {
         if (paymentStatus == PaymentStatus.FAILED) {
             return new ShipmentBoardAdvice("CLIENT", "RESTART_PAYMENT", "Latest payment failed");
         }
+        if (paymentStatus == PaymentStatus.OFFLINE_PENDING
+                && isCourierOfflineCollection(latestPayment)
+                && (normalize(latestTask == null ? null : latestTask.getStatus()).equals("IN_PROGRESS")
+                || status == ShipmentStatus.OUT_FOR_DELIVERY)) {
+            return new ShipmentBoardAdvice("COURIER", "COLLECT_PAYMENT_AND_DELIVER", "Courier must collect cash/card on delivery");
+        }
         if (paymentStatus == PaymentStatus.OFFLINE_PENDING) {
             return new ShipmentBoardAdvice("POINT", "CONFIRM_OFFLINE_PAYMENT", "Waiting for offline payment confirmation at point");
         }
@@ -457,6 +463,10 @@ public class OperationsConsoleQueryService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private boolean isCourierOfflineCollection(Payment payment) {
+        return payment != null && "OFFLINE_AT_COURIER".equalsIgnoreCase(payment.getMethod());
     }
 
     private record ShipmentBoardAdvice(

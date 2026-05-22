@@ -71,6 +71,26 @@ class PaymentServiceTest {
     }
 
     @Test
+    void shouldCreateCourierOfflinePaymentAndMoveShipmentToPaidForLogistics() {
+        UUID shipmentId = UUID.randomUUID();
+        Shipment shipment = new Shipment();
+        shipment.setId(shipmentId);
+        shipment.setStatus(ShipmentStatus.CREATED);
+
+        when(shipmentRepository.findById(shipmentId)).thenReturn(Optional.of(shipment));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(shipmentRepository.save(any(Shipment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PaymentResponse response = paymentService.createPayment(
+                new PaymentRequest(shipmentId, BigDecimal.valueOf(39.99), "OFFLINE_AT_COURIER")
+        );
+
+        assertEquals(PaymentStatus.OFFLINE_PENDING, response.status());
+        assertEquals("OFFLINE_AT_COURIER", response.method());
+        assertEquals(ShipmentStatus.PAID, shipment.getStatus());
+    }
+
+    @Test
     void shouldConfirmOfflinePaymentAndMoveShipmentToPaid() {
         UUID paymentId = UUID.randomUUID();
         UUID shipmentId = UUID.randomUUID();
@@ -97,6 +117,29 @@ class PaymentServiceTest {
         ArgumentCaptor<Shipment> shipmentCaptor = ArgumentCaptor.forClass(Shipment.class);
         verify(shipmentRepository).save(shipmentCaptor.capture());
         assertEquals(ShipmentStatus.PAID, shipmentCaptor.getValue().getStatus());
+    }
+
+    @Test
+    void shouldConfirmCourierOfflinePaymentWithCollectionMethod() {
+        UUID paymentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setId(UUID.randomUUID());
+        shipment.setStatus(ShipmentStatus.OUT_FOR_DELIVERY);
+
+        Payment payment = new Payment();
+        payment.setId(paymentId);
+        payment.setShipment(shipment);
+        payment.setStatus(PaymentStatus.OFFLINE_PENDING);
+        payment.setMethod("OFFLINE_AT_COURIER");
+
+        when(paymentRepository.findById(paymentId)).thenReturn(Optional.of(payment));
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PaymentResponse response = paymentService.confirmOfflinePayment(paymentId, "card");
+
+        assertEquals(PaymentStatus.OFFLINE_CONFIRMED, response.status());
+        assertEquals("CARD", response.collectionMethod());
     }
 
     @Test

@@ -49,9 +49,10 @@ public class PaymentService {
         Shipment shipment = shipmentRepository.findById(request.shipmentId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
 
-        String method = request.method().trim().toUpperCase();
+        String method = normalizePaymentMethod(request.method());
         PaymentStatus initialStatus = switch (method) {
             case "OFFLINE", "OFFLINE_AT_POINT" -> PaymentStatus.OFFLINE_PENDING;
+            case "OFFLINE_AT_COURIER" -> PaymentStatus.OFFLINE_PENDING;
             case "ONLINE" -> PaymentStatus.PENDING;
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported payment method");
         };
@@ -63,6 +64,11 @@ public class PaymentService {
         payment.setStatus(initialStatus);
         payment.setCreatedAt(LocalDateTime.now());
         payment.setExternalReference(method + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+
+        if (shipment.getStatus() == ShipmentStatus.CREATED && "OFFLINE_AT_COURIER".equals(method)) {
+            shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.PAID);
+            shipmentRepository.save(shipment);
+        }
 
         return PaymentResponse.fromEntity(paymentRepository.save(payment));
     }
@@ -79,6 +85,11 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse confirmOfflinePayment(UUID paymentId) {
+        return confirmOfflinePayment(paymentId, null);
+    }
+
+    @Transactional
+    public PaymentResponse confirmOfflinePayment(UUID paymentId, String collectionMethod) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payment not found"));
 
@@ -86,7 +97,16 @@ public class PaymentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Only offline pending payments can be confirmed");
         }
 
+        if (requiresCourierCollection(payment) && (collectionMethod == null || collectionMethod.isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Courier payment collection method is required");
+        }
+
         payment.setStatus(PaymentStatus.OFFLINE_CONFIRMED);
+        payment.setCollectionMethod(
+                collectionMethod == null || collectionMethod.isBlank()
+                        ? null
+                        : normalizeCollectionMethod(collectionMethod)
+        );
 
         Shipment shipment = payment.getShipment();
         if (shipment != null && shipment.getStatus() == ShipmentStatus.CREATED) {
@@ -95,5 +115,25 @@ public class PaymentService {
         }
 
         return PaymentResponse.fromEntity(paymentRepository.save(payment));
+    }
+
+    private boolean requiresCourierCollection(Payment payment) {
+        return payment.getMethod() != null && "OFFLINE_AT_COURIER".equalsIgnoreCase(payment.getMethod());
+    }
+
+    private String normalizePaymentMethod(String rawMethod) {
+        String normalizedMethod = rawMethod == null ? "" : rawMethod.trim().toUpperCase();
+        if ("COD".equals(normalizedMethod)) {
+            return "OFFLINE_AT_COURIER";
+        }
+        return normalizedMethod;
+    }
+
+    private String normalizeCollectionMethod(String rawCollectionMethod) {
+        String normalizedMethod = rawCollectionMethod == null ? "" : rawCollectionMethod.trim().toUpperCase();
+        return switch (normalizedMethod) {
+            case "CASH", "CARD" -> normalizedMethod;
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported collection method");
+        };
     }
 }
