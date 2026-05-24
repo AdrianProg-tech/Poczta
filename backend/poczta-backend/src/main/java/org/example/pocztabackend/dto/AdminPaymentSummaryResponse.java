@@ -12,8 +12,10 @@ public record AdminPaymentSummaryResponse(
         BigDecimal amount,
         String method,
         String status,
+        String collectionMethod,
         String externalReference,
         String clientEmail,
+        String shipmentStatus,
         LocalDateTime createdAt
 ) {
     public static AdminPaymentSummaryResponse fromEntity(Payment payment) {
@@ -23,10 +25,14 @@ public record AdminPaymentSummaryResponse(
                 payment.getAmount(),
                 payment.getMethod(),
                 payment.getStatus() == null ? null : payment.getStatus().name(),
+                payment.getCollectionMethod(),
                 payment.getExternalReference(),
                 payment.getShipment() == null || payment.getShipment().getCreator() == null
                         ? null
                         : payment.getShipment().getCreator().getEmail(),
+                payment.getShipment() == null || payment.getShipment().getStatus() == null
+                        ? null
+                        : payment.getShipment().getStatus().name(),
                 payment.getCreatedAt()
         );
     }

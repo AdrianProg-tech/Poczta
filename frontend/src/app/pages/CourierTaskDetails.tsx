@@ -117,7 +117,7 @@ export default function CourierTaskDetails() {
         return {
           title: 'Masz aktywna dostawe z pobraniem',
           description: 'Przed domknieciem tasku kurier musi zebrac platnosc i wskazac, czy byla gotowka czy karta.',
-          bullets: ['Wybierz cash albo card.', 'Dopiero potem zamknij dostawe sukcesem.'],
+          bullets: ['Wybierz gotowke albo karte.', 'Dopiero potem zamknij dostawe sukcesem.'],
         };
       }
       return {
@@ -223,7 +223,7 @@ export default function CourierTaskDetails() {
                 </div>
                 <div>
                   <div className="mb-1 text-sm text-muted-foreground">Pobranie przy odbiorze</div>
-                  <div>{task.requiresPaymentCollection ? 'Tak, kurier musi zamknac checkout' : 'Nie'}</div>
+                  <div>{task.requiresPaymentCollection ? 'Tak, kurier musi domknac platnosc przy odbiorze' : 'Nie'}</div>
                 </div>
               </div>
             </div>
@@ -262,7 +262,7 @@ export default function CourierTaskDetails() {
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
               {actionPlan ? (
                 <div className="mb-5 rounded-xl bg-secondary p-4">
-                  <div className="mb-1 text-sm text-muted-foreground">Suggested next step</div>
+                  <div className="mb-1 text-sm text-muted-foreground">Sugerowany kolejny krok</div>
                   <div className="text-lg">{actionPlan.title}</div>
                   <p className="mt-2 text-sm text-muted-foreground">{actionPlan.description}</p>
                   <div className="mt-3 space-y-2 text-sm">
@@ -337,7 +337,7 @@ export default function CourierTaskDetails() {
                             currentUser?.email &&
                             runTaskAction('complete', () =>
                               completeCourierTask(currentUser.email, task.taskId, {
-                                note: 'Delivered from courier details UI',
+                                note: 'Doreczono z widoku szczegolow kuriera',
                                 collectPayment: true,
                                 collectionMethod,
                               }),
@@ -357,7 +357,7 @@ export default function CourierTaskDetails() {
                           currentUser?.email &&
                           runTaskAction('complete', () =>
                             completeCourierTask(currentUser.email, task.taskId, {
-                              note: 'Delivered from courier details UI',
+                              note: 'Doreczono z widoku szczegolow kuriera',
                             }),
                           )
                         }
@@ -421,7 +421,7 @@ export default function CourierTaskDetails() {
                   <span>{tracking?.trackingNumber ?? task.trackingNumber}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Destination</span>
+                  <span className="text-muted-foreground">Cel dostawy</span>
                   <span className="text-right">{tracking?.destinationSummary ?? task.targetAddress}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
@@ -429,7 +429,7 @@ export default function CourierTaskDetails() {
                   <span>{formatDate(tracking?.estimatedDeliveryDate ?? task.plannedDate)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Pickup points</span>
+                  <span className="text-muted-foreground">Punkty odbioru</span>
                   <span>{pickupPoints.length}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
@@ -437,7 +437,7 @@ export default function CourierTaskDetails() {
                   <span>{timelineItems.length}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Collection method</span>
+                  <span className="text-muted-foreground">Sposob pobrania</span>
                   <span>{task.paymentCollectionMethod ?? (task.requiresPaymentCollection ? 'Do wyboru przy doreczeniu' : 'Brak')}</span>
                 </div>
               </div>

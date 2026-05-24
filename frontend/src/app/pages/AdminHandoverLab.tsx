@@ -1,17 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, CirclePlay, PackagePlus, RefreshCw, Repeat } from 'lucide-react';
-import { buildScenarioPayload, getHandoverDemoParcels, scenarioTemplates, transitionMeta } from '../adminDemoFlows';
+import { ArrowLeft, CirclePlay, MapPin, PackagePlus, RefreshCw, Repeat, Truck } from 'lucide-react';
+import {
+  buildScenarioPayload,
+  getHandoverDemoParcels,
+  getLaneCount,
+  handoverStoryMeta,
+  scenarioTemplates,
+  transitionMeta,
+} from '../adminDemoFlows';
 import { addAdminTrackingEvent, createAdminParcel, formatDateTime, getAdminParcels, type AdminParcelRecord } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
 
-const handoverScenarios = scenarioTemplates.filter((scenario) => scenario.id === 'courier-ready' || scenario.id === 'redirect-pickup');
+const handoverScenarios = scenarioTemplates.filter(
+  (scenario) =>
+    scenario.id === 'courier-ready' ||
+    scenario.id === 'redirect-pickup' ||
+    scenario.id === 'delivery-attempt' ||
+    scenario.id === 'locker-waiting',
+);
 
 const handoverActionMap = {
   READY_FOR_POSTING: ['POSTED'],
   POSTED: ['IN_TRANSIT'],
-  IN_TRANSIT: ['OUT_FOR_DELIVERY', 'REDIRECTED_TO_PICKUP'],
+  IN_TRANSIT: ['OUT_FOR_DELIVERY', 'REDIRECTED_TO_PICKUP', 'RETURNED'],
+  OUT_FOR_DELIVERY: ['DELIVERY_ATTEMPT', 'REDIRECTED_TO_PICKUP', 'DELIVERED', 'RETURNED'],
+  DELIVERY_ATTEMPT: ['OUT_FOR_DELIVERY', 'REDIRECTED_TO_PICKUP', 'RETURNED'],
   REDIRECTED_TO_PICKUP: ['AWAITING_PICKUP'],
   AWAITING_PICKUP: ['DELIVERED', 'RETURNED'],
 } as const;
@@ -52,9 +67,35 @@ export default function AdminHandoverLab() {
   }
 
   const handoverParcels = useMemo(() => getHandoverDemoParcels(parcels).slice(0, 16), [parcels]);
+  const laneCards = useMemo(
+    () => [
+      {
+        lane: 'WAREHOUSE' as const,
+        title: 'Przekazanie magazynowe',
+        icon: Repeat,
+        value: getLaneCount(handoverParcels, handoverStoryMeta, 'WAREHOUSE'),
+        description: 'Miejsce, w ktorym zespol operacyjny nadal trzyma przesylke przed przekazaniem dalej.',
+      },
+      {
+        lane: 'FINAL_MILE' as const,
+        title: 'Opieka kuriera',
+        icon: Truck,
+        value: getLaneCount(handoverParcels, handoverStoryMeta, 'FINAL_MILE'),
+        description: 'Final-mile, w ktorym zapada decyzja o doreczeniu albo scenariuszu wyjatkowym.',
+      },
+      {
+        lane: 'PICKUP' as const,
+        title: 'Przejecie przez punkt',
+        icon: MapPin,
+        value: getLaneCount(handoverParcels, handoverStoryMeta, 'PICKUP'),
+        description: 'Flow punktu lub skrytki po redirectcie albo przekazaniu do odbioru.',
+      },
+    ],
+    [handoverParcels],
+  );
 
   return (
-    <DashboardShell role="admin" title="Handover Demo Lab">
+    <DashboardShell role="admin" title="Laboratorium przekazan">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-3">
@@ -63,9 +104,10 @@ export default function AdminHandoverLab() {
               Wroc do demo operations lab
             </Link>
           </div>
-          <h2 className="mb-2 text-2xl">Courier and point handover simulation</h2>
+          <h2 className="mb-2 text-2xl">Symulacja przekazan kuriera i punktu</h2>
           <p className="text-muted-foreground">
-            Hidden ops page for explicit handoffs between depot, courier, redirect processing, and point pickup handling.
+            Ukryta strona operacyjna do pokazywania jawnych przekazan miedzy magazynem, kurierem, redirectem i
+            obsluga odbioru w punkcie.
           </p>
         </div>
 
@@ -98,7 +140,7 @@ export default function AdminHandoverLab() {
                 onClick={() => void runAction(key, () => createAdminParcel(buildScenarioPayload(scenario.payload)))}
                 className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
               >
-                Dodaj handover scenario
+                Dodaj scenariusz przekazania
               </button>
             </div>
           );
@@ -108,16 +150,31 @@ export default function AdminHandoverLab() {
       <div className="mb-6 rounded-xl border border-dashed border-border bg-card p-6 shadow-sm">
         <div className="flex items-center gap-3">
           <Repeat className="h-5 w-5 text-accent" />
-          <h3 className="text-lg">Handover story</h3>
+          <h3 className="text-lg">Historia przekazan</h3>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          Uzyj tej strony do pokazywania, kiedy shipment zmienia operatora: depot - courier - redirect - point pickup - release.
+          Uzyj tej strony do pokazania, kiedy przesylka zmienia operatora: magazyn - kurier - redirect - punkt - wydanie.
         </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {laneCards.map((card) => (
+            <div key={card.lane} className="rounded-lg bg-secondary p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm text-muted-foreground">{card.title}</div>
+                  <div className="mt-2 text-2xl">{card.value}</div>
+                </div>
+                <card.icon className="h-5 w-5 text-accent" />
+              </div>
+              <div className="mt-2 text-sm text-muted-foreground">{card.description}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         {handoverParcels.map((parcel) => {
           const actions = handoverActionMap[parcel.status as keyof typeof handoverActionMap] ?? [];
+          const story = handoverStoryMeta[parcel.status];
 
           return (
             <div key={parcel.id} className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -133,8 +190,31 @@ export default function AdminHandoverLab() {
                   <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
                     {parcel.deliveryType}
                   </span>
+                  {story ? (
+                    <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+                      {story.lane}
+                    </span>
+                  ) : null}
                 </div>
               </div>
+
+              {story ? (
+                <div className="mb-4 rounded-lg bg-secondary p-4">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="text-sm text-muted-foreground">Aktualny etap przekazania</div>
+                      <div className="mt-1 text-lg">{story.title}</div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Odpowiada: {story.owner} {'->'} Nastepny etap: {story.nextOwner}
+                    </div>
+                  </div>
+                  <div className="mt-2 text-sm text-muted-foreground">{story.summary}</div>
+                  <div className="mt-2 rounded-lg bg-card px-3 py-2 text-sm text-muted-foreground">
+                    Punkt kontrolny: {story.checkpoint}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="space-y-3">
                 {actions.length ? (

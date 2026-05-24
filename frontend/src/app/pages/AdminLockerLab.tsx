@@ -20,14 +20,14 @@ const lockerScenarios: Array<{
 }> = [
   {
     id: 'locker-put',
-    label: 'Parcel arriving to locker',
-    description: 'Start from REDIRECTED_TO_PICKUP and then place the parcel into the machine.',
+    label: 'Przesylka trafia do skrytki',
+    description: 'Start od `REDIRECTED_TO_PICKUP`, a potem wloz przesylke do maszyny.',
     payload: {
       status: 'REDIRECTED_TO_PICKUP',
       deliveryType: 'PICKUP_POINT',
       senderName: 'Demo Sender Locker Ops',
       senderPhone: '+48999000999',
-      recipientName: 'Demo Locker Pickup',
+      recipientName: 'Demo odbior skrytki',
       recipientPhone: '+48123000123',
       weight: 0.9,
       sizeCategory: 'S',
@@ -35,14 +35,14 @@ const lockerScenarios: Array<{
   },
   {
     id: 'locker-ready',
-    label: 'Parcel already waiting in machine',
-    description: 'Start directly from AWAITING_PICKUP for a fast open-box demo.',
+    label: 'Przesylka juz czeka w maszynie',
+    description: 'Start bezposrednio od `AWAITING_PICKUP`, aby szybko pokazac odbior.',
     payload: {
       status: 'AWAITING_PICKUP',
       deliveryType: 'PICKUP_POINT',
       senderName: 'Demo Sender Machine Ready',
       senderPhone: '+48145000145',
-      recipientName: 'Demo Locker Ready',
+      recipientName: 'Demo gotowa skrytka',
       recipientPhone: '+48156000156',
       weight: 1.3,
       sizeCategory: 'M',
@@ -67,7 +67,7 @@ export default function AdminLockerLab() {
       setParcels(data);
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac locker demo set.');
+      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac zestawu demo skrytek.');
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +84,7 @@ export default function AdminLockerLab() {
       await action();
       await loadParcels();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Operacja locker demo nie powiodla sie.');
+      setError(requestError instanceof Error ? requestError.message : 'Operacja demo skrytek nie powiodla sie.');
     } finally {
       setBusyKey(null);
     }
@@ -99,18 +99,18 @@ export default function AdminLockerLab() {
   );
 
   return (
-    <DashboardShell role="admin" title="Locker Demo Lab">
+    <DashboardShell role="admin" title="Laboratorium skrytek">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-3">
             <Link to="/admin/demo-lab" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
-              Wroc do demo operations lab
+              Wroc do laboratorium operacji demo
             </Link>
           </div>
-          <h2 className="mb-2 text-2xl">Locker / machine simulation</h2>
+          <h2 className="mb-2 text-2xl">Symulacja skrytki i maszyny</h2>
           <p className="text-muted-foreground">
-            Techniczna strona do analogowego scenariusza paczkomatu: wloz parcel do maszyny albo wydaj ja odbiorcy.
+            Techniczna strona do analogowego scenariusza paczkomatu: wloz przesylke do maszyny albo wydaj ja odbiorcy.
           </p>
         </div>
 
@@ -121,7 +121,7 @@ export default function AdminLockerLab() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez locker lab
+          Odswiez laboratorium skrytek
         </button>
       </div>
 
@@ -150,7 +150,7 @@ export default function AdminLockerLab() {
                 }
                 className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
               >
-                Dodaj locker scenario
+                Dodaj scenariusz skrytki
               </button>
             </div>
           );
@@ -186,7 +186,7 @@ export default function AdminLockerLab() {
               <div className="mb-4 rounded-xl bg-secondary p-4">
                 <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                   <LockKeyhole className="h-4 w-4" />
-                  Machine actions
+                  Akcje maszyny
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -197,8 +197,8 @@ export default function AdminLockerLab() {
                         addAdminTrackingEvent({
                           shipmentId: parcel.id,
                           status: 'AWAITING_PICKUP',
-                          locationName: 'Locker compartment A-12',
-                          description: 'Parcel placed into technical locker compartment and is ready for pickup.',
+                          locationName: 'Komora skrytki A-12',
+                          description: 'Przesylka zostala umieszczona w technicznej skrytce i czeka na odbior.',
                         }),
                       )
                     }
@@ -215,8 +215,8 @@ export default function AdminLockerLab() {
                         addAdminTrackingEvent({
                           shipmentId: parcel.id,
                           status: 'DELIVERED',
-                          locationName: 'Locker pickup completed',
-                          description: 'Recipient opened technical locker compartment and collected the parcel.',
+                          locationName: 'Odbior ze skrytki zakonczony',
+                          description: 'Odbiorca otworzyl techniczna skrytke i odebral przesylke.',
                         }),
                       )
                     }

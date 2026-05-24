@@ -33,7 +33,7 @@ import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
 
 function formatCourierLoadLabel(openTasks: number, inProgressTasks: number, failedTasks: number) {
-  return `open ${openTasks} / in-progress ${inProgressTasks} / failed ${failedTasks}`;
+  return `otwarte ${openTasks} / w trasie ${inProgressTasks} / nieudane ${failedTasks}`;
 }
 
 export default function AdminDashboard() {
@@ -83,7 +83,7 @@ export default function AdminDashboard() {
       setComplaints(complaintsData);
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie odswiezyc operations console.');
+      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie odswiezyc panelu operacyjnego.');
     } finally {
       setIsLoading(false);
     }
@@ -110,7 +110,7 @@ export default function AdminDashboard() {
     { label: 'Wszystkie przesylki', value: summary?.totalShipments ?? 0, icon: Package, color: 'text-accent' },
     { label: 'Bledne platnosci', value: summary?.paymentFailedShipments ?? 0, icon: CreditCard, color: 'text-destructive' },
     { label: 'Aktywne taski kurierow', value: summary?.activeCourierTasks ?? 0, icon: Truck, color: 'text-info' },
-    { label: 'Reklamacje w review', value: summary?.complaintsInReview ?? 0, icon: AlertCircle, color: 'text-warning' },
+    { label: 'Reklamacje w analizie', value: summary?.complaintsInReview ?? 0, icon: AlertCircle, color: 'text-warning' },
   ];
 
   const focusItems = useMemo(
@@ -118,17 +118,17 @@ export default function AdminDashboard() {
       {
         title: 'Do przygotowania',
         value: summary?.readyForDispatchShipments ?? 0,
-        description: 'Oplacone przesylki czekajace na prepare-for-dispatch.',
+        description: 'Oplacone przesylki czekajace na przygotowanie do wysylki.',
       },
       {
         title: 'Czekaja na kuriera',
         value: summary?.awaitingCourierAssignmentShipments ?? 0,
-        description: 'Shipmenty gotowe do dispatchu, ale bez taska kuriera.',
+        description: 'Przesylki gotowe do dispatchu, ale bez zadania kuriera.',
       },
       {
-        title: 'Courier checkout',
+        title: 'Platnosc u kuriera',
         value: shipmentBoard.filter((item) => item.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER').length,
-        description: 'Dostawy z pobraniem, w ktorych kurier musi domknac cash/card przy drzwiach.',
+        description: 'Dostawy z pobraniem, w ktorych kurier musi domknac gotowke albo karte przy drzwiach.',
       },
       {
         title: 'Redirect do punktu',
@@ -138,7 +138,7 @@ export default function AdminDashboard() {
       {
         title: 'Do odbioru',
         value: summary?.awaitingPickupShipments ?? 0,
-        description: 'Przesylki czekajace na klienta w pickup flow.',
+        description: 'Przesylki czekajace na klienta w flow odbioru.',
       },
     ],
     [shipmentBoard, summary],
@@ -179,13 +179,13 @@ export default function AdminDashboard() {
   );
 
   return (
-    <DashboardShell role="admin" title="Operations Console">
+    <DashboardShell role="admin" title="Panel operacyjny">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="mb-2 text-2xl">Panel operacyjny</h2>
           <p className="text-muted-foreground">
-            Widok jest oparty o live read-model `/api/ops/*` i pozwala wykonywac najwazniejsze akcje bez schodzenia do
-            osobnych ekranow.
+            Widok jest oparty o biezacy model operacyjny `/api/ops/*` i pozwala wykonywac najwazniejsze akcje bez
+            schodzenia do osobnych ekranow.
           </p>
         </div>
 
@@ -227,10 +227,10 @@ export default function AdminDashboard() {
       <div className="mb-8 rounded-xl border border-dashed border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h3 className="text-lg">Technical demo tools</h3>
+            <h3 className="text-lg">Techniczne narzedzia demo</h3>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              Hidden operations pages for demo-only parcel lifecycle simulation, linehaul storytelling, and machine-style
-              pickup/release flows. They are linked only from the admin layer.
+              Ukryte strony operacyjne do demonstracji cyklu zycia przesylki, przejazdow miedzy hubami oraz
+              technicznych flow odbioru i wydania. Sa podlinkowane tylko z warstwy administracyjnej.
             </p>
           </div>
 
@@ -239,25 +239,25 @@ export default function AdminDashboard() {
               to="/admin/demo-lab"
               className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90"
             >
-              Open demo lab
+              Otworz laboratorium demo
             </Link>
             <Link
               to="/admin/demo/locker"
               className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
             >
-              Open locker lab
+              Otworz laboratorium skrytek
             </Link>
             <Link
               to="/admin/demo/transit"
               className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
             >
-              Open transit lab
+              Otworz laboratorium tranzytu
             </Link>
             <Link
               to="/admin/demo/handover"
               className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
             >
-              Open handover lab
+              Otworz laboratorium przekazan
             </Link>
           </div>
         </div>
@@ -266,9 +266,9 @@ export default function AdminDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border p-6">
-            <h3 className="text-lg">Prepare queue</h3>
+            <h3 className="text-lg">Kolejka przygotowania</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Shipmenty oplacone i gotowe do pierwszego operacyjnego ruchu.
+              Przesylki oplacone i gotowe do pierwszego operacyjnego ruchu.
             </p>
           </div>
           <div className="space-y-4 p-6">
@@ -296,23 +296,23 @@ export default function AdminDashboard() {
                         }
                         className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
                       >
-                        Prepare for dispatch
+                        Przygotuj do wysylki
                       </button>
                     </div>
                   </div>
                 );
               })
             ) : (
-              <div className="text-muted-foreground">Brak shipmentow czekajacych na prepare-for-dispatch.</div>
+              <div className="text-muted-foreground">Brak przesylek czekajacych na przygotowanie do wysylki.</div>
             )}
           </div>
         </div>
 
         <div className="rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border p-6">
-            <h3 className="text-lg">Dispatcher queue</h3>
+            <h3 className="text-lg">Kolejka dispatchera</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Shipmenty, ktore mozna przypisac do kuriera bez schodzenia do surowego API.
+              Przesylki, ktore mozna przypisac do kuriera bez schodzenia do surowego API.
             </p>
           </div>
           <div className="space-y-4 p-6">
@@ -344,7 +344,7 @@ export default function AdminDashboard() {
                         }
                         className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                       >
-                        Auto-assign
+                        Auto-przypisz
                       </button>
                     </div>
                   </div>
@@ -359,7 +359,7 @@ export default function AdminDashboard() {
 
       <div className="mt-6 rounded-xl border border-border bg-card shadow-sm">
         <div className="border-b border-border p-6">
-          <h3 className="text-lg">Reassignment queue</h3>
+          <h3 className="text-lg">Kolejka przepiecia kuriera</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             Taski jeszcze nieuruchomione, ktore mozna szybko przepiac na innego kuriera bez schodzenia do osobnego flow.
           </p>
@@ -375,7 +375,7 @@ export default function AdminDashboard() {
                     <StatusBadge status={candidate.shipmentStatus} />
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    Aktualny kurier: {candidate.currentCourierEmail ?? 'brak'} | Task: {candidate.currentTaskStatus}
+                    Aktualny kurier: {candidate.currentCourierEmail ?? 'brak'} | Zadanie: {candidate.currentTaskStatus}
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
                     Sugestia: {candidate.suggestedCourierEmail ?? 'brak'} | {candidate.suggestionReason}
@@ -393,7 +393,7 @@ export default function AdminDashboard() {
                       }
                       className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                     >
-                      Reassign courier
+                      Zmien kuriera
                     </button>
                   </div>
                 </div>
@@ -407,10 +407,10 @@ export default function AdminDashboard() {
 
       <div className="mt-6 rounded-xl border border-border bg-card shadow-sm">
         <div className="border-b border-border p-6">
-          <h3 className="text-lg">Courier checkout queue</h3>
+          <h3 className="text-lg">Kolejka platnosci u kuriera</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Shipmenty z `OFFLINE_AT_COURIER`, gdzie delivery jest juz po stronie kuriera, ale checkout cash/card musi
-            zostac zamkniety przed finalnym doreczeniem.
+            Przesylki z `OFFLINE_AT_COURIER`, gdzie delivery jest juz po stronie kuriera, ale pobranie gotowki lub
+            karty musi zostac zamkniete przed finalnym doreczeniem.
           </p>
         </div>
         <div className="space-y-4 p-6">
@@ -425,16 +425,16 @@ export default function AdminDashboard() {
                   Kurier: {shipment.assignedCourierEmail ?? 'brak'} | Cel: {shipment.destinationCity ?? 'brak miasta'}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  Platnosc: {shipment.paymentStatus ?? 'brak'} | Suggested action: collect payment and deliver
+                  Platnosc: {shipment.paymentStatus ?? 'brak'} | Sugerowana akcja: pobierz platnosc i dorecz
                 </div>
                 <div className="mt-3 rounded-lg bg-card px-3 py-2 text-sm text-muted-foreground">
-                  Ops visibility only: ten checkout zamyka kurier w task details. Po stronie boardu warto monitorowac,
-                  czy shipment nie utknal zbyt dlugo przed `DELIVERED`.
+                  Tylko do monitoringu: to rozliczenie zamyka kurier w szczegolach zadania. Po stronie boardu warto
+                  pilnowac, czy przesylka nie utknela zbyt dlugo przed `DELIVERED`.
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-muted-foreground">Brak aktywnych courier checkout cases.</div>
+            <div className="text-muted-foreground">Brak aktywnych przypadkow platnosci u kuriera.</div>
           )}
         </div>
       </div>
@@ -443,9 +443,9 @@ export default function AdminDashboard() {
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div className="rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6">
-              <h3 className="text-lg">Payment exception queue</h3>
+              <h3 className="text-lg">Kolejka wyjatkow platniczych</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Najblizsze operacyjne platnosci do potwierdzenia lub review.
+                Najblizsze platnosci wymagajace potwierdzenia albo recznej decyzji.
               </p>
             </div>
             <div className="space-y-4 p-6">
@@ -475,7 +475,7 @@ export default function AdminDashboard() {
                               }
                               className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                             >
-                              Mark paid
+                              Oznacz jako oplacona
                             </button>
                             <button
                               type="button"
@@ -486,27 +486,27 @@ export default function AdminDashboard() {
                               }
                               className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                             >
-                              Fail
+                              Oznacz jako nieudana
                             </button>
                           </>
                         ) : (
-                          <div className="text-sm text-muted-foreground">Wymaga decyzji klienta lub dodatkowego review.</div>
+                          <div className="text-sm text-muted-foreground">Wymaga decyzji klienta lub dodatkowej analizy.</div>
                         )}
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <div className="text-muted-foreground">Brak payment exceptions do obslugi.</div>
+                <div className="text-muted-foreground">Brak wyjatkow platniczych do obslugi.</div>
               )}
             </div>
           </div>
 
           <div className="rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6">
-              <h3 className="text-lg">Complaint review queue</h3>
+              <h3 className="text-lg">Kolejka reklamacji</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Reklamacje, ktore mozna od razu ruszyc z poziomu console.
+                Reklamacje, ktore mozna od razu ruszyc z poziomu panelu.
               </p>
             </div>
             <div className="space-y-4 p-6">
@@ -535,7 +535,7 @@ export default function AdminDashboard() {
                             }
                             className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                           >
-                            Start review
+                            Rozpocznij analize
                           </button>
                         ) : null}
                         {complaint.status === 'IN_REVIEW' ? (
@@ -545,12 +545,12 @@ export default function AdminDashboard() {
                             onClick={() =>
                               currentUser?.email &&
                               runDashboardAction(acceptKey, () =>
-                                acceptComplaint(currentUser.email, complaint.complaintId, 'Accepted from operations console'),
+                                acceptComplaint(currentUser.email, complaint.complaintId, 'Zaakceptowano z panelu operacyjnego'),
                               )
                             }
                             className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                           >
-                            Accept
+                            Akceptuj
                           </button>
                         ) : null}
                       </div>
@@ -558,7 +558,7 @@ export default function AdminDashboard() {
                   );
                 })
               ) : (
-                <div className="text-muted-foreground">Brak reklamacji w kolejce review.</div>
+                <div className="text-muted-foreground">Brak reklamacji w kolejce analizy.</div>
               )}
             </div>
           </div>

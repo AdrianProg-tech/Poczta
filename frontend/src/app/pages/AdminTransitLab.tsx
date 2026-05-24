@@ -1,18 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, CirclePlay, PackagePlus, RefreshCw, Warehouse } from 'lucide-react';
-import { buildScenarioPayload, getTransitDemoParcels, scenarioTemplates, transitionMeta } from '../adminDemoFlows';
+import { AlertTriangle, ArrowLeft, CirclePlay, PackagePlus, RefreshCw, Truck, Warehouse } from 'lucide-react';
+import {
+  buildScenarioPayload,
+  getLaneCount,
+  getTransitDemoParcels,
+  scenarioTemplates,
+  transitionMeta,
+  transitStoryMeta,
+} from '../adminDemoFlows';
 import { addAdminTrackingEvent, createAdminParcel, formatDateTime, getAdminParcels, type AdminParcelRecord } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
 
-const transitScenarios = scenarioTemplates.filter((scenario) => scenario.id === 'courier-ready' || scenario.id === 'linehaul-transit');
+const transitScenarios = scenarioTemplates.filter(
+  (scenario) =>
+    scenario.id === 'courier-ready' ||
+    scenario.id === 'linehaul-transit' ||
+    scenario.id === 'delivery-attempt' ||
+    scenario.id === 'return-flow',
+);
 
 const transitActionMap = {
   READY_FOR_POSTING: ['POSTED'],
   POSTED: ['IN_TRANSIT'],
-  IN_TRANSIT: ['OUT_FOR_DELIVERY'],
-  OUT_FOR_DELIVERY: ['DELIVERED', 'REDIRECTED_TO_PICKUP'],
+  IN_TRANSIT: ['OUT_FOR_DELIVERY', 'RETURNED'],
+  OUT_FOR_DELIVERY: ['DELIVERY_ATTEMPT', 'DELIVERED', 'REDIRECTED_TO_PICKUP', 'RETURNED'],
+  DELIVERY_ATTEMPT: ['OUT_FOR_DELIVERY', 'REDIRECTED_TO_PICKUP', 'RETURNED'],
 } as const;
 
 export default function AdminTransitLab() {
@@ -51,9 +65,35 @@ export default function AdminTransitLab() {
   }
 
   const transitParcels = useMemo(() => getTransitDemoParcels(parcels).slice(0, 16), [parcels]);
+  const laneCards = useMemo(
+    () => [
+      {
+        lane: 'WAREHOUSE' as const,
+        title: 'Magazyn',
+        icon: Warehouse,
+        value: getLaneCount(transitParcels, transitStoryMeta, 'WAREHOUSE'),
+        description: 'Przyjecie, sortowanie, dok wyjazdowy i gotowosc magazynu.',
+      },
+      {
+        lane: 'LINEHAUL' as const,
+        title: 'Tranzyt miedzy hubami',
+        icon: Truck,
+        value: getLaneCount(transitParcels, transitStoryMeta, 'LINEHAUL'),
+        description: 'Ruch miedzy hubami, w ktorym przesylki nie powinny znikac bez widocznego powodu.',
+      },
+      {
+        lane: 'EXCEPTION' as const,
+        title: 'Wyjatki',
+        icon: AlertTriangle,
+        value: getLaneCount(transitParcels, transitStoryMeta, 'EXCEPTION'),
+        description: 'Nieudane proby, zwroty i scenariusze reverse-logistics do demonstracji.',
+      },
+    ],
+    [transitParcels],
+  );
 
   return (
-    <DashboardShell role="admin" title="Transit Demo Lab">
+    <DashboardShell role="admin" title="Laboratorium tranzytu">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-3">
@@ -62,9 +102,10 @@ export default function AdminTransitLab() {
               Wroc do demo operations lab
             </Link>
           </div>
-          <h2 className="mb-2 text-2xl">Warehouse and transit simulation</h2>
+          <h2 className="mb-2 text-2xl">Symulacja magazynu i tranzytu</h2>
           <p className="text-muted-foreground">
-            Hidden ops page for depot, outbound dock, linehaul, and final-mile storytelling without exposing these controls in the public app.
+            Ukryta strona operacyjna do pokazywania magazynu, tranzytu miedzy hubami i final-mile bez wystawiania tych
+            kontroli w publicznej aplikacji.
           </p>
         </div>
 
@@ -97,7 +138,7 @@ export default function AdminTransitLab() {
                 onClick={() => void runAction(key, () => createAdminParcel(buildScenarioPayload(scenario.payload)))}
                 className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
               >
-                Dodaj transit scenario
+                Dodaj scenariusz tranzytu
               </button>
             </div>
           );
@@ -107,16 +148,32 @@ export default function AdminTransitLab() {
       <div className="mb-6 rounded-xl border border-dashed border-border bg-card p-6 shadow-sm">
         <div className="flex items-center gap-3">
           <Warehouse className="h-5 w-5 text-accent" />
-          <h3 className="text-lg">Transit story</h3>
+          <h3 className="text-lg">Historia tranzytu</h3>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          Uzyj tej strony do narracji: prepare at depot, outbound posting, linehaul move, and handover into final-mile delivery.
+          Uzyj tej strony do pokazania kolejnych etapow: przygotowanie w magazynie, wyjazd, tranzyt miedzy hubami i
+          przekazanie do final-mile.
         </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {laneCards.map((card) => (
+            <div key={card.lane} className="rounded-lg bg-secondary p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm text-muted-foreground">{card.title}</div>
+                  <div className="mt-2 text-2xl">{card.value}</div>
+                </div>
+                <card.icon className="h-5 w-5 text-accent" />
+              </div>
+              <div className="mt-2 text-sm text-muted-foreground">{card.description}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         {transitParcels.map((parcel) => {
           const actions = transitActionMap[parcel.status as keyof typeof transitActionMap] ?? [];
+          const story = transitStoryMeta[parcel.status];
 
           return (
             <div key={parcel.id} className="rounded-xl border border-border bg-card p-6 shadow-sm">
@@ -132,8 +189,31 @@ export default function AdminTransitLab() {
                   <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
                     {parcel.deliveryType}
                   </span>
+                  {story ? (
+                    <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+                      {story.lane}
+                    </span>
+                  ) : null}
                 </div>
               </div>
+
+              {story ? (
+                <div className="mb-4 rounded-lg bg-secondary p-4">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="text-sm text-muted-foreground">Aktualny etap logistyczny</div>
+                      <div className="mt-1 text-lg">{story.title}</div>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Odpowiada: {story.owner} {'->'} Nastepny etap: {story.nextOwner}
+                    </div>
+                  </div>
+                  <div className="mt-2 text-sm text-muted-foreground">{story.summary}</div>
+                  <div className="mt-2 rounded-lg bg-card px-3 py-2 text-sm text-muted-foreground">
+                    Punkt kontrolny: {story.checkpoint}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="space-y-3">
                 {actions.length ? (

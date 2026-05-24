@@ -33,7 +33,7 @@ export default function AdminDemoLab() {
       setSelectedParcelId((current) => current ?? sorted[0]?.id ?? null);
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac demo parcels.');
+      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac zestawu demo przesylek.');
     } finally {
       setIsLoading(false);
     }
@@ -101,18 +101,18 @@ export default function AdminDemoLab() {
   }, [selectedParcel?.status]);
 
   return (
-    <DashboardShell role="admin" title="Demo Operations Lab">
+    <DashboardShell role="admin" title="Laboratorium operacji demo">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-3">
             <Link to="/admin" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
-              Wroc do operations console
+              Wroc do panelu operacyjnego
             </Link>
           </div>
-          <h2 className="mb-2 text-2xl">Hidden demo operations lab</h2>
+          <h2 className="mb-2 text-2xl">Ukryte laboratorium operacji demo</h2>
           <p className="text-muted-foreground">
-            Techniczny ekran admin/ops do tworzenia i przesuwania demo parcels po realnym workflow backendu.
+            Techniczny ekran admin/ops do tworzenia i przesuwania demo przesylek po realnym workflow backendu.
           </p>
         </div>
 
@@ -123,7 +123,7 @@ export default function AdminDemoLab() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez demo lab
+          Odswiez laboratorium demo
         </button>
       </div>
 
@@ -132,7 +132,7 @@ export default function AdminDemoLab() {
       <div className="mb-6 rounded-xl border border-border bg-card p-6 shadow-sm">
         <div className="mb-4 flex items-center gap-3">
           <PackagePlus className="h-5 w-5 text-accent" />
-          <h3 className="text-lg">Quick-create technical scenarios</h3>
+          <h3 className="text-lg">Szybkie tworzenie scenariuszy technicznych</h3>
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
           {scenarioTemplates.map((scenario) => {
@@ -168,20 +168,20 @@ export default function AdminDemoLab() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="DM..., AWAITING_PICKUP, COURIER, recipient"
+              placeholder="DM..., AWAITING_PICKUP, COURIER, odbiorca"
               className="w-full rounded-lg border border-border bg-input-background px-4 py-3 outline-none transition-colors focus:border-accent"
             />
           </div>
 
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6">
-              <h3 className="text-lg">Technical parcel set</h3>
+              <h3 className="text-lg">Techniczny zestaw przesylek</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Niskopoziomowe demo parcels do seedowania timeline, depot i locker stories.
+                Niskopoziomowe demo przesylki do seedowania timeline, magazynu i scenariuszy skrytek.
               </p>
             </div>
 
-            {isLoading ? <div className="p-6">Ladowanie parcels...</div> : null}
+            {isLoading ? <div className="p-6">Ladowanie przesylek...</div> : null}
 
             {!isLoading ? (
               <div className="divide-y divide-border">
@@ -214,7 +214,7 @@ export default function AdminDemoLab() {
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-3">
               <Boxes className="h-5 w-5 text-accent" />
-              <h3 className="text-lg">Selected parcel</h3>
+              <h3 className="text-lg">Wybrana przesylka</h3>
             </div>
 
             {selectedParcel ? (
@@ -231,28 +231,28 @@ export default function AdminDemoLab() {
 
                 <div className="grid gap-3 text-sm">
                   <div>
-                    <div className="mb-1 text-muted-foreground">Sender</div>
+                    <div className="mb-1 text-muted-foreground">Nadawca</div>
                     <div>{selectedParcel.senderName}</div>
                   </div>
                   <div>
-                    <div className="mb-1 text-muted-foreground">Recipient</div>
+                    <div className="mb-1 text-muted-foreground">Odbiorca</div>
                     <div>{selectedParcel.recipientName}</div>
                   </div>
                   <div>
-                    <div className="mb-1 text-muted-foreground">Created</div>
+                    <div className="mb-1 text-muted-foreground">Utworzono</div>
                     <div>{formatDateTime(selectedParcel.createdAt)}</div>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="text-muted-foreground">Wybierz technical parcel z listy.</div>
+              <div className="text-muted-foreground">Wybierz techniczna przesylke z listy.</div>
             )}
           </div>
 
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-3">
               <Route className="h-5 w-5 text-accent" />
-              <h3 className="text-lg">Workflow transitions</h3>
+              <h3 className="text-lg">Przejscia workflow</h3>
             </div>
 
             {selectedParcel ? (
@@ -292,15 +292,15 @@ export default function AdminDemoLab() {
                   })}
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground">Dla tego statusu nie ma juz nastepnych przejsc w technical workflow.</div>
+                <div className="text-sm text-muted-foreground">Dla tego statusu nie ma juz nastepnych przejsc w technicznym workflow.</div>
               )
             ) : (
-              <div className="text-sm text-muted-foreground">Najpierw wybierz parcel do symulacji.</div>
+              <div className="text-sm text-muted-foreground">Najpierw wybierz przesylke do symulacji.</div>
             )}
           </div>
 
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="mb-4 text-lg">Live public tracking preview</h3>
+            <h3 className="mb-4 text-lg">Podglad publicznego trackingu</h3>
             {tracking ? (
               <div className="space-y-4">
                 <div className="text-sm text-muted-foreground">

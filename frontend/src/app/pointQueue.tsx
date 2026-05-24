@@ -469,7 +469,7 @@ export function PointQueueBulkToolbar({
             disabled={selectedCount === 0 || isBusy}
             className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted disabled:opacity-70"
           >
-            Wyczyść wybor
+            Wyczysc wybor
           </button>
           {actions.map((action) => (
             <button

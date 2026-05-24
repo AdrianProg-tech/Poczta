@@ -23,8 +23,8 @@ function formatOwner(owner: string) {
     CLIENT: 'Klient',
     ADMIN: 'Admin',
     POINT: 'Punkt',
-    DISPATCH: 'Dispatch',
-    OPS: 'Ops',
+    DISPATCH: 'Dispatcher',
+    OPS: 'Operacje',
     COURIER: 'Kurier',
     SYSTEM: 'System',
   };
@@ -35,8 +35,8 @@ function formatAction(action: string) {
   const labels: Record<string, string> = {
     MARK_PAYMENT_PAID: 'Potwierdz platnosc',
     RESTART_PAYMENT: 'Ponow platnosc klienta',
-    CONFIRM_OFFLINE_PAYMENT: 'Potwierdz offline payment',
-    PREPARE_FOR_DISPATCH: 'Prepare for dispatch',
+    CONFIRM_OFFLINE_PAYMENT: 'Potwierdz platnosc offline',
+    PREPARE_FOR_DISPATCH: 'Przygotuj do wysylki',
     ASSIGN_COURIER: 'Przypisz kuriera',
     HAND_OVER_TO_COURIER: 'Przekaz kurierowi',
     ACCEPT_TASK: 'Kurier ma przyjac task',
@@ -53,19 +53,19 @@ function formatAction(action: string) {
 
 function explainAction(action: string) {
   const explanations: Record<string, string> = {
-    PREPARE_FOR_DISPATCH: 'Ops powinien przepchnac przesylke z oplaty do pierwszego operacyjnego handoffu.',
-    ASSIGN_COURIER: 'Dispatcher powinien wskazac kuriera, aby shipment zszedl z kolejki oczekiwania.',
-    HAND_OVER_TO_COURIER: 'Kolejny ruch jest po stronie kuriera lub punktu przekazujacego shipment do final-mile.',
+    PREPARE_FOR_DISPATCH: 'Zespol operacyjny powinien przepchnac przesylke z platnosci do pierwszego przekazania.',
+    ASSIGN_COURIER: 'Dispatcher powinien wskazac kuriera, aby przesylka zeszla z kolejki oczekiwania.',
+    HAND_OVER_TO_COURIER: 'Kolejny ruch jest po stronie kuriera albo punktu przekazujacego przesylke do final-mile.',
     ACCEPT_TASK: 'Task istnieje, ale kurier nie potwierdzil jeszcze przyjecia.',
     START_ROUTE: 'Task jest przyjety, ale kurier nie ruszyl jeszcze w trase.',
-    COMPLETE_OR_RECORD_ATTEMPT: 'Shipment jest juz w dostawie i wymaga finalnego wyniku po stronie kuriera.',
-    COLLECT_PAYMENT_AND_DELIVER: 'Kurier musi zamknac checkout przy drzwiach, a dopiero potem oznaczyc przesylke jako doreczona.',
+    COMPLETE_OR_RECORD_ATTEMPT: 'Przesylka jest juz w dostawie i wymaga finalnego wyniku po stronie kuriera.',
+    COLLECT_PAYMENT_AND_DELIVER: 'Kurier musi domknac platnosc przy odbiorze, a dopiero potem oznaczyc przesylke jako doreczona.',
     ACCEPT_REDIRECTED_SHIPMENT: 'Punkt powinien przyjac redirect, aby przesylka trafila do odbioru klienta.',
     PICKUP_AT_POINT: 'Klient moze odebrac przesylke, a punkt powinien pilnowac release flow.',
-    REVIEW_EXCEPTION: 'Shipment utknal w stanie wymagajacym recznego review albo decyzji operacyjnej.',
+    REVIEW_EXCEPTION: 'Przesylka utknela w stanie wymagajacym recznej analizy albo decyzji operacyjnej.',
     NONE: 'Nie ma sugerowanego kolejnego ruchu w tym read-modelu.',
   };
-  return explanations[action] ?? 'Sprawdz ten shipment recznie, bo read-model nie ma dla niego prostego playbooka.';
+  return explanations[action] ?? 'Sprawdz te przesylke recznie, bo read-model nie ma dla niej prostego playbooka.';
 }
 
 export default function AdminShipments() {
@@ -177,7 +177,7 @@ export default function AdminShipments() {
   const actionOptions = Array.from(new Set(shipments.map((shipment) => shipment.nextSuggestedAction)));
 
   return (
-    <DashboardShell role="admin" title="Shipments Board">
+    <DashboardShell role="admin" title="Tablica przesylek">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 className="text-xl">Operacyjny board przesylek</h2>
@@ -248,7 +248,7 @@ export default function AdminShipments() {
           onClick={() => setActionFilter('PREPARE_FOR_DISPATCH')}
           className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
         >
-          <div className="text-sm text-muted-foreground">Prepare queue</div>
+          <div className="text-sm text-muted-foreground">Kolejka przygotowania</div>
           <div className="mt-2 text-2xl">{boardSummary.prepare}</div>
           <div className="mt-2 text-sm text-muted-foreground">Platnosc potwierdzona, ale jeszcze bez operacyjnego handoffu.</div>
         </button>
@@ -268,7 +268,7 @@ export default function AdminShipments() {
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm text-muted-foreground">Courier checkout</div>
+              <div className="text-sm text-muted-foreground">Platnosc u kuriera</div>
               <div className="mt-2 text-2xl">{boardSummary.courierCheckout}</div>
             </div>
             <CreditCard className="h-5 w-5 text-warning" />
@@ -294,7 +294,7 @@ export default function AdminShipments() {
           }}
           className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
         >
-          <div className="text-sm text-muted-foreground">Zablokowane / do review</div>
+          <div className="text-sm text-muted-foreground">Zablokowane / do analizy</div>
           <div className="mt-2 text-2xl">{boardSummary.blocked}</div>
           <div className="mt-2 text-sm text-muted-foreground">Shipmenty z `blockedReason`, ktore zwykle wymagaja recznego spojrzenia.</div>
         </button>
@@ -348,7 +348,7 @@ export default function AdminShipments() {
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
                           <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-warning/10 px-3 py-1 text-xs text-warning">
                             <CreditCard className="h-3.5 w-3.5" />
-                            Courier cash/card collection
+                            Platnosc gotowka lub karta u kuriera
                           </div>
                         ) : null}
                       </td>
@@ -360,7 +360,7 @@ export default function AdminShipments() {
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         <div>{shipment.destinationCity ?? 'Brak miasta'}</div>
-                        <div>{shipment.targetPointCode ? `Punkt: ${shipment.targetPointCode}` : 'Door delivery'}</div>
+                        <div>{shipment.targetPointCode ? `Punkt: ${shipment.targetPointCode}` : 'Dostawa do drzwi'}</div>
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
                           <div className="mt-1 text-warning">Platnosc pobraniowa po stronie kuriera.</div>
                         ) : null}
@@ -372,7 +372,7 @@ export default function AdminShipments() {
                         {suggestion?.suggestionReason ? <div className="mt-1">{suggestion.suggestionReason}</div> : null}
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
                           <div className="mt-1">
-                            Courier must collect cash or card payment before closing the delivery task.
+                            Kurier musi pobrac gotowke albo karte przed zamknieciem zadania dostawy.
                           </div>
                         ) : null}
                         <div className="mt-2 rounded-lg bg-secondary p-3 text-sm">{explainAction(shipment.nextSuggestedAction)}</div>
@@ -380,7 +380,7 @@ export default function AdminShipments() {
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         <div>{shipment.assignedCourierEmail ?? suggestion?.suggestedCourierEmail ?? 'Brak'}</div>
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
-                          <div className="mt-1 text-warning">Ops should monitor courier-side checkout.</div>
+                          <div className="mt-1 text-warning">Zespol operacyjny powinien monitorowac rozliczenie po stronie kuriera.</div>
                         ) : null}
                       </td>
                       <td className="px-6 py-4">
@@ -396,7 +396,7 @@ export default function AdminShipments() {
                             }
                             className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
                           >
-                            Prepare
+                            Przygotuj
                           </button>
                         ) : null}
 
@@ -412,7 +412,7 @@ export default function AdminShipments() {
                             }
                             className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                           >
-                            Auto-assign
+                            Auto-przypisz
                           </button>
                         ) : null}
 
@@ -432,7 +432,7 @@ export default function AdminShipments() {
                             </button>
                           ) : (
                             <div className="text-sm text-muted-foreground">
-                              Quick action wymaga przypisanego point workera
+                              Szybka akcja wymaga przypisanego operatora punktu
                               {!isFullAdmin ? ' i scope ADMIN.' : '.'}
                             </div>
                           )
@@ -454,7 +454,7 @@ export default function AdminShipments() {
                             </button>
                           ) : (
                             <div className="text-sm text-muted-foreground">
-                              Quick action wymaga przypisanego point workera
+                              Szybka akcja wymaga przypisanego operatora punktu
                               {!isFullAdmin ? ' i scope ADMIN.' : '.'}
                             </div>
                           )
@@ -491,7 +491,7 @@ export default function AdminShipments() {
                             )
                           ) : (
                             <div className="text-sm text-muted-foreground">
-                              Quick action wymaga przypisanego point workera
+                              Szybka akcja wymaga przypisanego operatora punktu
                               {!isFullAdmin ? ' i scope ADMIN.' : '.'}
                             </div>
                           )
@@ -499,9 +499,9 @@ export default function AdminShipments() {
 
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
                           <div className="space-y-2 text-sm text-muted-foreground">
-                            <div>Quick action zostaje po stronie kuriera.</div>
+                            <div>Ta szybka akcja zostaje po stronie kuriera.</div>
                             <div className="rounded-lg bg-secondary px-3 py-2">
-                              Monitoruj task details i potwierdz, ze checkout zamknie sie przed `DELIVERED`.
+                              Monitoruj szczegoly zadania i potwierdz, ze rozliczenie zamknie sie przed `DELIVERED`.
                             </div>
                           </div>
                         ) : null}

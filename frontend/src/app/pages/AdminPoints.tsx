@@ -142,7 +142,7 @@ export default function AdminPoints() {
     <DashboardShell role="admin" title="Punkty odbioru">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="text-xl">Points operations view</h2>
+          <h2 className="text-xl">Widok operacyjny punktow</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Read-model laczy katalog punktow, przypisanych operatorow i live queue load dla szybkiej oceny readiness.
           </p>
@@ -155,7 +155,7 @@ export default function AdminPoints() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez points view
+          Odswiez widok punktow
         </button>
       </div>
 
@@ -252,7 +252,7 @@ export default function AdminPoints() {
                     <div className="rounded-lg bg-secondary p-4">
                       <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                         <Package className="h-4 w-4" />
-                        Queue load
+                        Obciazenie kolejki
                       </div>
                       <div className="text-sm">
                         Przyjecie: {row.queue?.acceptQueue.length ?? 0}
@@ -268,7 +268,7 @@ export default function AdminPoints() {
                     <div className="rounded-lg bg-secondary p-4">
                       <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                         <Users className="h-4 w-4" />
-                        Owner readiness
+                        Gotowosc operatorow
                       </div>
                       {row.operators.length ? (
                         <div className="space-y-1 text-sm">
@@ -286,7 +286,7 @@ export default function AdminPoints() {
                     <div className="rounded-lg bg-secondary p-4">
                       <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                         <MapPin className="h-4 w-4" />
-                        Quick ops links
+                        Szybkie przejscia operacyjne
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {row.point.type === 'PARCEL_LOCKER' ? (
@@ -294,7 +294,7 @@ export default function AdminPoints() {
                             to="/admin/demo/locker"
                             className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
                           >
-                            Locker lab
+                            Laboratorium skrytek
                           </Link>
                         ) : (
                           <>
@@ -302,13 +302,13 @@ export default function AdminPoints() {
                               to="/admin/demo/handover"
                               className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
                             >
-                              Handover lab
+                              Laboratorium przekazan
                             </Link>
                             <Link
                               to="/admin/shipments"
                               className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
                             >
-                              Shipments board
+                              Tablica przesylek
                             </Link>
                           </>
                         )}

@@ -20,7 +20,7 @@ type TaskFilter = 'ALL' | 'ASSIGNED' | 'ACCEPTED' | 'IN_PROGRESS' | 'FAILED' | '
 
 function getCourierTaskNextStep(taskStatus: string, requiresPaymentCollection: boolean) {
   if (taskStatus === 'ASSIGNED') {
-    return 'Przyjmij task, zeby dispatcher widzial, ze kurier przejal trase.';
+    return 'Przyjmij zadanie, zeby dispatcher widzial, ze kurier przejal trase.';
   }
   if (taskStatus === 'ACCEPTED') {
     return 'Rozpocznij trase, gdy wyjazd jest faktycznie gotowy.';
@@ -32,9 +32,9 @@ function getCourierTaskNextStep(taskStatus: string, requiresPaymentCollection: b
     return 'Domknij dostawe sukcesem albo zapisz nieudana probe z redirectem.';
   }
   if (taskStatus === 'FAILED') {
-    return 'Task jest po probie nieudanej. Dalszy handoff przejmuje punkt lub ops.';
+    return 'Zadanie jest po nieudanej probie. Dalsze przekazanie przejmuje punkt lub operacje.';
   }
-  return 'Task jest zakonczony i nie wymaga juz akcji kuriera.';
+  return 'Zadanie jest zakonczone i nie wymaga juz akcji kuriera.';
 }
 
 export default function CourierTasks() {
@@ -150,10 +150,10 @@ export default function CourierTasks() {
   }, [filter, query, tasks]);
   const summary = useMemo(
     () => [
-      { label: 'Assigned', value: tasks.filter((task) => task.taskStatus === 'ASSIGNED').length },
-      { label: 'Accepted', value: tasks.filter((task) => task.taskStatus === 'ACCEPTED').length },
-      { label: 'In progress', value: tasks.filter((task) => task.taskStatus === 'IN_PROGRESS').length },
-      { label: 'Closed', value: tasks.filter((task) => ['FAILED', 'COMPLETED'].includes(task.taskStatus)).length },
+      { label: 'Przypisane', value: tasks.filter((task) => task.taskStatus === 'ASSIGNED').length },
+      { label: 'Przyjete', value: tasks.filter((task) => task.taskStatus === 'ACCEPTED').length },
+      { label: 'W trasie', value: tasks.filter((task) => task.taskStatus === 'IN_PROGRESS').length },
+      { label: 'Zamkniete', value: tasks.filter((task) => ['FAILED', 'COMPLETED'].includes(task.taskStatus)).length },
     ],
     [tasks],
   );
@@ -208,7 +208,7 @@ export default function CourierTasks() {
         <div>
           <h2 className="mb-2 text-2xl">Aktywne zadania</h2>
           <p className="text-muted-foreground">
-            Kazda akcja ponizej wywoluje prawdziwy endpoint kuriera i odswieza live stan zadania.
+            Kazda akcja ponizej wywoluje prawdziwy endpoint kuriera i odswieza biezacy stan zadania.
           </p>
         </div>
 
@@ -277,7 +277,7 @@ export default function CourierTasks() {
             </div>
             {selectedTasksNeedingPaymentCollection.length > 0 ? (
               <div className="mt-2 text-sm text-warning">
-                {selectedTasksNeedingPaymentCollection.length} zaznaczonych taskow wymaga checkoutu gotowka/karta w szczegolach zadania.
+                {selectedTasksNeedingPaymentCollection.length} zaznaczonych zadan wymaga pobrania gotowki lub karty w szczegolach zadania.
               </div>
             ) : null}
           </div>
@@ -356,7 +356,7 @@ export default function CourierTasks() {
                     'batch-complete',
                     batchCompletableTasks.map((task) => () =>
                       completeCourierTask(currentUser.email!, task.taskId, {
-                        note: 'Delivered from courier batch UI',
+                        note: 'Doreczono z widoku masowego kuriera',
                       }),
                     ),
                   );
@@ -399,7 +399,7 @@ export default function CourierTasks() {
                   batchCompletableTasks.map((task) => () =>
                     recordCourierAttempt(currentUser.email!, task.taskId, {
                       result: 'RECIPIENT_ABSENT',
-                      note: 'Recipient unavailable during courier batch UI',
+                      note: 'Odbiorca niedostepny podczas masowej obslugi kuriera',
                       redirectToPickup: true,
                       redirectPointCode: batchRedirectPointCode,
                     }),
@@ -454,7 +454,7 @@ export default function CourierTasks() {
                       to={`/courier/tasks/${task.taskId}`}
                       className="text-sm text-accent transition-colors hover:text-accent/80"
                     >
-                      Otworz szczegoly tasku
+                      Otworz szczegoly zadania
                     </Link>
                   </div>
                   <div className="grid gap-4 text-sm sm:grid-cols-2">
@@ -468,7 +468,7 @@ export default function CourierTasks() {
                       <div>{task.targetAddress}</div>
                     </div>
                     <div>
-                      <div className="mb-1 text-muted-foreground">Task type</div>
+                      <div className="mb-1 text-muted-foreground">Typ zadania</div>
                       <div>{task.taskType}</div>
                     </div>
                     <div>
@@ -483,7 +483,7 @@ export default function CourierTasks() {
                     </div>
                     <div>
                       <div className="mb-1 text-muted-foreground">Pobranie</div>
-                      <div>{task.requiresPaymentCollection ? 'Kuriera czeka checkout przy odbiorze' : 'Brak checkoutu przy doreczeniu'}</div>
+                      <div>{task.requiresPaymentCollection ? 'Kuriera czeka pobranie platnosci przy odbiorze' : 'Brak platnosci przy doreczeniu'}</div>
                     </div>
                   </div>
                   <div className="mt-4">
@@ -491,7 +491,7 @@ export default function CourierTasks() {
                       to={`/courier/tasks/${task.taskId}`}
                       className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
                     >
-                      Szczegoly tasku
+                      Szczegoly zadania
                     </Link>
                   </div>
                 </div>

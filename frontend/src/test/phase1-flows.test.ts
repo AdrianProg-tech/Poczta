@@ -1,6 +1,7 @@
-import { getHandoverDemoParcels, getTransitDemoParcels } from '../app/adminDemoFlows';
+import { getHandoverDemoParcels, getLaneCount, getTransitDemoParcels, handoverStoryMeta, transitStoryMeta } from '../app/adminDemoFlows';
 import { describe, expect, it } from 'vitest';
 import { demoRoleOptions, type PointQueueResponse } from '../app/api';
+import { canCancelPayment, canFailPayment, canMarkPaymentPaid, getPaymentOpsOwner } from '../app/pages/AdminPayments';
 import { getPointQueueLoad, getPointReadinessLabel } from '../app/pages/AdminPoints';
 import { canShowPaymentShortcut, canShowRedirectShortcut } from '../app/pages/ClientShipments';
 import {
@@ -117,14 +118,28 @@ describe('admin demo flow filters', () => {
     { id: '2', status: 'IN_TRANSIT', deliveryType: 'COURIER', createdAt: '2026-05-22T11:00:00Z' },
     { id: '3', status: 'REDIRECTED_TO_PICKUP', deliveryType: 'PICKUP_POINT', createdAt: '2026-05-22T12:00:00Z' },
     { id: '4', status: 'DELIVERED', deliveryType: 'COURIER', createdAt: '2026-05-22T09:00:00Z' },
+    { id: '5', status: 'DELIVERY_ATTEMPT', deliveryType: 'COURIER', createdAt: '2026-05-22T13:00:00Z' },
+    { id: '6', status: 'RETURNED', deliveryType: 'COURIER', createdAt: '2026-05-22T08:00:00Z' },
   ] as any[];
 
   it('keeps only transit-friendly parcels in descending created order', () => {
-    expect(getTransitDemoParcels(parcels).map((parcel) => parcel.id)).toEqual(['2', '1']);
+    expect(getTransitDemoParcels(parcels).map((parcel) => parcel.id)).toEqual(['5', '2', '1', '6']);
   });
 
   it('keeps only handover-friendly parcels in descending created order', () => {
-    expect(getHandoverDemoParcels(parcels).map((parcel) => parcel.id)).toEqual(['3', '2', '1']);
+    expect(getHandoverDemoParcels(parcels).map((parcel) => parcel.id)).toEqual(['5', '3', '2', '1', '6']);
+  });
+
+  it('counts parcels per storytelling lane', () => {
+    const transitParcels = getTransitDemoParcels(parcels);
+    const handoverParcels = getHandoverDemoParcels(parcels);
+
+    expect(getLaneCount(transitParcels, transitStoryMeta, 'WAREHOUSE')).toBe(1);
+    expect(getLaneCount(transitParcels, transitStoryMeta, 'LINEHAUL')).toBe(1);
+    expect(getLaneCount(transitParcels, transitStoryMeta, 'EXCEPTION')).toBe(2);
+
+    expect(getLaneCount(handoverParcels, handoverStoryMeta, 'PICKUP')).toBe(1);
+    expect(getLaneCount(handoverParcels, handoverStoryMeta, 'EXCEPTION')).toBe(2);
   });
 });
 
@@ -161,5 +176,27 @@ describe('admin points readiness helpers', () => {
     expect(getPointReadinessLabel(rowWithoutOperator)).toBe('Brak operatora');
     expect(getPointReadinessLabel(rowReady)).toBe('Gotowy operacyjnie');
     expect(getPointQueueLoad(rowReady)).toBe(3);
+  });
+});
+
+describe('admin payments ops helpers', () => {
+  it('routes pending payments to the right operational owner', () => {
+    expect(getPaymentOpsOwner({ method: 'ONLINE', status: 'PENDING' } as any)).toBe('FINANCE');
+    expect(getPaymentOpsOwner({ method: 'OFFLINE_AT_POINT', status: 'OFFLINE_PENDING' } as any)).toBe('POINT');
+    expect(getPaymentOpsOwner({ method: 'OFFLINE_AT_COURIER', status: 'OFFLINE_PENDING' } as any)).toBe('COURIER');
+    expect(getPaymentOpsOwner({ method: 'OFFLINE_AT_COURIER', status: 'OFFLINE_CONFIRMED' } as any)).toBe('ARCHIVE');
+  });
+
+  it('allows finance actions only for online pending payments', () => {
+    const onlinePending = { method: 'ONLINE', status: 'PENDING' } as any;
+    const courierPending = { method: 'OFFLINE_AT_COURIER', status: 'OFFLINE_PENDING' } as any;
+
+    expect(canMarkPaymentPaid(onlinePending)).toBe(true);
+    expect(canFailPayment(onlinePending)).toBe(true);
+    expect(canCancelPayment(onlinePending)).toBe(true);
+
+    expect(canMarkPaymentPaid(courierPending)).toBe(false);
+    expect(canFailPayment(courierPending)).toBe(false);
+    expect(canCancelPayment(courierPending)).toBe(true);
   });
 });

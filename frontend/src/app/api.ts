@@ -366,6 +366,7 @@ export interface AdminPaymentSummary {
   collectionMethod: string | null;
   externalReference: string | null;
   clientEmail: string | null;
+  shipmentStatus: string | null;
   createdAt: string;
 }
 
