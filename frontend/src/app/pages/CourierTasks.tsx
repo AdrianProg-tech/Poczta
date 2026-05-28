@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { CheckSquare, RefreshCw, RotateCcw, ScanSearch, Truck } from 'lucide-react';
+import { CheckSquare, PackageSearch, RefreshCw, RotateCcw, ScanSearch, Truck } from 'lucide-react';
 import {
   acceptCourierTask,
+  claimShipment,
   completeCourierTask,
   formatDate,
+  getAvailableShipments,
   getCourierTasks,
   getPublicPoints,
   recordCourierAttempt,
   startCourierTask,
+  type AvailableShipment,
   type CourierTaskListItem,
   type PublicPoint,
 } from '../api';
@@ -21,7 +24,7 @@ type TaskFilter = 'ALL' | 'ASSIGNED' | 'ACCEPTED' | 'IN_PROGRESS' | 'FAILED' | '
 
 function getCourierTaskNextStep(taskStatus: string, requiresPaymentCollection: boolean) {
   if (taskStatus === 'ASSIGNED') {
-    return 'Przyjmij zadanie, zeby dispatcher widzial, ze kurier przejal trase.';
+    return 'Przyjmij zadanie, aby potwierdzić gotowość do realizacji trasy.';
   }
   if (taskStatus === 'ACCEPTED') {
     return 'Rozpocznij trase, gdy wyjazd jest faktycznie gotowy.';
@@ -44,6 +47,7 @@ export default function CourierTasks() {
     state: { currentUser },
   } = useAppStateContext();
   const [tasks, setTasks] = useState<CourierTaskListItem[]>([]);
+  const [availableShipments, setAvailableShipments] = useState<AvailableShipment[]>([]);
   const [points, setPoints] = useState<PublicPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
@@ -63,9 +67,14 @@ export default function CourierTasks() {
 
     setIsLoading(true);
     try {
-      const [taskData, pointsData] = await Promise.all([getCourierTasks(currentUser.email), getPublicPoints()]);
+      const [taskData, pointsData, availableData] = await Promise.all([
+        getCourierTasks(currentUser.email),
+        getPublicPoints(),
+        getAvailableShipments(currentUser.email).catch(() => [] as AvailableShipment[]),
+      ]);
       setTasks(taskData);
       setPoints(pointsData);
+      setAvailableShipments(availableData);
       setError(null);
       setRedirectPointByTaskId((current) => {
         const pickupPoint = pointsData.find((point) => point.type === 'PICKUP_POINT') ?? pointsData[0];
@@ -210,7 +219,7 @@ export default function CourierTasks() {
         <div>
           <h2 className="mb-2 text-2xl">Aktywne zadania</h2>
           <p className="text-muted-foreground">
-            Kazda akcja ponizej wywoluje prawdziwy endpoint kuriera i odswieza biezacy stan zadania.
+            Zarządzaj zadaniami — akceptuj trasy, potwierdzaj dostawy i zapisuj próby doręczenia.
           </p>
         </div>
 
@@ -418,6 +427,43 @@ export default function CourierTasks() {
           </button>
         </div>
       </div>
+
+      {availableShipments.length > 0 ? (
+        <div className="mb-6 rounded-xl border border-accent/30 bg-accent/5 p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-3">
+            <PackageSearch className="h-5 w-5 text-accent" />
+            <h3 className="text-lg">Przesyłki do podjecia ({availableShipments.length})</h3>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {availableShipments.map((shipment) => (
+              <div key={shipment.shipmentId} className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div className="font-mono text-sm">{shipment.trackingNumber}</div>
+                  <StatusBadge status={shipment.shipmentStatus} />
+                </div>
+                <div className="mb-1 text-sm text-muted-foreground">{shipment.recipientName}</div>
+                <div className="mb-3 text-xs text-muted-foreground">{shipment.recipientAddress}</div>
+                <button
+                  type="button"
+                  disabled={busyTaskId === shipment.shipmentId}
+                  onClick={() => {
+                    if (!currentUser?.email) return;
+                    setBusyTaskId(shipment.shipmentId);
+                    setError(null);
+                    claimShipment(currentUser.email, shipment.shipmentId)
+                      .then(() => loadTasks())
+                      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Operacja nie powiodla sie.'))
+                      .finally(() => setBusyTaskId(null));
+                  }}
+                  className="w-full rounded-lg bg-accent px-3 py-2 text-sm text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
+                >
+                  {busyTaskId === shipment.shipmentId ? 'Przetwarzanie...' : 'Podejmij przesylke'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {error ? <div className="mb-6 rounded-lg bg-destructive/10 p-4 text-destructive">{error}</div> : null}
 

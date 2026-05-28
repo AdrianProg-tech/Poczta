@@ -210,6 +210,15 @@ export interface CourierTaskDetails extends CourierTaskListItem {
   history: TrackingHistoryItem[];
 }
 
+export interface AvailableShipment {
+  shipmentId: string;
+  trackingNumber: string;
+  recipientName: string;
+  recipientAddress: string;
+  shipmentStatus: string;
+  createdAt: string;
+}
+
 export interface PointQueueItem {
   trackingNumber: string;
   queueType: string;
@@ -806,6 +815,19 @@ export async function getCourierTasks(userEmail: string) {
   });
 }
 
+export async function getAvailableShipments(userEmail: string) {
+  return request<AvailableShipment[]>('/api/courier/shipments/available', {
+    headers: userHeader(userEmail),
+  });
+}
+
+export async function claimShipment(userEmail: string, shipmentId: string) {
+  return request(`/api/courier/shipments/${shipmentId}/claim`, {
+    method: 'POST',
+    headers: userHeader(userEmail),
+  });
+}
+
 export async function getCourierTaskDetails(userEmail: string, taskId: string) {
   return request<CourierTaskDetails>(`/api/courier/tasks/${taskId}`, {
     headers: userHeader(userEmail),
@@ -1038,6 +1060,20 @@ export async function reassignCourierForShipment(userEmail: string, shipmentId: 
       courierId,
       taskDate: new Date().toISOString().slice(0, 10),
     },
+  });
+}
+
+export async function advanceShipmentToInTransit(userEmail: string, shipmentId: string) {
+  return request(`/api/admin/shipments/${shipmentId}/advance-in-transit`, {
+    method: 'POST',
+    headers: userHeader(userEmail),
+  });
+}
+
+export async function routeShipmentToPickup(userEmail: string, shipmentId: string) {
+  return request(`/api/admin/shipments/${shipmentId}/route-to-pickup`, {
+    method: 'POST',
+    headers: userHeader(userEmail),
   });
 }
 

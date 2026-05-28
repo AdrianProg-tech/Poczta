@@ -58,4 +58,18 @@ public class AdminShipmentContractController {
         operationalActorResolver.requireAdminActor(true);
         return dispatchOperationsService.reassignCourier(shipmentId, request);
     }
+
+    @PostMapping("/{shipmentId}/advance-in-transit")
+    @Operation(summary = "Przesuń przesyłkę do statusu IN_TRANSIT (centrum sortowania)")
+    public ShipmentStateChangeResponse advanceToInTransit(@PathVariable UUID shipmentId) {
+        operationalActorResolver.requireAdminActor(true);
+        return dispatchOperationsService.advanceToInTransit(shipmentId);
+    }
+
+    @PostMapping("/{shipmentId}/route-to-pickup")
+    @Operation(summary = "Skieruj przesyłkę do punktu odbioru (AWAITING_PICKUP)")
+    public ShipmentStateChangeResponse routeToPickupPoint(@PathVariable UUID shipmentId) {
+        operationalActorResolver.requireAdminActor(true);
+        return dispatchOperationsService.routeToPickupPoint(shipmentId);
+    }
 }

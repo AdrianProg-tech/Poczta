@@ -4,13 +4,20 @@ import { calculateShipmentPrice, createWalkInShipment, type WalkInShipmentRespon
 import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
 
+const CITIES = [
+  'Warszawa', 'Łódź', 'Kraków', 'Wrocław', 'Poznań',
+  'Gdańsk', 'Szczecin', 'Lublin', 'Katowice', 'Bydgoszcz',
+];
+
 interface FormState {
   senderName: string;
   senderPhone: string;
-  senderAddress: string;
+  senderCity: string;
+  senderStreet: string;
   recipientName: string;
   recipientPhone: string;
-  recipientAddress: string;
+  recipientCity: string;
+  recipientStreet: string;
   weight: string;
   sizeCategory: string;
   declaredValue: string;
@@ -20,10 +27,12 @@ interface FormState {
 const emptyForm: FormState = {
   senderName: '',
   senderPhone: '',
-  senderAddress: '',
+  senderCity: 'Warszawa',
+  senderStreet: '',
   recipientName: '',
   recipientPhone: '',
-  recipientAddress: '',
+  recipientCity: 'Warszawa',
+  recipientStreet: '',
   weight: '1',
   sizeCategory: 'SMALL',
   declaredValue: '0',
@@ -68,14 +77,14 @@ function printWalkInLabel(result: WalkInShipmentResponse, form: FormState) {
     <div class="section-label">Nadawca</div>
     <div class="section-value">${form.senderName}</div>
     <div style="font-size:9pt;color:#333;">${form.senderPhone}</div>
-    <div style="font-size:9pt;color:#333;">${form.senderAddress}</div>
+    <div style="font-size:9pt;color:#333;">${form.senderCity}, ${form.senderStreet}</div>
   </div>
   <div class="divider"></div>
   <div class="section">
     <div class="section-label">Odbiorca</div>
     <div class="section-value">${form.recipientName}</div>
     <div style="font-size:9pt;color:#333;">${form.recipientPhone}</div>
-    <div style="font-size:9pt;color:#333;">${form.recipientAddress}</div>
+    <div style="font-size:9pt;color:#333;">${form.recipientCity}, ${form.recipientStreet}</div>
   </div>
   <div class="divider"></div>
   <div class="meta">
@@ -127,10 +136,10 @@ export default function PointWalkIn() {
       const resp = await createWalkInShipment(currentUser.email, {
         senderName: form.senderName.trim(),
         senderPhone: form.senderPhone.trim(),
-        senderAddress: form.senderAddress.trim(),
+        senderAddress: `${form.senderCity}, ${form.senderStreet.trim()}`,
         recipientName: form.recipientName.trim(),
         recipientPhone: form.recipientPhone.trim(),
-        recipientAddress: form.recipientAddress.trim(),
+        recipientAddress: `${form.recipientCity}, ${form.recipientStreet.trim()}`,
         weight: parseFloat(form.weight) || 1,
         sizeCategory: form.sizeCategory,
         declaredValue: parseFloat(form.declaredValue) || 0,
@@ -215,14 +224,28 @@ export default function PointWalkIn() {
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm text-muted-foreground">Adres *</label>
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground">Miasto *</label>
+              <select
+                required
+                name="senderCity"
+                value={form.senderCity}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                {CITIES.map((city) => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground">Ulica i numer *</label>
               <input
                 required
-                name="senderAddress"
-                value={form.senderAddress}
+                name="senderStreet"
+                value={form.senderStreet}
                 onChange={handleChange}
-                placeholder="ul. Przykładowa 1, 00-001 Warszawa"
+                placeholder="np. Narutowicza 14"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
@@ -258,14 +281,28 @@ export default function PointWalkIn() {
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm text-muted-foreground">Adres *</label>
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground">Miasto *</label>
+              <select
+                required
+                name="recipientCity"
+                value={form.recipientCity}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                {CITIES.map((city) => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground">Ulica i numer *</label>
               <input
                 required
-                name="recipientAddress"
-                value={form.recipientAddress}
+                name="recipientStreet"
+                value={form.recipientStreet}
                 onChange={handleChange}
-                placeholder="ul. Odbiorcza 5, 30-001 Kraków"
+                placeholder="np. Marszalkowska 5"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>

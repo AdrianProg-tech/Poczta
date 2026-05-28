@@ -5,6 +5,7 @@ import org.example.pocztabackend.dto.AdminAssignCourierResponse;
 import org.example.pocztabackend.dto.ShipmentStateChangeResponse;
 import org.example.pocztabackend.model.Payment;
 import org.example.pocztabackend.model.CourierTask;
+import org.example.pocztabackend.model.Point;
 import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
 import org.example.pocztabackend.model.User;
@@ -240,5 +241,151 @@ class DispatchOperationsServiceTest {
         verify(trackingEventRepository).save(argThat(event ->
                 event.getDescription() != null && event.getDescription().contains("reassigned from")
         ));
+    }
+
+    @Test
+    void shouldAssignCourierToPostedShipment() {
+        UUID shipmentId = UUID.randomUUID();
+        UUID courierId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setId(shipmentId);
+        shipment.setStatus(ShipmentStatus.POSTED);
+        shipment.setDeliveryType("COURIER");
+
+        User courier = new User();
+        courier.setId(courierId);
+        courier.setEmail("courier.warsaw.1@example.com");
+
+        when(shipmentRepository.findById(shipmentId)).thenReturn(Optional.of(shipment));
+        when(courierTaskRepository.findAllByShipment_IdOrderByAssignedAtDesc(shipmentId)).thenReturn(List.of());
+        when(userRepository.findById(courierId)).thenReturn(Optional.of(courier));
+        when(courierTaskRepository.save(any(CourierTask.class))).thenAnswer(invocation -> {
+            CourierTask task = invocation.getArgument(0);
+            task.setId(UUID.randomUUID());
+            return task;
+        });
+
+        AdminAssignCourierResponse response = dispatchOperationsService.assignCourier(
+                shipmentId,
+                new AdminAssignCourierRequest(courierId, LocalDate.of(2026, 5, 10))
+        );
+
+        assertEquals(shipmentId, response.shipmentId());
+        assertEquals(courierId, response.assignedCourierId());
+    }
+
+    @Test
+    void shouldAssignCourierToInTransitShipment() {
+        UUID shipmentId = UUID.randomUUID();
+        UUID courierId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setId(shipmentId);
+        shipment.setStatus(ShipmentStatus.IN_TRANSIT);
+        shipment.setDeliveryType("COURIER");
+
+        User courier = new User();
+        courier.setId(courierId);
+        courier.setEmail("courier.warsaw.1@example.com");
+
+        when(shipmentRepository.findById(shipmentId)).thenReturn(Optional.of(shipment));
+        when(courierTaskRepository.findAllByShipment_IdOrderByAssignedAtDesc(shipmentId)).thenReturn(List.of());
+        when(userRepository.findById(courierId)).thenReturn(Optional.of(courier));
+        when(courierTaskRepository.save(any(CourierTask.class))).thenAnswer(invocation -> {
+            CourierTask task = invocation.getArgument(0);
+            task.setId(UUID.randomUUID());
+            return task;
+        });
+
+        AdminAssignCourierResponse response = dispatchOperationsService.assignCourier(
+                shipmentId,
+                new AdminAssignCourierRequest(courierId, LocalDate.of(2026, 5, 10))
+        );
+
+        assertEquals(shipmentId, response.shipmentId());
+        assertEquals(courierId, response.assignedCourierId());
+    }
+
+    @Test
+    void shouldAdvancePostedShipmentToInTransit() {
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setId(shipmentId);
+        shipment.setTrackingNumber("PWTEST456PL");
+        shipment.setStatus(ShipmentStatus.POSTED);
+
+        when(shipmentRepository.findById(shipmentId)).thenReturn(Optional.of(shipment));
+        when(shipmentRepository.save(any(Shipment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ShipmentStateChangeResponse response = dispatchOperationsService.advanceToInTransit(shipmentId);
+
+        assertEquals("PWTEST456PL", response.trackingNumber());
+        assertEquals(ShipmentStatus.IN_TRANSIT.name(), response.shipmentStatus());
+        assertEquals(ShipmentStatus.IN_TRANSIT, shipment.getStatus());
+        verify(trackingEventRepository).save(any(TrackingEvent.class));
+    }
+
+    @Test
+    void shouldRejectAdvanceToInTransitWhenNotPosted() {
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setId(shipmentId);
+        shipment.setStatus(ShipmentStatus.PAID);
+
+        when(shipmentRepository.findById(shipmentId)).thenReturn(Optional.of(shipment));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> dispatchOperationsService.advanceToInTransit(shipmentId)
+        );
+
+        assertEquals(409, exception.getStatusCode().value());
+    }
+
+    @Test
+    void shouldRouteInTransitShipmentToPickupPoint() {
+        UUID shipmentId = UUID.randomUUID();
+
+        Point targetPoint = new Point();
+        targetPoint.setPointCode("POP-WAW-01");
+
+        Shipment shipment = new Shipment();
+        shipment.setId(shipmentId);
+        shipment.setTrackingNumber("PWTEST789PL");
+        shipment.setStatus(ShipmentStatus.IN_TRANSIT);
+        shipment.setTargetPoint(targetPoint);
+
+        when(shipmentRepository.findById(shipmentId)).thenReturn(Optional.of(shipment));
+        when(shipmentRepository.save(any(Shipment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ShipmentStateChangeResponse response = dispatchOperationsService.routeToPickupPoint(shipmentId);
+
+        assertEquals("PWTEST789PL", response.trackingNumber());
+        assertEquals(ShipmentStatus.AWAITING_PICKUP.name(), response.shipmentStatus());
+        assertEquals(ShipmentStatus.AWAITING_PICKUP, shipment.getStatus());
+        assertEquals(targetPoint, shipment.getCurrentPoint());
+        verify(trackingEventRepository).save(any(TrackingEvent.class));
+    }
+
+    @Test
+    void shouldRejectRouteToPickupWhenNoTargetPoint() {
+        UUID shipmentId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setId(shipmentId);
+        shipment.setStatus(ShipmentStatus.IN_TRANSIT);
+        shipment.setTargetPoint(null);
+
+        when(shipmentRepository.findById(shipmentId)).thenReturn(Optional.of(shipment));
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> dispatchOperationsService.routeToPickupPoint(shipmentId)
+        );
+
+        assertEquals(409, exception.getStatusCode().value());
     }
 }

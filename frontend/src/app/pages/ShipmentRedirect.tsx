@@ -75,7 +75,7 @@ export default function ShipmentRedirect() {
       <div className="max-w-2xl rounded-xl border border-border bg-card p-6 shadow-sm">
         <h2 className="mb-2 text-xl">Przekieruj przesyłkę {id}</h2>
         <p className="mb-6 text-muted-foreground">
-          Ten formularz korzysta już z prawdziwego endpointu klienta i zapisuje redirect request po stronie backendu.
+          Wskaż nowy punkt odbioru, do którego ma zostać przekierowana Twoja przesyłka.
         </p>
 
         {submitState === 'success' ? (

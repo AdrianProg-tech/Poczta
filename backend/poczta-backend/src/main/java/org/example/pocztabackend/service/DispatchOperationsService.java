@@ -4,6 +4,7 @@ import org.example.pocztabackend.dto.AdminAssignCourierRequest;
 import org.example.pocztabackend.dto.AdminAssignCourierResponse;
 import org.example.pocztabackend.dto.ShipmentStateChangeResponse;
 import org.example.pocztabackend.model.CourierTask;
+import org.example.pocztabackend.model.Point;
 import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
 import org.example.pocztabackend.model.User;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -102,8 +104,12 @@ public class DispatchOperationsService {
         if (!"COURIER".equalsIgnoreCase(shipment.getDeliveryType())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only courier shipments can be assigned to courier dispatch");
         }
-        if (shipment.getStatus() != ShipmentStatus.READY_FOR_POSTING) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only shipments ready for posting can be assigned to courier");
+        EnumSet<ShipmentStatus> assignableStatuses = EnumSet.of(
+                ShipmentStatus.READY_FOR_POSTING, ShipmentStatus.POSTED, ShipmentStatus.IN_TRANSIT
+        );
+        if (!assignableStatuses.contains(shipment.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Shipment must be in READY_FOR_POSTING, POSTED or IN_TRANSIT to assign a courier");
         }
         if (hasActiveCourierTask(shipment.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Shipment already has an active courier task");
@@ -180,6 +186,55 @@ public class DispatchOperationsService {
         );
 
         return new AdminAssignCourierResponse(shipment.getId(), newCourier.getId(), savedTask.getId());
+    }
+
+    @Transactional
+    public ShipmentStateChangeResponse advanceToInTransit(UUID shipmentId) {
+        Shipment shipment = shipmentRepository.findById(shipmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
+
+        if (shipment.getStatus() != ShipmentStatus.POSTED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Only POSTED shipments can be advanced to IN_TRANSIT");
+        }
+
+        shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.IN_TRANSIT);
+        shipmentRepository.save(shipment);
+        addTrackingEvent(shipment, ShipmentStatus.IN_TRANSIT, "Sorting hub", "Shipment arrived at sorting hub and is in transit", LocalDateTime.now());
+
+        return new ShipmentStateChangeResponse(shipment.getTrackingNumber(), shipment.getStatus().name());
+    }
+
+    @Transactional
+    public ShipmentStateChangeResponse routeToPickupPoint(UUID shipmentId) {
+        Shipment shipment = shipmentRepository.findById(shipmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
+
+        EnumSet<ShipmentStatus> routableStatuses = EnumSet.of(ShipmentStatus.POSTED, ShipmentStatus.IN_TRANSIT);
+        if (!routableStatuses.contains(shipment.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Shipment must be in POSTED or IN_TRANSIT to route to pickup point");
+        }
+
+        Point targetPoint = shipment.getTargetPoint();
+        if (targetPoint == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Shipment has no target pickup point set");
+        }
+
+        if (shipment.getStatus() == ShipmentStatus.POSTED) {
+            shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.IN_TRANSIT);
+            shipmentRepository.save(shipment);
+            addTrackingEvent(shipment, ShipmentStatus.IN_TRANSIT, "Sorting hub", "Shipment in transit to destination", LocalDateTime.now());
+        }
+
+        shipment.setCurrentPoint(targetPoint);
+        shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.AWAITING_PICKUP);
+        shipmentRepository.save(shipment);
+        addTrackingEvent(shipment, ShipmentStatus.AWAITING_PICKUP,
+                targetPoint.getPointCode(), "Shipment routed to pickup point " + targetPoint.getPointCode(), LocalDateTime.now());
+
+        return new ShipmentStateChangeResponse(shipment.getTrackingNumber(), shipment.getStatus().name());
     }
 
     private boolean hasActiveCourierTask(UUID shipmentId) {

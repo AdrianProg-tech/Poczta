@@ -70,7 +70,7 @@ export default function ClientDashboard() {
     <DashboardShell role="client" title="Dashboard klienta">
       <div className="mb-8">
         <h2 className="mb-2 text-2xl">Witaj, {currentUser?.name.split(' ')[0]}!</h2>
-        <p className="text-muted-foreground">Twoje konto działa już na żywym backendzie bez mocków.</p>
+        <p className="text-muted-foreground">Sprawdź aktualny status swoich przesyłek i zarządzaj zamówieniami.</p>
       </div>
 
       <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -110,7 +110,7 @@ export default function ClientDashboard() {
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div>
             <h3 className="mb-2 text-xl">Nadaj nową przesyłkę</h3>
-            <p className="text-white/80">Formularz tworzy prawdziwy shipment w backendzie i zwraca tracking number.</p>
+            <p className="text-white/80">Wypełnij formularz, wybierz sposób dostawy i opłać online lub przy nadaniu.</p>
           </div>
           <Link
             to="/client/shipments/create"

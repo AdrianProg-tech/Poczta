@@ -323,7 +323,8 @@ public class OperationsConsoleQueryService {
         if (status == ShipmentStatus.PAID) {
             return new ShipmentBoardAdvice("ADMIN", "PREPARE_FOR_DISPATCH", "Shipment paid but not yet prepared for dispatch");
         }
-        if (status == ShipmentStatus.READY_FOR_POSTING && isCourierFlow(shipment) && latestTask == null) {
+        if (isCourierFlow(shipment) && latestTask == null &&
+                (status == ShipmentStatus.READY_FOR_POSTING || status == ShipmentStatus.POSTED || status == ShipmentStatus.IN_TRANSIT)) {
             return new ShipmentBoardAdvice("DISPATCH", "ASSIGN_COURIER", "Courier not assigned yet");
         }
         if (status == ShipmentStatus.READY_FOR_POSTING && isCourierFlow(shipment) && latestTask != null) {

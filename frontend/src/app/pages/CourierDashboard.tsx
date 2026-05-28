@@ -60,7 +60,7 @@ export default function CourierDashboard() {
     <DashboardShell role="courier" title="Dashboard kuriera">
       <div className="mb-8">
         <h2 className="mb-2 text-2xl">Dzień dobry, {currentUser?.name.split(' ')[0]}!</h2>
-        <p className="text-muted-foreground">Ten widok pokazuje prawdziwe zadania kuriera przypisane w backendzie.</p>
+        <p className="text-muted-foreground">Tu znajdziesz wszystkie przypisane zadania dostawcze na dziś i kolejne dni.</p>
       </div>
 
       <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">

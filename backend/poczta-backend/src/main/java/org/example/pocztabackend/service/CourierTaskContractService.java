@@ -1,5 +1,6 @@
 package org.example.pocztabackend.service;
 
+import org.example.pocztabackend.dto.AvailableShipmentResponse;
 import org.example.pocztabackend.dto.CompleteDeliveryRequest;
 import org.example.pocztabackend.dto.CourierTaskDetailsResponse;
 import org.example.pocztabackend.dto.CourierTaskListItemResponse;
@@ -9,6 +10,7 @@ import org.example.pocztabackend.dto.InitiateReturnResponse;
 import org.example.pocztabackend.dto.IssueNoticeResponse;
 import org.example.pocztabackend.dto.RecordDeliveryAttemptRequest;
 import org.example.pocztabackend.dto.TrackingHistoryItemResponse;
+import org.example.pocztabackend.model.CourierProfile;
 import org.example.pocztabackend.model.CourierTask;
 import org.example.pocztabackend.model.DeliveryAttempt;
 import org.example.pocztabackend.model.Notice;
@@ -33,9 +35,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -421,6 +426,69 @@ public class CourierTaskContractService {
                 HttpStatus.BAD_REQUEST,
                 "redirectPointCode is required when no shipment target point exists"
         );
+    }
+
+    public List<AvailableShipmentResponse> getAvailableShipments(String userEmailHeader) {
+        User courier = operationalActorResolver.requireCourierActor(userEmailHeader);
+        CourierProfile profile = operationalActorResolver.getCourierProfile(courier);
+        String serviceCity = profile != null ? profile.getServiceCity() : null;
+
+        List<ShipmentStatus> eligibleStatuses = List.of(ShipmentStatus.POSTED, ShipmentStatus.IN_TRANSIT);
+        List<Shipment> candidates = shipmentRepository.findAllByStatusInAndDeliveryType(eligibleStatuses, "COURIER");
+
+        Set<String> activeTaskStatuses = Set.of("ASSIGNED", "ACCEPTED", "IN_PROGRESS");
+
+        return candidates.stream()
+                .filter(shipment -> {
+                    List<CourierTask> tasks = courierTaskRepository.findAllByShipment_IdOrderByAssignedAtDesc(shipment.getId());
+                    boolean hasActiveTask = tasks.stream().anyMatch(t -> activeTaskStatuses.contains(t.getStatus()));
+                    if (hasActiveTask) return false;
+                    if (serviceCity == null || serviceCity.isBlank()) return true;
+                    String destinationCity = extractCity(shipment.getRecipientAddress());
+                    return serviceCity.equalsIgnoreCase(destinationCity);
+                })
+                .map(AvailableShipmentResponse::fromEntity)
+                .toList();
+    }
+
+    @Transactional
+    public CourierTaskStateChangeResponse claimShipment(String userEmailHeader, UUID shipmentId) {
+        User courier = operationalActorResolver.requireCourierActor(userEmailHeader);
+
+        Shipment shipment = shipmentRepository.findById(shipmentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
+
+        EnumSet<ShipmentStatus> claimableStatuses = EnumSet.of(ShipmentStatus.POSTED, ShipmentStatus.IN_TRANSIT);
+        if (!claimableStatuses.contains(shipment.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Shipment is not available for claiming");
+        }
+
+        Set<String> activeTaskStatuses = Set.of("ASSIGNED", "ACCEPTED", "IN_PROGRESS");
+        List<CourierTask> existingTasks = courierTaskRepository.findAllByShipment_IdOrderByAssignedAtDesc(shipmentId);
+        boolean hasActiveTask = existingTasks.stream().anyMatch(t -> activeTaskStatuses.contains(t.getStatus()));
+        if (hasActiveTask) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Shipment already has an active courier task");
+        }
+
+        CourierTask task = new CourierTask();
+        task.setShipment(shipment);
+        task.setCourier(courier);
+        task.setStatus("ASSIGNED");
+        task.setTaskDate(LocalDate.now());
+        task.setAssignedAt(LocalDateTime.now());
+        courierTaskRepository.save(task);
+
+        addTrackingEvent(shipment, shipment.getStatus(), "Courier dispatch",
+                "Shipment claimed by courier " + courier.getEmail(), LocalDateTime.now());
+
+        return toStateChangeResponse(task);
+    }
+
+    private String extractCity(String address) {
+        if (address == null || address.isBlank()) return null;
+        int commaIndex = address.indexOf(',');
+        String city = commaIndex >= 0 ? address.substring(0, commaIndex) : address;
+        return city.trim();
     }
 
     private void addTrackingEvent(

@@ -388,19 +388,9 @@ export default function AdminShipments() {
                       </td>
                       <td className="px-6 py-4">
                         {shipment.nextSuggestedAction === 'PREPARE_FOR_DISPATCH' ? (
-                          <button
-                            type="button"
-                            disabled={isBusy || !currentUser?.email}
-                            onClick={() =>
-                              currentUser?.email &&
-                              runShipmentAction(shipment.shipmentId, () =>
-                                prepareShipmentForDispatch(currentUser.email, shipment.shipmentId),
-                              )
-                            }
-                            className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
-                          >
-                            Przygotuj
-                          </button>
+                          <div className="rounded-lg bg-secondary px-3 py-2 text-xs text-muted-foreground">
+                            Punkt przyjmuje przesylke
+                          </div>
                         ) : null}
 
                         {shipment.nextSuggestedAction === 'ASSIGN_COURIER' ? (() => {
