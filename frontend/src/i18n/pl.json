@@ -8,7 +8,8 @@
     "points": "Punkty",
     "payments": "Płatności",
     "reports": "Raporty",
-    "logout": "Wyloguj"
+    "logout": "Wyloguj",
+    "profile": "Mój profil"
   },
   "roles": {
     "client": "Klient",
@@ -95,7 +96,41 @@
     "accept": "Przyjmij",
     "post": "Nadaj",
     "release": "Wydaj",
-    "confirmOffline": "Potwierdź płatność offline"
+    "confirmOffline": "Potwierdź płatność offline",
+    "walkIn": "Klient walk-in"
+  },
+  "status": {
+    "unknown": "Nieznany",
+    "shipment": {
+      "CREATED": "Utworzona",
+      "PAID": "Opłacona",
+      "POSTED": "Nadana",
+      "READY_FOR_POSTING": "Gotowa do wysyłki",
+      "IN_TRANSIT": "W transporcie",
+      "OUT_FOR_DELIVERY": "W doręczeniu",
+      "DELIVERY_ATTEMPT": "Próba doręczenia",
+      "REDIRECTED_TO_PICKUP": "Przekierowana do punktu",
+      "AWAITING_PICKUP": "Czeka na odbiór",
+      "DELIVERED": "Doręczona",
+      "RETURNED": "Zwrócona",
+      "CANCELED": "Anulowana",
+      "REGISTERED": "Zarejestrowana"
+    },
+    "payment": {
+      "PAID": "Opłacona",
+      "OFFLINE_CONFIRMED": "Offline potwierdzona",
+      "PENDING": "Oczekująca",
+      "FAILED": "Nieudana",
+      "CANCELED": "Anulowana",
+      "OFFLINE_PENDING": "Offline do potwierdzenia"
+    },
+    "complaint": {
+      "SUBMITTED": "Złożona",
+      "IN_REVIEW": "W weryfikacji",
+      "ACCEPTED": "Uznana",
+      "REJECTED": "Odrzucona",
+      "CLOSED": "Zamknięta"
+    }
   },
   "theme": {
     "light": "Jasny motyw",

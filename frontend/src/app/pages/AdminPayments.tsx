@@ -14,6 +14,7 @@ import {
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAppStateContext } from '../state/AppStateContext';
+import { useTranslation } from 'react-i18next';
 
 type PaymentOwnerBucket = 'FINANCE' | 'POINT' | 'COURIER' | 'ARCHIVE';
 
@@ -107,6 +108,7 @@ function formatOwnerLabel(owner: PaymentOwnerBucket) {
 }
 
 export default function AdminPayments() {
+  const { t } = useTranslation();
   const {
     state: { currentUser },
   } = useAppStateContext();
@@ -206,7 +208,7 @@ export default function AdminPayments() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez platnosci
+          {t('common.refresh')}
         </button>
       </div>
 

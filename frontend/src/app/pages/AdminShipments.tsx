@@ -17,6 +17,7 @@ import {
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAppStateContext } from '../state/AppStateContext';
+import { useTranslation } from 'react-i18next';
 
 function formatOwner(owner: string) {
   const labels: Record<string, string> = {
@@ -69,6 +70,7 @@ function explainAction(action: string) {
 }
 
 export default function AdminShipments() {
+  const { t } = useTranslation();
   const {
     state: { currentUser },
   } = useAppStateContext();
@@ -81,6 +83,7 @@ export default function AdminShipments() {
   const [search, setSearch] = useState('');
   const [ownerFilter, setOwnerFilter] = useState<'ALL' | string>('ALL');
   const [actionFilter, setActionFilter] = useState<'ALL' | string>('ALL');
+  const [courierSelections, setCourierSelections] = useState<Map<string, string>>(new Map());
   const isFullAdmin = currentUser?.adminScope !== 'DISPATCHER';
 
   const suggestions = useMemo(
@@ -193,7 +196,7 @@ export default function AdminShipments() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez board
+          {t('common.refresh')}
         </button>
       </div>
 
@@ -400,21 +403,43 @@ export default function AdminShipments() {
                           </button>
                         ) : null}
 
-                        {shipment.nextSuggestedAction === 'ASSIGN_COURIER' && suggestion?.suggestedCourierId ? (
-                          <button
-                            type="button"
-                            disabled={isBusy || !currentUser?.email}
-                            onClick={() =>
-                              currentUser?.email &&
-                              runShipmentAction(shipment.shipmentId, () =>
-                                assignCourierToShipment(currentUser.email, shipment.shipmentId, suggestion.suggestedCourierId!),
-                              )
-                            }
-                            className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
-                          >
-                            Auto-przypisz
-                          </button>
-                        ) : null}
+                        {shipment.nextSuggestedAction === 'ASSIGN_COURIER' ? (() => {
+                          const selectedId = courierSelections.get(shipment.shipmentId) ?? suggestion?.suggestedCourierId ?? '';
+                          return (
+                            <div className="space-y-2">
+                              <select
+                                value={selectedId}
+                                onChange={(e) =>
+                                  setCourierSelections((prev) => new Map(prev).set(shipment.shipmentId, e.target.value))
+                                }
+                                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none"
+                              >
+                                <option value="">— wybierz kuriera —</option>
+                                {(dispatch?.couriers ?? []).map((courier) => (
+                                  <option key={courier.courierId} value={courier.courierId}>
+                                    {courier.courierEmail}
+                                    {courier.inferredServiceCity ? ` (${courier.inferredServiceCity})` : ''}
+                                    {courier.courierId === suggestion?.suggestedCourierId ? ' ★' : ''}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                disabled={isBusy || !currentUser?.email || !selectedId}
+                                onClick={() =>
+                                  currentUser?.email &&
+                                  selectedId &&
+                                  runShipmentAction(shipment.shipmentId, () =>
+                                    assignCourierToShipment(currentUser.email, shipment.shipmentId, selectedId),
+                                  )
+                                }
+                                className="w-full rounded-lg bg-success px-3 py-2 text-sm text-white transition-colors hover:bg-success/90 disabled:opacity-70"
+                              >
+                                {isBusy ? 'Przypisywanie...' : 'Przypisz kuriera'}
+                              </button>
+                            </div>
+                          );
+                        })() : null}
 
                         {shipment.nextSuggestedAction === 'ACCEPT_REDIRECTED_SHIPMENT' ? (
                           pointWorkerEmail ? (

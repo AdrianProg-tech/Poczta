@@ -3,6 +3,7 @@ package org.example.pocztabackend.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.example.pocztabackend.dto.AdminComplaintSummaryResponse;
+import org.example.pocztabackend.dto.ComplaintAttachmentResponse;
 import org.example.pocztabackend.dto.ComplaintResolutionRequest;
 import org.example.pocztabackend.dto.ComplaintStateChangeResponse;
 import org.example.pocztabackend.service.AdminComplaintContractService;
@@ -72,5 +73,12 @@ public class AdminComplaintContractController {
     public ComplaintStateChangeResponse closeComplaint(@PathVariable UUID complaintId) {
         operationalActorResolver.requireAdminActor(false);
         return adminComplaintContractService.closeComplaint(complaintId);
+    }
+
+    @GetMapping("/{complaintId}/attachments")
+    @Operation(summary = "Pobierz listę załączników reklamacji")
+    public List<ComplaintAttachmentResponse> listAttachments(@PathVariable UUID complaintId) {
+        operationalActorResolver.requireAdminActor(false);
+        return adminComplaintContractService.listAttachments(complaintId);
     }
 }

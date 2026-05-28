@@ -7,10 +7,13 @@ import org.example.pocztabackend.dto.OfflinePaymentConfirmedResponse;
 import org.example.pocztabackend.dto.PointCheckoutResponse;
 import org.example.pocztabackend.dto.PointQueueResponse;
 import org.example.pocztabackend.dto.ShipmentStateChangeResponse;
+import org.example.pocztabackend.dto.WalkInShipmentRequest;
+import org.example.pocztabackend.dto.WalkInShipmentResponse;
 import org.example.pocztabackend.service.PointOperationContractService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -77,5 +80,14 @@ public class PointOperationContractController {
             @PathVariable String trackingNumber
     ) {
         return pointOperationContractService.collectOfflinePaymentAndReleaseShipment(userEmailHeader, trackingNumber);
+    }
+
+    @PostMapping("/walk-in")
+    @Operation(summary = "Przyjmij przesylke od klienta walk-in (bez konta)")
+    public WalkInShipmentResponse walkInShipment(
+            @RequestHeader(name = "X-User-Email", required = false) String userEmailHeader,
+            @RequestBody WalkInShipmentRequest request
+    ) {
+        return pointOperationContractService.walkInShipment(userEmailHeader, request);
     }
 }

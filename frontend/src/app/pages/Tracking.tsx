@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { Calendar, MapPin, Package, Search } from 'lucide-react';
-import { formatDate, formatDateTime, getPublicTracking, type PublicTrackingResponse } from '../api';
+import { ApiError, formatDate, formatDateTime, getPublicTracking, type PublicTrackingResponse } from '../api';
 import { StatusBadge } from '../components/StatusBadge';
-
-const defaultTrackingNumber = 'PWBAC1DF039PL';
 
 export default function Tracking() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialValue = searchParams.get('number') ?? defaultTrackingNumber;
+  const initialValue = searchParams.get('number') ?? '';
   const [trackingNumber, setTrackingNumber] = useState(initialValue);
   const [trackingData, setTrackingData] = useState<PublicTrackingResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const queryNumber = searchParams.get('number') ?? defaultTrackingNumber;
+    const queryNumber = searchParams.get('number') ?? '';
     setTrackingNumber(queryNumber);
+
+    if (!queryNumber.trim()) {
+      setTrackingData(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
 
     let active = true;
 
@@ -32,7 +37,11 @@ export default function Tracking() {
       } catch (requestError) {
         if (active) {
           setTrackingData(null);
-          setError(requestError instanceof Error ? requestError.message : 'Nie znaleziono przesyłki.');
+          if (requestError instanceof ApiError && requestError.status === 404) {
+            setError('Nie znaleziono przesyłki o podanym numerze.');
+          } else {
+            setError('Nie udało się pobrać historii przesyłki. Spróbuj ponownie.');
+          }
         }
       } finally {
         if (active) {
@@ -90,7 +99,15 @@ export default function Tracking() {
               />
               <button
                 type="button"
-                onClick={() => setSearchParams(trackingNumber ? { number: trackingNumber } : {})}
+                onClick={() => {
+                  if (!trackingNumber.trim()) {
+                    setTrackingData(null);
+                    setError('Podaj numer przesyłki.');
+                    return;
+                  }
+                  setError(null);
+                  setSearchParams({ number: trackingNumber.trim() });
+                }}
                 className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 text-white transition-colors hover:bg-accent/90"
               >
                 <Search className="h-5 w-5" />

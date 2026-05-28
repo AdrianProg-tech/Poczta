@@ -17,6 +17,7 @@ import ClientShipments from './pages/ClientShipments';
 import ShipmentDetails from './pages/ShipmentDetails';
 import CreateShipment from './pages/CreateShipment';
 import ClientClaims from './pages/ClientClaims';
+import ClientProfile from './pages/ClientProfile';
 import ShipmentRedirect from './pages/ShipmentRedirect';
 import StripeSuccess from './pages/StripeSuccess';
 
@@ -24,6 +25,7 @@ import StripeSuccess from './pages/StripeSuccess';
 import CourierDashboard from './pages/CourierDashboard';
 import CourierTaskDetails from './pages/CourierTaskDetails';
 import CourierTasks from './pages/CourierTasks';
+import CourierProfile from './pages/CourierProfile';
 
 // Point pages
 import PointAccept from './pages/PointAccept';
@@ -31,6 +33,8 @@ import PointDashboard from './pages/PointDashboard';
 import PointPaymentVerification from './pages/PointPaymentVerification';
 import PointRelease from './pages/PointRelease';
 import PointShipments from './pages/PointShipments';
+import PointWalkIn from './pages/PointWalkIn';
+import PointProfile from './pages/PointProfile';
 
 // Admin pages
 import AdminDemoLab from './pages/AdminDemoLab';
@@ -106,6 +110,10 @@ export const router = createBrowserRouter([
         path: '/client/claims',
         Component: ClientClaims,
       },
+      {
+        path: '/client/profile',
+        Component: ClientProfile,
+      },
     ],
   },
   {
@@ -122,6 +130,10 @@ export const router = createBrowserRouter([
       {
         path: '/courier/tasks/:id',
         Component: CourierTaskDetails,
+      },
+      {
+        path: '/courier/profile',
+        Component: CourierProfile,
       },
     ],
   },
@@ -147,6 +159,14 @@ export const router = createBrowserRouter([
       {
         path: '/point/payment-verification',
         Component: PointPaymentVerification,
+      },
+      {
+        path: '/point/walk-in',
+        Component: PointWalkIn,
+      },
+      {
+        path: '/point/profile',
+        Component: PointProfile,
       },
     ],
   },

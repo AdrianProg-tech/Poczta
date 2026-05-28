@@ -11,6 +11,7 @@ import {
 } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 const lockerScenarios: Array<{
   id: string;
@@ -55,6 +56,7 @@ function createLockerTrackingNumber() {
 }
 
 export default function AdminLockerLab() {
+  const { t } = useTranslation();
   const [parcels, setParcels] = useState<AdminParcelRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -121,7 +123,7 @@ export default function AdminLockerLab() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez laboratorium skrytek
+          {t('common.refresh')}
         </button>
       </div>
 

@@ -1,8 +1,9 @@
 import { getHandoverDemoParcels, getLaneCount, getTransitDemoParcels, handoverStoryMeta, transitStoryMeta } from '../app/adminDemoFlows';
 import { describe, expect, it } from 'vitest';
-import { demoRoleOptions, type PointQueueResponse } from '../app/api';
+import { calculateShipmentPrice, demoRoleOptions, type PointQueueResponse } from '../app/api';
 import { canCancelPayment, canFailPayment, canMarkPaymentPaid, getPaymentOpsOwner } from '../app/pages/AdminPayments';
 import { getPointQueueLoad, getPointReadinessLabel } from '../app/pages/AdminPoints';
+import { countBy, pct, sumBy } from '../app/pages/AdminReports';
 import { canShowPaymentShortcut, canShowRedirectShortcut } from '../app/pages/ClientShipments';
 import {
   buildPointQueueCsv,
@@ -177,6 +178,32 @@ describe('admin points readiness helpers', () => {
     expect(getPointReadinessLabel(rowReady)).toBe('Gotowy operacyjnie');
     expect(getPointQueueLoad(rowReady)).toBe(3);
   });
+
+  it('returns Nieaktywny for inactive point regardless of operators and queue', () => {
+    const inactiveButStaffed = {
+      point: { active: false },
+      operators: [{ userId: '1' }, { userId: '2' }],
+      queue: {
+        acceptQueue: [{ trackingNumber: 'X' }],
+        pickupQueue: [{ trackingNumber: 'Y' }],
+        offlinePaymentQueue: [{ trackingNumber: 'Z' }],
+      },
+    } as any;
+
+    expect(getPointReadinessLabel(inactiveButStaffed)).toBe('Nieaktywny');
+    // Queue load should still reflect actual items even when inactive
+    expect(getPointQueueLoad(inactiveButStaffed)).toBe(3);
+  });
+
+  it('returns Operator bez live kolejki when operator exists but no queue data', () => {
+    const rowOperatorNoQueue = {
+      point: { active: true },
+      operators: [{ userId: '1' }],
+      queue: null,
+    } as any;
+
+    expect(getPointReadinessLabel(rowOperatorNoQueue)).toBe('Operator bez live kolejki');
+  });
 });
 
 describe('admin payments ops helpers', () => {
@@ -198,5 +225,74 @@ describe('admin payments ops helpers', () => {
     expect(canMarkPaymentPaid(courierPending)).toBe(false);
     expect(canFailPayment(courierPending)).toBe(false);
     expect(canCancelPayment(courierPending)).toBe(true);
+  });
+});
+
+describe('shipment price calculation', () => {
+  it('applies base rate of 19.99 PLN', () => {
+    expect(calculateShipmentPrice(0, false)).toBe(19.99);
+  });
+
+  it('adds 5.00 PLN insurance when declared value is positive', () => {
+    expect(calculateShipmentPrice(100, false)).toBe(24.99);
+    expect(calculateShipmentPrice(0, false)).toBe(19.99);
+  });
+
+  it('adds 3.00 PLN surcharge for fragile parcels', () => {
+    expect(calculateShipmentPrice(0, true)).toBe(22.99);
+  });
+
+  it('stacks both extras when applicable', () => {
+    expect(calculateShipmentPrice(500, true)).toBe(27.99);
+  });
+});
+
+describe('admin reports helpers', () => {
+  describe('pct', () => {
+    it('returns 0% when total is zero', () => {
+      expect(pct(0, 0)).toBe('0%');
+      expect(pct(5, 0)).toBe('0%');
+    });
+
+    it('rounds to the nearest integer percent', () => {
+      expect(pct(1, 3)).toBe('33%');
+      expect(pct(2, 3)).toBe('67%');
+      expect(pct(1, 4)).toBe('25%');
+      expect(pct(3, 4)).toBe('75%');
+    });
+
+    it('returns 100% for full coverage', () => {
+      expect(pct(10, 10)).toBe('100%');
+    });
+  });
+
+  describe('countBy', () => {
+    it('groups items by key and sorts by count descending', () => {
+      const items = [
+        { status: 'DELIVERED' },
+        { status: 'IN_TRANSIT' },
+        { status: 'DELIVERED' },
+        { status: 'DELIVERED' },
+        { status: 'IN_TRANSIT' },
+      ];
+      const result = countBy(items, (item) => item.status);
+      expect(result[0]).toEqual({ label: 'DELIVERED', count: 3 });
+      expect(result[1]).toEqual({ label: 'IN_TRANSIT', count: 2 });
+    });
+
+    it('returns empty array for empty input', () => {
+      expect(countBy([], (item: { x: string }) => item.x)).toEqual([]);
+    });
+  });
+
+  describe('sumBy', () => {
+    it('sums a numeric property across items', () => {
+      const items = [{ amount: 10.5 }, { amount: 5.25 }, { amount: 4.25 }];
+      expect(sumBy(items, (item) => item.amount)).toBe(20);
+    });
+
+    it('returns 0 for empty array', () => {
+      expect(sumBy([], (item: { amount: number }) => item.amount)).toBe(0);
+    });
   });
 });

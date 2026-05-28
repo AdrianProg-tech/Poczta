@@ -5,12 +5,17 @@ import {
   BarChart3,
   CreditCard,
   Download,
+  FlaskConical,
   LayoutDashboard,
+  Lock,
   LogOut,
   MapPin,
   Menu,
   Package,
+  Truck,
   Upload,
+  User,
+  UserPlus,
   Users,
   X,
 } from 'lucide-react';
@@ -38,11 +43,13 @@ export function Sidebar({ role }: SidebarProps) {
           { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/client' },
           { icon: Package, label: t('nav.shipments'), path: '/client/shipments' },
           { icon: AlertCircle, label: t('nav.claims'), path: '/client/claims' },
+          { icon: User, label: t('nav.profile'), path: '/client/profile' },
         ];
       case 'courier':
         return [
           { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/courier' },
           { icon: Package, label: t('nav.tasks'), path: '/courier/tasks' },
+          { icon: User, label: t('nav.profile'), path: '/courier/profile' },
         ];
       case 'point':
         return [
@@ -51,6 +58,8 @@ export function Sidebar({ role }: SidebarProps) {
           { icon: Upload, label: t('point.accept'), path: '/point/accept' },
           { icon: Download, label: t('point.release'), path: '/point/release' },
           { icon: CreditCard, label: t('point.confirmOffline'), path: '/point/payment-verification' },
+          { icon: UserPlus, label: t('point.walkIn'), path: '/point/walk-in' },
+          { icon: User, label: t('nav.profile'), path: '/point/profile' },
         ];
       case 'admin':
         if (currentUser?.adminScope === 'DISPATCHER') {
@@ -73,6 +82,16 @@ export function Sidebar({ role }: SidebarProps) {
 
   const menuItems = getMenuItems();
 
+  const demoItems =
+    role === 'admin' && currentUser?.adminScope !== 'DISPATCHER'
+      ? [
+          { icon: FlaskConical, label: 'Demo Lab', path: '/admin/demo-lab' },
+          { icon: Lock, label: 'Demo: Skrytki', path: '/admin/demo/locker' },
+          { icon: Truck, label: 'Demo: Tranzyt', path: '/admin/demo/transit' },
+          { icon: Package, label: 'Demo: Przekazania', path: '/admin/demo/handover' },
+        ]
+      : [];
+
   const SidebarContent = () => (
     <>
       <div className="border-b border-sidebar-border p-6">
@@ -84,7 +103,7 @@ export function Sidebar({ role }: SidebarProps) {
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-1 p-4">
+      <nav className="flex-1 overflow-y-auto space-y-1 p-4">
         {menuItems.map((item) => {
           const isActive =
             location.pathname === item.path ||
@@ -106,6 +125,33 @@ export function Sidebar({ role }: SidebarProps) {
             </Link>
           );
         })}
+
+        {demoItems.length > 0 ? (
+          <div className="mt-4">
+            <div className="mb-1 flex items-center gap-2 px-4 py-1">
+              <FlaskConical className="h-3.5 w-3.5 text-sidebar-foreground/40" />
+              <span className="text-xs uppercase tracking-wider text-sidebar-foreground/40">Narzędzia demo</span>
+            </div>
+            {demoItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => setIsOpen(false)}
+                  className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition-colors ${
+                    isActive
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                      : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+                  }`}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        ) : null}
       </nav>
 
       <div className="border-t border-sidebar-border p-4">

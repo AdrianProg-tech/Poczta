@@ -27,7 +27,7 @@ export const demoRoleOptions: DemoRoleOption[] = [
     role: 'client',
     label: 'Klient',
     hint: 'Nadawanie, śledzenie i reklamacje',
-    defaultEmail: 'jan.kowalski.client@example.com',
+    defaultEmail: 'julia.wozniak.client@example.com',
   },
   {
     id: 'courier',
@@ -696,6 +696,16 @@ export async function getPublicPoints() {
   return request<PublicPoint[]>('/api/public/points');
 }
 
+export async function togglePointActive(userEmail: string, pointCode: string) {
+  return request<{ pointId: string; pointCode: string; name: string; active: boolean }>(
+    `/api/admin/points/by-code/${encodeURIComponent(pointCode)}/toggle-active`,
+    {
+      method: 'POST',
+      headers: userHeader(userEmail),
+    },
+  );
+}
+
 export async function getPublicTracking(trackingNumber: string) {
   return request<PublicTrackingResponse>(`/api/public/tracking/${trackingNumber}`);
 }
@@ -763,6 +773,13 @@ export async function verifyStripeSession(email: string, paymentId: string, sess
     method: 'POST',
     headers: userHeader(email),
   });
+}
+
+export async function cancelClientShipment(email: string, trackingNumber: string) {
+  return request<{ trackingNumber: string; shipmentStatus: string }>(
+    `/api/client/shipments/${trackingNumber}`,
+    { method: 'DELETE', headers: userHeader(email) },
+  );
 }
 
 export async function requestClientShipmentRedirect(
@@ -838,6 +855,39 @@ export async function recordCourierAttempt(
   });
 }
 
+export interface IssueNoticeResponse {
+  noticeId: string;
+  noticeNumber: string;
+  issuedAt: string;
+  expiresAt: string;
+  pickupPointCode: string;
+  trackingNumber: string;
+}
+
+export async function issueCourierNotice(userEmail: string, taskId: string) {
+  return request<IssueNoticeResponse>(`/api/courier/tasks/${taskId}/issue-notice`, {
+    method: 'POST',
+    headers: userHeader(userEmail),
+  });
+}
+
+export interface InitiateReturnResponse {
+  returnProcessId: string;
+  returnStatus: string;
+  trackingNumber: string;
+  shipmentStatus: string;
+}
+
+export async function initiateCourierReturn(userEmail: string, taskId: string, reason?: string) {
+  const url = reason
+    ? `/api/courier/tasks/${taskId}/initiate-return?reason=${encodeURIComponent(reason)}`
+    : `/api/courier/tasks/${taskId}/initiate-return`;
+  return request<InitiateReturnResponse>(url, {
+    method: 'POST',
+    headers: userHeader(userEmail),
+  });
+}
+
 export async function getPointQueue(userEmail: string) {
   return request<PointQueueResponse>('/api/point/queue', {
     headers: userHeader(userEmail),
@@ -876,6 +926,36 @@ export async function collectOfflinePaymentAndReleaseShipment(userEmail: string,
   return request(`/api/point/shipments/${trackingNumber}/collect-offline-and-release`, {
     method: 'POST',
     headers: userHeader(userEmail),
+  });
+}
+
+export interface WalkInShipmentRequest {
+  senderName: string;
+  senderPhone: string;
+  senderAddress: string;
+  recipientName: string;
+  recipientPhone: string;
+  recipientAddress: string;
+  weight: number;
+  sizeCategory: string;
+  declaredValue: number;
+  fragile: boolean;
+}
+
+export interface WalkInShipmentResponse {
+  trackingNumber: string;
+  shipmentStatus: string;
+  paymentStatus: string;
+  amount: number;
+  pointCode: string;
+  pointName: string;
+}
+
+export async function createWalkInShipment(userEmail: string, payload: WalkInShipmentRequest) {
+  return request<WalkInShipmentResponse>('/api/point/walk-in', {
+    method: 'POST',
+    headers: userHeader(userEmail),
+    body: payload,
   });
 }
 
@@ -1000,6 +1080,67 @@ export async function getAdminUsers(userEmail: string) {
   });
 }
 
+export async function toggleUserActive(userEmail: string, userId: string) {
+  return request<{ userId: string; email: string; active: boolean }>(`/api/admin/users/${userId}/toggle-active`, {
+    method: 'POST',
+    headers: userHeader(userEmail),
+  });
+}
+
+export interface AdminUserDetail {
+  userId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  phone: string | null;
+  active: boolean;
+  roles: string[];
+  serviceCity: string | null;
+  pointCode: string | null;
+  pointName: string | null;
+  createdAt: string;
+}
+
+export interface AdminUserUpdatePayload {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  roles?: string[];
+  serviceCity?: string | null;
+  pointCode?: string | null;
+}
+
+export async function getAdminUserDetail(userEmail: string, userId: string) {
+  return request<AdminUserDetail>(`/api/admin/users/${userId}`, {
+    headers: userHeader(userEmail),
+  });
+}
+
+export async function updateAdminUser(userEmail: string, userId: string, payload: AdminUserUpdatePayload) {
+  return request<AdminUserDetail>(`/api/admin/users/${userId}`, {
+    method: 'PATCH',
+    headers: userHeader(userEmail),
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface AdminPointUpdatePayload {
+  name?: string;
+  address?: string;
+  city?: string;
+  postalCode?: string;
+  phone?: string;
+  openingHours?: string;
+}
+
+export async function updateAdminPoint(userEmail: string, pointCode: string, payload: AdminPointUpdatePayload) {
+  return request<PublicPoint>(`/api/admin/points/by-code/${encodeURIComponent(pointCode)}`, {
+    method: 'PATCH',
+    headers: userHeader(userEmail),
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function startComplaintReview(userEmail: string, complaintId: string) {
   return request(`/api/admin/complaints/${complaintId}/start-review`, {
     method: 'POST',
@@ -1028,6 +1169,26 @@ export async function closeComplaint(userEmail: string, complaintId: string) {
     method: 'POST',
     headers: userHeader(userEmail),
   });
+}
+
+export interface ComplaintAttachment {
+  attachmentId: string;
+  fileName: string;
+  uploadedAt: string;
+}
+
+export async function getComplaintAttachments(userEmail: string, complaintId: string) {
+  return request<ComplaintAttachment[]>(`/api/admin/complaints/${complaintId}/attachments`, {
+    headers: userHeader(userEmail),
+  });
+}
+
+/** Client-side price calculation — mirrors backend ClientShipmentCommandService logic. */
+export function calculateShipmentPrice(declaredValue: number, fragile: boolean): number {
+  let price = 19.99;
+  if (declaredValue > 0) price += 5.0;
+  if (fragile) price += 3.0;
+  return Math.round(price * 100) / 100;
 }
 
 export function userFromAuthResponse(role: UserRole, authUser: CurrentUserResponse): AppUser {

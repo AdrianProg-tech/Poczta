@@ -15,6 +15,7 @@ import {
 import { StatusBadge } from '../components/StatusBadge';
 import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
+import { useTranslation } from 'react-i18next';
 
 type TaskFilter = 'ALL' | 'ASSIGNED' | 'ACCEPTED' | 'IN_PROGRESS' | 'FAILED' | 'COMPLETED';
 
@@ -38,6 +39,7 @@ function getCourierTaskNextStep(taskStatus: string, requiresPaymentCollection: b
 }
 
 export default function CourierTasks() {
+  const { t } = useTranslation();
   const {
     state: { currentUser },
   } = useAppStateContext();
@@ -219,7 +221,7 @@ export default function CourierTasks() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez taski
+          {t('common.refresh')}
         </button>
       </div>
 
@@ -421,9 +423,19 @@ export default function CourierTasks() {
 
       {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">Ladowanie zadan...</div> : null}
 
-      {!isLoading && filteredTasks.length === 0 ? (
+      {!isLoading && tasks.length === 0 ? (
+        <div className="rounded-xl border border-border bg-card p-8 shadow-sm text-center">
+          <Truck className="mx-auto mb-4 h-10 w-10 text-muted-foreground/40" />
+          <div className="mb-2 text-lg">Brak przypisanych zadań</div>
+          <p className="text-sm text-muted-foreground">
+            Nie masz aktualnie żadnych zadań dostawczych. Jeśli spodziewasz się pracy — skontaktuj się z dyspozytorem.
+          </p>
+        </div>
+      ) : null}
+
+      {!isLoading && tasks.length > 0 && filteredTasks.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm text-muted-foreground">
-          Brak taskow dla wybranego filtra.
+          Brak zadań pasujących do wybranego filtra lub frazy. Zmień filtr lub wyczyść wyszukiwanie.
         </div>
       ) : null}
 

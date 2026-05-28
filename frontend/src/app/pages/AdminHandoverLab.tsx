@@ -12,6 +12,7 @@ import {
 import { addAdminTrackingEvent, createAdminParcel, formatDateTime, getAdminParcels, type AdminParcelRecord } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 const handoverScenarios = scenarioTemplates.filter(
   (scenario) =>
@@ -32,6 +33,7 @@ const handoverActionMap = {
 } as const;
 
 export default function AdminHandoverLab() {
+  const { t } = useTranslation();
   const [parcels, setParcels] = useState<AdminParcelRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -118,7 +120,7 @@ export default function AdminHandoverLab() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez handover lab
+          {t('common.refresh')}
         </button>
       </div>
 

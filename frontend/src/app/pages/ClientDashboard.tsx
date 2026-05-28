@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowRight, CheckCircle, Clock, Package, Plus, TrendingUp } from 'lucide-react';
-import { formatDateTime, getClientShipments, type ClientShipmentListItem } from '../api';
+import { AlertCircle, ArrowRight, CheckCircle, Clock, Package, Plus, TrendingUp } from 'lucide-react';
+import { formatDateTime, getClientComplaints, getClientShipments, type ClientShipmentListItem } from '../api';
 import { StatusBadge } from '../components/StatusBadge';
 import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
@@ -11,18 +11,25 @@ export default function ClientDashboard() {
     state: { currentUser },
   } = useAppStateContext();
   const [shipments, setShipments] = useState<ClientShipmentListItem[]>([]);
+  const [openComplaintsCount, setOpenComplaintsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadShipments = useCallback(async () => {
     if (!currentUser?.email) {
       setShipments([]);
+      setOpenComplaintsCount(0);
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
     try {
-      setShipments(await getClientShipments(currentUser.email));
+      const [shipmentsData, complaintsData] = await Promise.all([
+        getClientShipments(currentUser.email),
+        getClientComplaints(currentUser.email),
+      ]);
+      setShipments(shipmentsData);
+      setOpenComplaintsCount(complaintsData.filter((c) => c.status !== 'CLOSED' && c.status !== 'REJECTED').length);
     } finally {
       setIsLoading(false);
     }
@@ -77,6 +84,27 @@ export default function ClientDashboard() {
           </div>
         ))}
       </div>
+
+      {openComplaintsCount > 0 ? (
+        <div className="mb-8">
+          <Link
+            to="/client/claims"
+            className="flex items-center justify-between rounded-xl border border-warning/30 bg-warning/10 p-5 transition-colors hover:bg-warning/20"
+          >
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-6 w-6 text-warning" />
+              <div>
+                <div className="text-sm">Otwarte reklamacje</div>
+                <div className="text-2xl">{openComplaintsCount}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              Przejdź do reklamacji
+              <ArrowRight className="h-4 w-4" />
+            </div>
+          </Link>
+        </div>
+      ) : null}
 
       <div className="mb-8 rounded-xl bg-gradient-to-br from-accent to-accent/90 p-6 text-white">
         <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">

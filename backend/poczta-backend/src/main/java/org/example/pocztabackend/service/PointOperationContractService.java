@@ -6,10 +6,14 @@ import org.example.pocztabackend.dto.PointCheckoutResponse;
 import org.example.pocztabackend.dto.PointQueueItemResponse;
 import org.example.pocztabackend.dto.PointQueueResponse;
 import org.example.pocztabackend.dto.ShipmentStateChangeResponse;
+import org.example.pocztabackend.dto.WalkInShipmentRequest;
+import org.example.pocztabackend.dto.WalkInShipmentResponse;
 import org.example.pocztabackend.model.Payment;
 import org.example.pocztabackend.model.Point;
 import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.example.pocztabackend.model.enums.PaymentStatus;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.PaymentRepository;
@@ -214,6 +218,76 @@ public class PointOperationContractService {
                 paymentResponse.status() == null ? null : paymentResponse.status().name(),
                 shipment.getStatus() == null ? null : shipment.getStatus().name()
         );
+    }
+
+    @Transactional
+    public WalkInShipmentResponse walkInShipment(String userEmailHeader, WalkInShipmentRequest request) {
+        Point point = getPoint(userEmailHeader);
+
+        Shipment shipment = new Shipment();
+        shipment.setTrackingNumber(generateTrackingNumber());
+        shipment.setStatus(ShipmentStatus.CREATED);
+        shipment.setSenderName(request.senderName());
+        shipment.setSenderPhone(request.senderPhone());
+        shipment.setSenderAddress(request.senderAddress());
+        shipment.setRecipientName(request.recipientName());
+        shipment.setRecipientPhone(request.recipientPhone());
+        shipment.setRecipientAddress(request.recipientAddress());
+        shipment.setDeliveryType("COURIER");
+        shipment.setWeight(request.weight() != null ? request.weight() : BigDecimal.ONE);
+        shipment.setSizeCategory(request.sizeCategory() != null ? request.sizeCategory() : "SMALL");
+        shipment.setDeclaredValue(request.declaredValue() != null ? request.declaredValue() : BigDecimal.ZERO);
+        shipment.setFragile(Boolean.TRUE.equals(request.fragile()));
+        shipment.setCreatedAt(LocalDateTime.now());
+        shipment.setEstimatedDeliveryDate(LocalDate.now().plusDays(2));
+        shipment.setCurrentPoint(point);
+
+        Shipment saved = shipmentRepository.save(shipment);
+
+        // Calculate price
+        BigDecimal amount = new BigDecimal("19.99");
+        if (saved.getDeclaredValue() != null && saved.getDeclaredValue().signum() > 0) {
+            amount = amount.add(new BigDecimal("5.00"));
+        }
+        if (Boolean.TRUE.equals(saved.getFragile())) {
+            amount = amount.add(new BigDecimal("3.00"));
+        }
+
+        // Create payment as offline at point, then confirm immediately (cash in hand)
+        Payment payment = new Payment();
+        payment.setShipment(saved);
+        payment.setAmount(amount);
+        payment.setMethod("OFFLINE_AT_POINT");
+        payment.setStatus(org.example.pocztabackend.model.enums.PaymentStatus.OFFLINE_PENDING);
+        payment.setCreatedAt(LocalDateTime.now());
+        payment.setExternalReference("WALKIN-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        Payment savedPayment = paymentRepository.save(payment);
+
+        // Confirm payment immediately — cash was collected at counter
+        savedPayment.setStatus(org.example.pocztabackend.model.enums.PaymentStatus.OFFLINE_CONFIRMED);
+        paymentRepository.save(savedPayment);
+
+        // CREATED → PAID → READY_FOR_POSTING
+        shipmentWorkflowService.changeStatus(saved, ShipmentStatus.PAID);
+        shipmentRepository.save(saved);
+        shipmentWorkflowService.changeStatus(saved, ShipmentStatus.READY_FOR_POSTING);
+        saved.setCurrentPoint(point);
+        shipmentRepository.save(saved);
+
+        addTrackingEvent(saved, ShipmentStatus.READY_FOR_POSTING, point.getName(), "Walk-in shipment accepted and paid at point");
+
+        return new WalkInShipmentResponse(
+                saved.getTrackingNumber(),
+                saved.getStatus().name(),
+                savedPayment.getStatus().name(),
+                amount,
+                point.getPointCode(),
+                point.getName()
+        );
+    }
+
+    private String generateTrackingNumber() {
+        return "PW" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 9).toUpperCase() + "PL";
     }
 
     private Point getPoint(String userEmailHeader) {

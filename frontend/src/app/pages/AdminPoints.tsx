@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { MapPin, Package, RefreshCw, Search, Users } from 'lucide-react';
+import { MapPin, Package, Pencil, RefreshCw, Search, Users, X } from 'lucide-react';
 import {
   formatPointType,
   getAdminUsers,
   getPointQueue,
   getPublicPoints,
+  togglePointActive,
+  updateAdminPoint,
+  type AdminPointUpdatePayload,
   type AdminUserSummary,
   type PointQueueResponse,
   type PublicPoint,
 } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
+import { useTranslation } from 'react-i18next';
 
 interface PointOperationsRow {
   point: PublicPoint;
@@ -37,12 +41,18 @@ export function getPointQueueLoad(row: PointOperationsRow) {
 }
 
 export default function AdminPoints() {
+  const { t } = useTranslation();
   const {
     state: { currentUser },
   } = useAppStateContext();
   const [rows, setRows] = useState<PointOperationsRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busyPointCode, setBusyPointCode] = useState<string | null>(null);
+  const [editPointCode, setEditPointCode] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<AdminPointUpdatePayload>({});
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | PublicPoint['type']>('ALL');
 
@@ -138,6 +148,61 @@ export default function AdminPoints() {
     [rows],
   );
 
+  async function handleTogglePointActive(pointCode: string) {
+    if (!currentUser?.email) return;
+    setBusyPointCode(pointCode);
+    try {
+      const result = await togglePointActive(currentUser.email, pointCode);
+      setRows((prev) =>
+        prev.map((row) =>
+          row.point.pointCode === result.pointCode ? { ...row, point: { ...row.point, active: result.active } } : row,
+        ),
+      );
+      setError(null);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Nie udało się zmienić stanu aktywności punktu.');
+    } finally {
+      setBusyPointCode(null);
+    }
+  }
+
+  function handleOpenEditPoint(point: PublicPoint) {
+    setEditPointCode(point.pointCode);
+    setEditError(null);
+    setEditForm({
+      name: point.name,
+      address: point.address,
+      city: point.city,
+      postalCode: point.postalCode,
+      phone: point.phone,
+      openingHours: point.openingHours,
+    });
+  }
+
+  function handleCloseEditPoint() {
+    setEditPointCode(null);
+    setEditError(null);
+  }
+
+  async function handleSaveEditPoint() {
+    if (!currentUser?.email || !editPointCode) return;
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const result = await updateAdminPoint(currentUser.email, editPointCode, editForm);
+      setRows((prev) =>
+        prev.map((row) =>
+          row.point.pointCode === editPointCode ? { ...row, point: { ...row.point, ...result } } : row,
+        ),
+      );
+      handleCloseEditPoint();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Nie udało się zapisać zmian punktu.');
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
   return (
     <DashboardShell role="admin" title="Punkty odbioru">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -155,7 +220,7 @@ export default function AdminPoints() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez widok punktow
+          {t('common.refresh')}
         </button>
       </div>
 
@@ -227,6 +292,25 @@ export default function AdminPoints() {
                     >
                       {readinessLabel}
                     </span>
+                    <button
+                      type="button"
+                      disabled={busyPointCode === row.point.pointCode}
+                      onClick={() => void handleTogglePointActive(row.point.pointCode)}
+                      title={row.point.active ? 'Kliknij, aby dezaktywować punkt' : 'Kliknij, aby aktywować punkt'}
+                      className={`rounded-full px-3 py-1 text-xs transition-opacity hover:opacity-75 disabled:opacity-50 ${
+                        row.point.active ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {busyPointCode === row.point.pointCode ? '…' : row.point.active ? 'Aktywny' : 'Nieaktywny'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditPoint(row.point)}
+                      title="Edytuj dane punktu"
+                      className="rounded-full border border-border bg-card px-3 py-1 text-xs transition-colors hover:bg-muted"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
                   </div>
 
                   <div className="mb-4 grid gap-4 text-sm md:grid-cols-2 xl:grid-cols-4">
@@ -327,6 +411,101 @@ export default function AdminPoints() {
           </div>
         ) : null}
       </div>
+
+      {/* Edit point modal */}
+      {editPointCode ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-6 py-4">
+              <h3 className="text-lg">Edytuj punkt — {editPointCode}</h3>
+              <button type="button" onClick={handleCloseEditPoint} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 px-6 py-5">
+              {editError ? <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{editError}</div> : null}
+
+              <label className="space-y-1">
+                <div className="text-sm text-muted-foreground">Nazwa punktu</div>
+                <input
+                  value={editForm.name ?? ''}
+                  onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Miasto</div>
+                  <input
+                    value={editForm.city ?? ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, city: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Kod pocztowy</div>
+                  <input
+                    value={editForm.postalCode ?? ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, postalCode: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                    placeholder="00-000"
+                  />
+                </label>
+              </div>
+
+              <label className="space-y-1">
+                <div className="text-sm text-muted-foreground">Adres</div>
+                <input
+                  value={editForm.address ?? ''}
+                  onChange={(e) => setEditForm((p) => ({ ...p, address: e.target.value }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Telefon</div>
+                  <input
+                    value={editForm.phone ?? ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                    placeholder="+48 123 456 789"
+                  />
+                </label>
+                <label className="space-y-1">
+                  <div className="text-sm text-muted-foreground">Godziny otwarcia</div>
+                  <input
+                    value={editForm.openingHours ?? ''}
+                    onChange={(e) => setEditForm((p) => ({ ...p, openingHours: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                    placeholder="Pn–Pt 8:00–20:00"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-border px-6 py-4">
+              <button
+                type="button"
+                onClick={handleCloseEditPoint}
+                className="rounded-lg border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-muted"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveEditPoint()}
+                disabled={editSaving}
+                className="rounded-lg bg-accent px-4 py-2 text-sm text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {editSaving ? t('common.loading') : t('common.save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </DashboardShell>
   );
 }

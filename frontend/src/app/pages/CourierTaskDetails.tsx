@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { ArrowLeft, CheckSquare, CreditCard, MapPin, RefreshCw, RotateCcw, Truck } from 'lucide-react';
+import { ArrowLeft, CheckSquare, CreditCard, MapPin, PackageX, RefreshCw, RotateCcw, Truck, Undo2 } from 'lucide-react';
 import {
   acceptCourierTask,
   completeCourierTask,
@@ -9,17 +9,50 @@ import {
   getCourierTaskDetails,
   getPublicPoints,
   getPublicTracking,
+  initiateCourierReturn,
+  issueCourierNotice,
   recordCourierAttempt,
   startCourierTask,
   type CourierTaskDetails as CourierTaskDetailsRecord,
+  type IssueNoticeResponse,
   type PublicPoint,
   type PublicTrackingResponse,
 } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAppStateContext } from '../state/AppStateContext';
+import { useTranslation } from 'react-i18next';
+
+function buildHistoricNotice(trackingData: PublicTrackingResponse | null): IssueNoticeResponse | null {
+  if (!trackingData) {
+    return null;
+  }
+
+  const noticeEvent = trackingData.history.find((item) => {
+    const description = `${item.description ?? ''} ${item.status ?? ''}`.toLowerCase();
+    return description.includes('awizo') || description.includes('notice issued');
+  });
+
+  if (!noticeEvent) {
+    return null;
+  }
+
+  const pickupPointCode = trackingData.destinationSummary.match(/[A-Z]{3}-[A-Z]{3}-\d{2}/)?.[0] ?? 'PICKUP_POINT';
+  const issuedAt = noticeEvent.eventTime;
+  const expiresAt = new Date(new Date(issuedAt).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  return {
+    noticeId: `historic-${trackingData.trackingNumber}`,
+    noticeNumber: 'zapisane-w-historii',
+    issuedAt,
+    expiresAt,
+    pickupPointCode,
+    trackingNumber: trackingData.trackingNumber,
+  };
+}
 
 export default function CourierTaskDetails() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const {
     state: { currentUser },
@@ -32,6 +65,7 @@ export default function CourierTaskDetails() {
   const [isLoading, setIsLoading] = useState(true);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [issuedNotice, setIssuedNotice] = useState<IssueNoticeResponse | null>(null);
 
   const loadTask = useCallback(async () => {
     if (!currentUser?.email || !id) {
@@ -50,6 +84,7 @@ export default function CourierTaskDetails() {
       setTask(taskData);
       setPoints(pointsData);
       setTracking(trackingData);
+      setIssuedNotice(buildHistoricNotice(trackingData));
       setRedirectPointCode((current) => current || pickupPoint?.pointCode || '');
       setError(null);
     } catch (requestError) {
@@ -91,6 +126,16 @@ export default function CourierTaskDetails() {
     () => (tracking?.history?.length ? tracking.history : task?.history ?? []),
     [task?.history, tracking?.history],
   );
+  const returnAlreadyStarted = useMemo(() => {
+    if ((task?.shipmentStatus ?? tracking?.currentStatus) === 'RETURNED') {
+      return true;
+    }
+
+    return timelineItems.some((item) => {
+      const description = `${item.description ?? ''} ${item.status ?? ''}`.toLowerCase();
+      return description.includes('return') || description.includes('zwrot');
+    });
+  }, [task?.shipmentStatus, tracking?.currentStatus, timelineItems]);
   const actionPlan = useMemo(() => {
     if (!task) {
       return null;
@@ -165,7 +210,7 @@ export default function CourierTaskDetails() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez task
+          {t('common.refresh')}
         </button>
       </div>
 
@@ -405,7 +450,61 @@ export default function CourierTaskDetails() {
                   </>
                 ) : null}
 
-                {task.taskStatus !== 'ASSIGNED' && task.taskStatus !== 'ACCEPTED' && task.taskStatus !== 'IN_PROGRESS' ? (
+                {task.taskStatus === 'FAILED' ? (
+                  <div className="space-y-3">
+                    {issuedNotice ? (
+                      <div className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm">
+                        <div className="mb-1 font-medium">Awizo wystawione</div>
+                        <div className="text-muted-foreground">
+                          Nr awizo: <span className="font-mono">{issuedNotice.noticeNumber}</span>
+                        </div>
+                        <div className="text-muted-foreground">
+                          Punkt odbioru: {issuedNotice.pickupPointCode} — ważne do{' '}
+                          {new Date(issuedNotice.expiresAt).toLocaleDateString('pl-PL')}
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={busyAction === 'notice' || !currentUser?.email}
+                        onClick={() =>
+                          currentUser?.email &&
+                          runTaskAction('notice', async () => {
+                            const result = await issueCourierNotice(currentUser.email, task.taskId);
+                            setIssuedNotice(result as IssueNoticeResponse);
+                          })
+                        }
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
+                      >
+                        <PackageX className="h-4 w-4" />
+                        {busyAction === 'notice' ? 'Wystawianie awizo...' : 'Wystaw awizo'}
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      disabled={busyAction === 'return' || !currentUser?.email || returnAlreadyStarted}
+                      onClick={() => {
+                        if (!currentUser?.email) return;
+                        if (!window.confirm('Zainicjować zwrot przesyłki do nadawcy? Tej operacji nie można cofnąć.')) return;
+                        void runTaskAction('return', () =>
+                          initiateCourierReturn(currentUser.email, task.taskId, 'Nieudana proba doreczenia'),
+                        );
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-2 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-70"
+                    >
+                      <Undo2 className="h-4 w-4" />
+                      {busyAction === 'return' ? 'Inicjowanie zwrotu...' : 'Zainicjuj zwrot'}
+                    </button>
+                    {returnAlreadyStarted ? (
+                      <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-muted-foreground">
+                        Zwrot tej przesylki jest juz w toku albo zostal zakonczony.
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {task.taskStatus !== 'ASSIGNED' && task.taskStatus !== 'ACCEPTED' && task.taskStatus !== 'IN_PROGRESS' && task.taskStatus !== 'FAILED' ? (
                   <div className="rounded-lg bg-secondary p-4 text-sm text-muted-foreground">
                     To zadanie nie ma juz aktywnych akcji kuriera. Stan zostal zakonczony albo wymaga operacji po stronie dispatch.
                   </div>

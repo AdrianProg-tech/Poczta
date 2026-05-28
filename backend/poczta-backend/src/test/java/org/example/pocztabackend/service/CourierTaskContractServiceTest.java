@@ -12,8 +12,10 @@ import org.example.pocztabackend.model.enums.PaymentStatus;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.CourierTaskRepository;
 import org.example.pocztabackend.repository.DeliveryAttemptRepository;
+import org.example.pocztabackend.repository.NoticeRepository;
 import org.example.pocztabackend.repository.PaymentRepository;
 import org.example.pocztabackend.repository.PointRepository;
+import org.example.pocztabackend.repository.ReturnProcessRepository;
 import org.example.pocztabackend.repository.ShipmentRepository;
 import org.example.pocztabackend.repository.TrackingEventRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,6 +69,12 @@ class CourierTaskContractServiceTest {
     @Mock
     private NotificationService notificationService;
 
+    @Mock
+    private NoticeRepository noticeRepository;
+
+    @Mock
+    private ReturnProcessRepository returnProcessRepository;
+
     private CourierTaskContractService courierTaskContractService;
 
     @BeforeEach
@@ -80,7 +88,9 @@ class CourierTaskContractServiceTest {
                 pointRepository,
                 operationalActorResolver,
                 paymentRepository,
-                paymentService
+                paymentService,
+                noticeRepository,
+                returnProcessRepository
         );
     }
 

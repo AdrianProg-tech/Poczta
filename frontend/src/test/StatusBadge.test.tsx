@@ -1,11 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import '../i18n/config';
+import i18n from 'i18next';
 import { StatusBadge } from '../app/components/StatusBadge';
+
+beforeAll(async () => {
+  await i18n.changeLanguage('pl');
+});
 
 describe('StatusBadge', () => {
   it('renders label for DELIVERED shipment status', () => {
     render(<StatusBadge status="DELIVERED" type="shipment" />);
-    expect(screen.getByText('Doreczona')).toBeInTheDocument();
+    expect(screen.getByText('Doręczona')).toBeInTheDocument();
   });
 
   it('renders label for CREATED shipment status', () => {
@@ -15,12 +21,12 @@ describe('StatusBadge', () => {
 
   it('renders label for PAID payment status', () => {
     render(<StatusBadge status="PAID" type="payment" />);
-    expect(screen.getByText('Oplacona')).toBeInTheDocument();
+    expect(screen.getByText('Opłacona')).toBeInTheDocument();
   });
 
   it('renders label for PENDING payment status', () => {
     render(<StatusBadge status="PENDING" type="payment" />);
-    expect(screen.getByText('Oczekujaca')).toBeInTheDocument();
+    expect(screen.getByText('Oczekująca')).toBeInTheDocument();
   });
 
   it('renders label for ACCEPTED complaint status', () => {
@@ -51,5 +57,22 @@ describe('StatusBadge', () => {
   it('renders OFFLINE_PENDING payment status', () => {
     render(<StatusBadge status="OFFLINE_PENDING" type="payment" />);
     expect(screen.getByText('Offline do potwierdzenia')).toBeInTheDocument();
+  });
+
+  it('renders AWAITING_PICKUP shipment status', () => {
+    render(<StatusBadge status="AWAITING_PICKUP" type="shipment" />);
+    expect(screen.getByText('Czeka na odbiór')).toBeInTheDocument();
+  });
+
+  it('renders correct label after language switch to EN', async () => {
+    await i18n.changeLanguage('en');
+    render(<StatusBadge status="DELIVERED" type="shipment" />);
+    expect(screen.getByText('Delivered')).toBeInTheDocument();
+    await i18n.changeLanguage('pl');
+  });
+
+  it('renders SUBMITTED complaint status', () => {
+    render(<StatusBadge status="SUBMITTED" type="complaint" />);
+    expect(screen.getByText('Złożona')).toBeInTheDocument();
   });
 });

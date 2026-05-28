@@ -1,4 +1,4 @@
-import { Bell, Moon, Sun, User, Languages } from 'lucide-react';
+import { Bell, Globe, Moon, Sun, User } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
 import { getRoleLabel } from '../navigation';
@@ -14,13 +14,13 @@ export function Topbar({ title, userName = 'Jan Kowalski' }: TopbarProps) {
     state: { currentUser },
   } = useAppStateContext();
   const { theme, setTheme } = useTheme();
-  const { i18n, t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const displayName = currentUser?.name ?? userName;
   const displayRole = currentUser ? getRoleLabel(currentUser.role) : 'Gość';
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
-  const toggleLanguage = () => i18n.changeLanguage(i18n.language === 'pl' ? 'en' : 'pl');
+  const toggleLanguage = () => void i18n.changeLanguage(i18n.language === 'pl' ? 'en' : 'pl');
 
   return (
     <header className="bg-card border-b border-border px-6 py-4 lg:px-8">
@@ -31,9 +31,10 @@ export function Topbar({ title, userName = 'Jan Kowalski' }: TopbarProps) {
           <button
             onClick={toggleLanguage}
             title={t('language.toggle')}
-            className="p-2 hover:bg-muted rounded-lg transition-colors text-foreground"
+            className="flex items-center gap-1 p-2 hover:bg-muted rounded-lg transition-colors text-foreground"
           >
-            <Languages className="w-5 h-5" />
+            <Globe className="w-4 h-4" />
+            <span className="text-xs font-medium uppercase">{i18n.language === 'pl' ? 'PL' : 'EN'}</span>
           </button>
 
           <button

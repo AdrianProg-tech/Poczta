@@ -11,7 +11,7 @@ const roleLabels: Record<DemoRole, string> = {
 };
 
 const roleEmails: Record<DemoRole, string> = {
-  client: 'jan.kowalski.client@example.com',
+  client: 'julia.wozniak.client@example.com',
   courier: 'courier.warsaw.1@example.com',
   point: 'point.warsaw.pop-waw-01@example.com',
   admin: 'admin.review@example.com',
@@ -43,7 +43,7 @@ export async function loginAsDemoRole(page: Page, role: DemoRole) {
   }
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill('demo1234');
-  await page.getByRole('button', { name: /Zaloguj/i }).last().click();
+  await page.locator('form button[type="submit"]').first().click();
   await expect(page).toHaveURL(new RegExp(`${escapeRegExp(dashboardPath)}(?:$|/)`));
 }
 

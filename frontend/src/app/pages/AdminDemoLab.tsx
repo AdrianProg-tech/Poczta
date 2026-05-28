@@ -14,8 +14,10 @@ import {
 } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
+import { useTranslation } from 'react-i18next';
 
 export default function AdminDemoLab() {
+  const { t } = useTranslation();
   const [parcels, setParcels] = useState<AdminParcelRecord[]>([]);
   const [selectedParcelId, setSelectedParcelId] = useState<string | null>(null);
   const [tracking, setTracking] = useState<PublicTrackingResponse | null>(null);
@@ -123,7 +125,7 @@ export default function AdminDemoLab() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez laboratorium demo
+          {t('common.refresh')}
         </button>
       </div>
 

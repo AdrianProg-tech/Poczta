@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { ArrowRight, Check, CreditCard, MapPin, Package, User } from 'lucide-react';
-import { createClientShipment, getPublicPoints, type PublicPoint } from '../api';
+import { calculateShipmentPrice, createClientShipment, getPublicPoints, type PublicPoint } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
 
@@ -117,7 +117,7 @@ export default function CreateShipment() {
       base,
       insurance,
       fragileFee,
-      total: (base + insurance + fragileFee).toFixed(2),
+      total: calculateShipmentPrice(declaredValue, fragile).toFixed(2),
     };
   }, [declaredValue, fragile]);
 
@@ -458,7 +458,14 @@ export default function CreateShipment() {
                     <Check className="h-8 w-8 text-success" />
                   </div>
                   <h3 className="mb-2 text-2xl">Przesylka utworzona</h3>
-                  <p className="mb-6 text-muted-foreground">Tracking number: {createdTrackingNumber}</p>
+                  <p className="mb-2 text-muted-foreground">Tracking number: {createdTrackingNumber}</p>
+                  <p className="mb-6 text-sm text-muted-foreground">
+                    {paymentMethod === 'OFFLINE_AT_POINT'
+                      ? 'Przynie? etykiete do punktu — operator potwierdzi plate przy przyjecie przesylki.'
+                      : paymentMethod === 'OFFLINE_AT_COURIER'
+                        ? 'Kurier pobierze oplate przy doreczeniu. Przesylka jest gotowa do nadania.'
+                        : 'Mozesz teraz oplacic przesylke przez Stripe lub zrobic to pozniej ze szczegolów przesylki.'}
+                  </p>
                   <div className="flex flex-col justify-center gap-3 sm:flex-row">
                     <button
                       type="button"

@@ -242,6 +242,61 @@ def apply_payment_actions(
     return applied, payment_ids_by_shipment_key
 
 
+def cancel_client_shipments(
+    rows: list[dict[str, str]],
+    base_url: str,
+    timeout: int,
+    shipment_refs: dict[str, dict[str, str]],
+    auth_headers_by_email: dict[str, dict[str, str]],
+) -> int:
+    """Cancel shipments on behalf of the client who created them (A7: cancel shipment feature)."""
+    applied = 0
+    for row in rows:
+        shipment_ref = shipment_refs[row["shipmentKey"]]
+        tracking_number = shipment_ref["trackingNumber"]
+        creator_email = shipment_ref["creatorEmail"]
+        http_json(
+            "DELETE",
+            f"{base_url}/api/client/shipments/{tracking_number}",
+            timeout=timeout,
+            extra_headers=auth_headers_by_email[creator_email],
+        )
+        applied += 1
+    return applied
+
+
+def create_walk_in_shipments(
+    rows: list[dict[str, str]],
+    base_url: str,
+    timeout: int,
+    auth_headers_by_email: dict[str, dict[str, str]],
+) -> int:
+    """Create shipments for walk-in clients directly at pickup points (C5: walk-in feature)."""
+    created = 0
+    for row in rows:
+        payload = {
+            "senderName": row["senderName"],
+            "senderPhone": row["senderPhone"],
+            "senderAddress": row["senderAddress"],
+            "recipientName": row["recipientName"],
+            "recipientPhone": row["recipientPhone"],
+            "recipientAddress": row["recipientAddress"],
+            "weight": float(row["weight"]),
+            "sizeCategory": row["sizeCategory"],
+            "declaredValue": float(row["declaredValue"]),
+            "fragile": to_bool(row["fragile"]),
+        }
+        http_json(
+            "POST",
+            f"{base_url}/api/point/walk-in",
+            payload=payload,
+            timeout=timeout,
+            extra_headers=auth_headers_by_email[row["pointWorkerEmail"]],
+        )
+        created += 1
+    return created
+
+
 def build_user_personas(rows: list[dict[str, str]], user_map: dict[str, str]) -> dict[str, dict[str, str]]:
     return {
         row["email"]: {
@@ -370,6 +425,52 @@ def run_courier_actions(
                 "POST",
                 f"{base_url}/api/courier/tasks/{task_id}/record-attempt",
                 payload=payload,
+                timeout=timeout,
+                extra_headers=headers,
+            )
+        elif action == "FAIL_AND_NOTICE":
+            # B1: courier fails delivery, then issues awizo notice
+            http_json("POST", f"{base_url}/api/courier/tasks/{task_id}/accept", timeout=timeout, extra_headers=headers)
+            http_json("POST", f"{base_url}/api/courier/tasks/{task_id}/start", timeout=timeout, extra_headers=headers)
+            attempt_payload = {
+                "result": row["result"] or "RECIPIENT_ABSENT",
+                "note": row["note"],
+                "redirectToPickup": False,
+                "redirectPointCode": None,
+            }
+            http_json(
+                "POST",
+                f"{base_url}/api/courier/tasks/{task_id}/record-attempt",
+                payload=attempt_payload,
+                timeout=timeout,
+                extra_headers=headers,
+            )
+            http_json(
+                "POST",
+                f"{base_url}/api/courier/tasks/{task_id}/issue-notice",
+                timeout=timeout,
+                extra_headers=headers,
+            )
+        elif action == "FAIL_AND_RETURN":
+            # B2: courier fails delivery, then initiates return process
+            http_json("POST", f"{base_url}/api/courier/tasks/{task_id}/accept", timeout=timeout, extra_headers=headers)
+            http_json("POST", f"{base_url}/api/courier/tasks/{task_id}/start", timeout=timeout, extra_headers=headers)
+            attempt_payload = {
+                "result": row["result"] or "RECIPIENT_ABSENT",
+                "note": row["note"],
+                "redirectToPickup": False,
+                "redirectPointCode": None,
+            }
+            http_json(
+                "POST",
+                f"{base_url}/api/courier/tasks/{task_id}/record-attempt",
+                payload=attempt_payload,
+                timeout=timeout,
+                extra_headers=headers,
+            )
+            http_json(
+                "POST",
+                f"{base_url}/api/courier/tasks/{task_id}/initiate-return",
                 timeout=timeout,
                 extra_headers=headers,
             )
@@ -560,6 +661,8 @@ def main() -> None:
     courier_action_rows = read_csv_rows(input_dir / "courier_task_actions.csv")
     point_action_rows = read_csv_rows(input_dir / "point_actions.csv")
     complaint_rows = read_csv_rows(input_dir / "complaints.csv")
+    cancel_rows = read_csv_rows(input_dir / "cancel_actions.csv")
+    walk_in_rows = read_csv_rows(input_dir / "walk_in_shipments.csv")
 
     user_map, point_map = load_existing_maps(base_url, args.timeout)
 
@@ -569,14 +672,23 @@ def main() -> None:
 
     user_personas = build_user_personas(users_rows, user_map)
     point_staff_emails_by_code = build_point_staff_emails_by_code(user_personas)
-    auth_headers_by_email = build_auth_headers(
-        base_url,
-        args.timeout,
-        [row["email"] for row in users_rows] + [ADMIN_REVIEW_EMAIL, DISPATCHER_EMAIL],
+
+    # Collect all emails that need auth tokens
+    all_emails = (
+        [row["email"] for row in users_rows]
+        + [ADMIN_REVIEW_EMAIL, DISPATCHER_EMAIL]
+        + [row["pointWorkerEmail"] for row in walk_in_rows]
     )
+    auth_headers_by_email = build_auth_headers(base_url, args.timeout, all_emails)
 
     shipment_count, shipment_refs = create_shipments(shipments_rows, base_url, args.timeout, auth_headers_by_email)
     summary.append(("shipments", shipment_count))
+
+    # A7: cancel shipments before payment processing (still in CREATED state)
+    summary.append((
+        "client_cancellations",
+        cancel_client_shipments(cancel_rows, base_url, args.timeout, shipment_refs, auth_headers_by_email),
+    ))
 
     payment_action_count, _payment_ids = apply_payment_actions(
         payment_rows,
@@ -615,13 +727,19 @@ def main() -> None:
         run_complaint_actions(complaint_rows, base_url, args.timeout, shipment_refs, auth_headers_by_email),
     ))
 
+    # C5: walk-in shipments created by point workers
+    summary.append((
+        "walk_in_shipments",
+        create_walk_in_shipments(walk_in_rows, base_url, args.timeout, auth_headers_by_email),
+    ))
+
     print("Scenario import summary:")
     for name, count in summary:
-        print(f"- {name}: {count}")
+        print(f"  {name}: {count}")
 
-    print("Created shipment references:")
+    print("\nCreated shipment references:")
     for shipment_key, shipment_ref in shipment_refs.items():
-        print(f"- {shipment_key}: {shipment_ref['trackingNumber']} ({shipment_ref['shipmentId']})")
+        print(f"  {shipment_key}: {shipment_ref['trackingNumber']} ({shipment_ref['shipmentId']})")
 
 
 if __name__ == "__main__":

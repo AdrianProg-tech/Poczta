@@ -5,12 +5,16 @@ import org.example.pocztabackend.dto.CourierTaskDetailsResponse;
 import org.example.pocztabackend.dto.CourierTaskListItemResponse;
 import org.example.pocztabackend.dto.CourierTaskStateChangeResponse;
 import org.example.pocztabackend.dto.DeliveryAttemptRecordedResponse;
+import org.example.pocztabackend.dto.InitiateReturnResponse;
+import org.example.pocztabackend.dto.IssueNoticeResponse;
 import org.example.pocztabackend.dto.RecordDeliveryAttemptRequest;
 import org.example.pocztabackend.dto.TrackingHistoryItemResponse;
 import org.example.pocztabackend.model.CourierTask;
 import org.example.pocztabackend.model.DeliveryAttempt;
+import org.example.pocztabackend.model.Notice;
 import org.example.pocztabackend.model.Payment;
 import org.example.pocztabackend.model.Point;
+import org.example.pocztabackend.model.ReturnProcess;
 import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
 import org.example.pocztabackend.model.User;
@@ -18,8 +22,10 @@ import org.example.pocztabackend.model.enums.PaymentStatus;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.CourierTaskRepository;
 import org.example.pocztabackend.repository.DeliveryAttemptRepository;
+import org.example.pocztabackend.repository.NoticeRepository;
 import org.example.pocztabackend.repository.PaymentRepository;
 import org.example.pocztabackend.repository.PointRepository;
+import org.example.pocztabackend.repository.ReturnProcessRepository;
 import org.example.pocztabackend.repository.ShipmentRepository;
 import org.example.pocztabackend.repository.TrackingEventRepository;
 import org.springframework.http.HttpStatus;
@@ -44,6 +50,8 @@ public class CourierTaskContractService {
     private final OperationalActorResolver operationalActorResolver;
     private final PaymentRepository paymentRepository;
     private final PaymentService paymentService;
+    private final NoticeRepository noticeRepository;
+    private final ReturnProcessRepository returnProcessRepository;
 
     public CourierTaskContractService(
             CourierTaskRepository courierTaskRepository,
@@ -54,7 +62,9 @@ public class CourierTaskContractService {
             PointRepository pointRepository,
             OperationalActorResolver operationalActorResolver,
             PaymentRepository paymentRepository,
-            PaymentService paymentService
+            PaymentService paymentService,
+            NoticeRepository noticeRepository,
+            ReturnProcessRepository returnProcessRepository
     ) {
         this.courierTaskRepository = courierTaskRepository;
         this.shipmentRepository = shipmentRepository;
@@ -65,6 +75,8 @@ public class CourierTaskContractService {
         this.operationalActorResolver = operationalActorResolver;
         this.paymentRepository = paymentRepository;
         this.paymentService = paymentService;
+        this.noticeRepository = noticeRepository;
+        this.returnProcessRepository = returnProcessRepository;
     }
 
     public List<CourierTaskListItemResponse> getCourierTasks(String userEmailHeader) {
@@ -230,6 +242,83 @@ public class CourierTaskContractService {
                 task.getStatus(),
                 shipment.getStatus() == null ? null : shipment.getStatus().name(),
                 savedAttempt.getId()
+        );
+    }
+
+    @Transactional
+    public IssueNoticeResponse issueNotice(String userEmailHeader, UUID taskId) {
+        CourierTask task = getTaskForCourier(userEmailHeader, taskId);
+        if (!"FAILED".equals(task.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Notice can only be issued for a failed task");
+        }
+
+        Shipment shipment = requireShipment(task);
+        Point pickupPoint = shipment.getTargetPoint() != null ? shipment.getTargetPoint() : shipment.getCurrentPoint();
+        if (pickupPoint == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "No pickup point associated with this shipment");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        Notice notice = Notice.builder()
+                .noticeNumber("AWZ" + UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT))
+                .issuedAt(now)
+                .expiresAt(now.plusDays(7))
+                .shipment(shipment)
+                .pickupPoint(pickupPoint)
+                .build();
+        Notice saved = noticeRepository.save(notice);
+
+        addTrackingEvent(
+                shipment,
+                shipment.getStatus(),
+                "Notice issued",
+                "Awizo issued. Shipment available at point " + pickupPoint.getPointCode() + " until " + saved.getExpiresAt().toLocalDate(),
+                now
+        );
+
+        return new IssueNoticeResponse(
+                saved.getId(),
+                saved.getNoticeNumber(),
+                saved.getIssuedAt(),
+                saved.getExpiresAt(),
+                pickupPoint.getPointCode(),
+                shipment.getTrackingNumber()
+        );
+    }
+
+    @Transactional
+    public InitiateReturnResponse initiateReturn(String userEmailHeader, UUID taskId, String reason) {
+        CourierTask task = getTaskForCourier(userEmailHeader, taskId);
+        if (!"FAILED".equals(task.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Return can only be initiated for a failed task");
+        }
+
+        Shipment shipment = requireShipment(task);
+        shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.RETURNED);
+        shipmentRepository.save(shipment);
+
+        LocalDateTime now = LocalDateTime.now();
+        ReturnProcess returnProcess = ReturnProcess.builder()
+                .reason(reason != null && !reason.isBlank() ? reason.trim() : "Courier failed delivery")
+                .status("REQUESTED")
+                .initiatedAt(now)
+                .shipment(shipment)
+                .build();
+        ReturnProcess saved = returnProcessRepository.save(returnProcess);
+
+        addTrackingEvent(
+                shipment,
+                ShipmentStatus.RETURNED,
+                "Return initiated",
+                "Return process initiated by courier. Reason: " + returnProcess.getReason(),
+                now
+        );
+
+        return new InitiateReturnResponse(
+                saved.getId(),
+                saved.getStatus(),
+                shipment.getTrackingNumber(),
+                ShipmentStatus.RETURNED.name()
         );
     }
 

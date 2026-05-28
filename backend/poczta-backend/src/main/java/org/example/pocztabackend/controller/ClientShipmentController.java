@@ -9,9 +9,11 @@ import org.example.pocztabackend.dto.ClientShipmentDetailsResponse;
 import org.example.pocztabackend.dto.ClientShipmentListItemResponse;
 import org.example.pocztabackend.dto.CreateClientShipmentRequest;
 import org.example.pocztabackend.dto.ShipmentCreatedResponse;
+import org.example.pocztabackend.dto.ShipmentStateChangeResponse;
 import org.example.pocztabackend.service.ClientShipmentCommandService;
 import org.example.pocztabackend.service.ContractShipmentQueryService;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -68,5 +70,13 @@ public class ClientShipmentController {
             @Valid @RequestBody ClientShipmentRedirectRequest request
     ) {
         return clientShipmentCommandService.requestRedirect(null, trackingNumber, request);
+    }
+
+    @DeleteMapping("/{trackingNumber}")
+    @Operation(summary = "Anuluj przesyłkę (tylko CREATED, PAID, READY_FOR_POSTING)")
+    public ShipmentStateChangeResponse cancelShipment(
+            @PathVariable String trackingNumber
+    ) {
+        return clientShipmentCommandService.cancelShipment(null, trackingNumber);
     }
 }

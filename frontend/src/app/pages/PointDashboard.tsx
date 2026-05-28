@@ -1,13 +1,45 @@
-import { Link } from 'react-router';
-import { ArrowRight, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router';
+import { ArrowRight, Clock, Search, UserPlus } from 'lucide-react';
 import { DashboardShell } from '../components/DashboardShell';
 import { downloadPointQueueCsv, printPointQueueDigest, PointUtilityButton, usePointQueueData } from '../pointQueue';
 
 export default function PointDashboard() {
   const { isLoading, pointCode, pointName, queue, queueStats } = usePointQueueData();
+  const navigate = useNavigate();
+  const [lookupInput, setLookupInput] = useState('');
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
   const totalQueueSize =
     (queue?.acceptQueue.length ?? 0) + (queue?.pickupQueue.length ?? 0) + (queue?.offlinePaymentQueue.length ?? 0);
   const allQueueItems = [...(queue?.acceptQueue ?? []), ...(queue?.pickupQueue ?? []), ...(queue?.offlinePaymentQueue ?? [])];
+
+  function handleLookup(event: React.FormEvent) {
+    event.preventDefault();
+    const query = lookupInput.trim().toUpperCase();
+    if (!query) {
+      setLookupError('Podaj numer przesyłki.');
+      return;
+    }
+    setLookupError(null);
+    if (queue) {
+      if (queue.acceptQueue.some((item) => item.trackingNumber === query)) {
+        void navigate('/point/accept');
+        return;
+      }
+      if (queue.pickupQueue.some((item) => item.trackingNumber === query)) {
+        void navigate('/point/release');
+        return;
+      }
+      if (queue.offlinePaymentQueue.some((item) => item.trackingNumber === query)) {
+        void navigate('/point/payment-verification');
+        return;
+      }
+      setLookupError(`Przesyłka ${query} nie jest aktualnie w żadnej kolejce tego punktu.`);
+    } else {
+      void navigate(`/tracking?number=${query}`);
+    }
+  }
 
   return (
     <DashboardShell role="point" title="Dashboard punktu">
@@ -39,6 +71,51 @@ export default function PointDashboard() {
           </div>
           <div className="text-sm text-muted-foreground">Laczna kolejka</div>
         </div>
+      </div>
+
+      <div className="mb-8 rounded-xl border border-accent/30 bg-accent/5 p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <UserPlus className="h-6 w-6 text-accent" />
+            <div>
+              <div className="font-semibold">Klient bez konta (walk-in)</div>
+              <div className="text-sm text-muted-foreground">Zarejestruj przesyłkę od klienta przychodzącego — bez konta, płatność gotówką.</div>
+            </div>
+          </div>
+          <Link
+            to="/point/walk-in"
+            className="flex-shrink-0 rounded-lg bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent/90"
+          >
+            Przyjmij
+          </Link>
+        </div>
+      </div>
+
+      <div className="mb-8 rounded-xl border border-border bg-card p-6 shadow-sm">
+        <h3 className="mb-3 text-lg">Szybkie wyszukiwanie przesyłki</h3>
+        <p className="mb-4 text-sm text-muted-foreground">Wpisz numer śledzenia, aby przejść bezpośrednio do właściwej kolejki operacyjnej.</p>
+        <form className="flex gap-3" onSubmit={handleLookup}>
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={lookupInput}
+              onChange={(e) => {
+                setLookupInput(e.target.value);
+                setLookupError(null);
+              }}
+              placeholder="np. PW1234567PL"
+              className="w-full rounded-lg border border-border bg-input-background py-2 pl-9 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+          <button
+            type="submit"
+            className="rounded-lg bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent/90"
+          >
+            Przejdź
+          </button>
+        </form>
+        {lookupError ? <p className="mt-2 text-sm text-destructive">{lookupError}</p> : null}
       </div>
 
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">

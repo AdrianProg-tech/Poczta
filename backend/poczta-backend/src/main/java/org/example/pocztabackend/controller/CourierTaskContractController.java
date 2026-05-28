@@ -8,6 +8,8 @@ import org.example.pocztabackend.dto.CourierTaskDetailsResponse;
 import org.example.pocztabackend.dto.CourierTaskListItemResponse;
 import org.example.pocztabackend.dto.CourierTaskStateChangeResponse;
 import org.example.pocztabackend.dto.DeliveryAttemptRecordedResponse;
+import org.example.pocztabackend.dto.InitiateReturnResponse;
+import org.example.pocztabackend.dto.IssueNoticeResponse;
 import org.example.pocztabackend.dto.RecordDeliveryAttemptRequest;
 import org.example.pocztabackend.service.CourierTaskContractService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -71,5 +74,20 @@ public class CourierTaskContractController {
             @Valid @RequestBody RecordDeliveryAttemptRequest request
     ) {
         return courierTaskContractService.recordAttempt(null, taskId, request);
+    }
+
+    @PostMapping("/{taskId}/issue-notice")
+    @Operation(summary = "Wystaw awizo dla nieodebranej przesyłki")
+    public IssueNoticeResponse issueNotice(@PathVariable UUID taskId) {
+        return courierTaskContractService.issueNotice(null, taskId);
+    }
+
+    @PostMapping("/{taskId}/initiate-return")
+    @Operation(summary = "Zainicjuj zwrot przesyłki")
+    public InitiateReturnResponse initiateReturn(
+            @PathVariable UUID taskId,
+            @RequestParam(required = false) String reason
+    ) {
+        return courierTaskContractService.initiateReturn(null, taskId, reason);
     }
 }

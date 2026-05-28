@@ -1,10 +1,12 @@
 package org.example.pocztabackend.service;
 
 import org.example.pocztabackend.dto.AdminComplaintSummaryResponse;
+import org.example.pocztabackend.dto.ComplaintAttachmentResponse;
 import org.example.pocztabackend.dto.ComplaintResolutionRequest;
 import org.example.pocztabackend.dto.ComplaintStateChangeResponse;
 import org.example.pocztabackend.model.Complaint;
 import org.example.pocztabackend.model.enums.ComplaintStatus;
+import org.example.pocztabackend.repository.ComplaintAttachmentRepository;
 import org.example.pocztabackend.repository.ComplaintRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,9 +21,14 @@ import java.util.UUID;
 public class AdminComplaintContractService {
 
     private final ComplaintRepository complaintRepository;
+    private final ComplaintAttachmentRepository complaintAttachmentRepository;
 
-    public AdminComplaintContractService(ComplaintRepository complaintRepository) {
+    public AdminComplaintContractService(
+            ComplaintRepository complaintRepository,
+            ComplaintAttachmentRepository complaintAttachmentRepository
+    ) {
         this.complaintRepository = complaintRepository;
+        this.complaintAttachmentRepository = complaintAttachmentRepository;
     }
 
     public List<AdminComplaintSummaryResponse> listComplaints() {
@@ -80,6 +87,17 @@ public class AdminComplaintContractService {
         complaint.setClosedAt(LocalDateTime.now());
         complaintRepository.save(complaint);
         return toResponse(complaint);
+    }
+
+    public List<ComplaintAttachmentResponse> listAttachments(UUID complaintId) {
+        if (!complaintRepository.existsById(complaintId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Complaint not found");
+        }
+        return complaintAttachmentRepository
+                .findAllByComplaint_IdOrderByUploadedAtDesc(complaintId)
+                .stream()
+                .map(a -> new ComplaintAttachmentResponse(a.getId(), a.getFileName(), a.getUploadedAt()))
+                .toList();
     }
 
     private Complaint getComplaint(UUID complaintId) {

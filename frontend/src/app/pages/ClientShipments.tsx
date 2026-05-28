@@ -11,6 +11,7 @@ import {
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAppStateContext } from '../state/AppStateContext';
+import { useTranslation } from 'react-i18next';
 
 export function canShowPaymentShortcut(shipment: ClientShipmentListItem) {
   return shipment.paymentStatus === 'PENDING';
@@ -72,6 +73,7 @@ function printClientShipmentSummary(shipment: ClientShipmentListItem) {
 }
 
 export default function ClientShipments() {
+  const { t } = useTranslation();
   const {
     state: { currentUser },
   } = useAppStateContext();
@@ -167,7 +169,7 @@ export default function ClientShipments() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez liste
+          {t('common.refresh')}
         </button>
       </div>
 

@@ -8,7 +8,8 @@
     "points": "Points",
     "payments": "Payments",
     "reports": "Reports",
-    "logout": "Log out"
+    "logout": "Log out",
+    "profile": "My profile"
   },
   "roles": {
     "client": "Client",
@@ -95,7 +96,41 @@
     "accept": "Accept",
     "post": "Post",
     "release": "Release",
-    "confirmOffline": "Confirm offline payment"
+    "confirmOffline": "Confirm offline payment",
+    "walkIn": "Walk-in client"
+  },
+  "status": {
+    "unknown": "Unknown",
+    "shipment": {
+      "CREATED": "Created",
+      "PAID": "Paid",
+      "POSTED": "Posted",
+      "READY_FOR_POSTING": "Ready for posting",
+      "IN_TRANSIT": "In transit",
+      "OUT_FOR_DELIVERY": "Out for delivery",
+      "DELIVERY_ATTEMPT": "Delivery attempt",
+      "REDIRECTED_TO_PICKUP": "Redirected to pickup",
+      "AWAITING_PICKUP": "Awaiting pickup",
+      "DELIVERED": "Delivered",
+      "RETURNED": "Returned",
+      "CANCELED": "Canceled",
+      "REGISTERED": "Registered"
+    },
+    "payment": {
+      "PAID": "Paid",
+      "OFFLINE_CONFIRMED": "Offline confirmed",
+      "PENDING": "Pending",
+      "FAILED": "Failed",
+      "CANCELED": "Canceled",
+      "OFFLINE_PENDING": "Offline pending"
+    },
+    "complaint": {
+      "SUBMITTED": "Submitted",
+      "IN_REVIEW": "In review",
+      "ACCEPTED": "Accepted",
+      "REJECTED": "Rejected",
+      "CLOSED": "Closed"
+    }
   },
   "theme": {
     "light": "Light theme",

@@ -6,6 +6,7 @@ import org.example.pocztabackend.dto.CreateClientShipmentRequest;
 import org.example.pocztabackend.dto.PaymentRequest;
 import org.example.pocztabackend.dto.PaymentResponse;
 import org.example.pocztabackend.dto.ShipmentCreatedResponse;
+import org.example.pocztabackend.dto.ShipmentStateChangeResponse;
 import org.example.pocztabackend.model.Point;
 import org.example.pocztabackend.model.Redirection;
 import org.example.pocztabackend.model.Shipment;
@@ -36,6 +37,7 @@ public class ClientShipmentCommandService {
     private final AuthFacadeService authFacadeService;
     private final RedirectionRepository redirectionRepository;
     private final TrackingEventRepository trackingEventRepository;
+    private final ShipmentWorkflowService workflowService;
 
     public ClientShipmentCommandService(
             ShipmentRepository shipmentRepository,
@@ -43,7 +45,8 @@ public class ClientShipmentCommandService {
             PaymentService paymentService,
             AuthFacadeService authFacadeService,
             RedirectionRepository redirectionRepository,
-            TrackingEventRepository trackingEventRepository
+            TrackingEventRepository trackingEventRepository,
+            ShipmentWorkflowService workflowService
     ) {
         this.shipmentRepository = shipmentRepository;
         this.pointRepository = pointRepository;
@@ -51,6 +54,7 @@ public class ClientShipmentCommandService {
         this.authFacadeService = authFacadeService;
         this.redirectionRepository = redirectionRepository;
         this.trackingEventRepository = trackingEventRepository;
+        this.workflowService = workflowService;
     }
 
     @Transactional
@@ -158,6 +162,35 @@ public class ClientShipmentCommandService {
                 savedRedirection.getId(),
                 savedRedirection.getStatus()
         );
+    }
+
+    @Transactional
+    public ShipmentStateChangeResponse cancelShipment(String userEmail, String trackingNumber) {
+        User creator = authFacadeService.requireUser(userEmail);
+        Shipment shipment = shipmentRepository.findByTrackingNumberAndCreator_Id(trackingNumber, creator.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
+
+        ShipmentStatus status = shipment.getStatus();
+        if (status != ShipmentStatus.CREATED && status != ShipmentStatus.PAID && status != ShipmentStatus.READY_FOR_POSTING) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Shipment cannot be cancelled in status " + status
+            );
+        }
+
+        workflowService.changeStatus(shipment, ShipmentStatus.CANCELED);
+
+        TrackingEvent event = new TrackingEvent();
+        event.setShipment(shipment);
+        event.setStatus(ShipmentStatus.CANCELED.name());
+        event.setLocationName("Client self-service");
+        event.setDescription("Shipment cancelled by client");
+        event.setEventTime(LocalDateTime.now());
+        trackingEventRepository.save(event);
+
+        shipmentRepository.save(shipment);
+
+        return new ShipmentStateChangeResponse(shipment.getTrackingNumber(), ShipmentStatus.CANCELED.name());
     }
 
     private String generateTrackingNumber() {

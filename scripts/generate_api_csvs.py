@@ -111,6 +111,10 @@ SCENARIO_ROTATION = [
     "OFFLINE_POINT_READY_TO_POST",
     "OFFLINE_POINT_POSTED",
     "MANUAL_ASSIGNMENT_DELIVERED",
+    # --- new scenarios ---
+    "CANCELED_BY_CLIENT",           # client creates and immediately cancels
+    "NOTICE_ISSUED_AFTER_ATTEMPT",  # courier fails, issues awizo notice
+    "RETURN_INITIATED",             # courier fails, initiates return process
 ]
 
 
@@ -265,6 +269,32 @@ def shipment_key_for(scenario_name: str, index: int) -> str:
     return f"{scenario_name.lower()}_{index + 1:03d}"
 
 
+def build_walk_in_shipments(users: list[dict[str, object]]) -> list[dict[str, object]]:
+    """One walk-in shipment per point worker — seeds the new C5 walk-in feature."""
+    rows: list[dict[str, object]] = []
+    point_workers = [u for u in users if u["persona"] == "POINT_WORKER"]
+    for i, worker in enumerate(point_workers):
+        city_key = str(worker["serviceCity"]).strip().upper()
+        recipient_name, recipient_phone = RECIPIENT_POOL[(i + 4) % len(RECIPIENT_POOL)]
+        recipient_addresses = CITY_ADDRESSES.get(city_key, SENDER_ADDRESSES)
+        rows.append(
+            {
+                "pointWorkerEmail": worker["email"],
+                "senderName": "Klient walk-in",
+                "senderPhone": f"+4860000{i:04d}",
+                "senderAddress": SENDER_ADDRESSES[i % len(SENDER_ADDRESSES)],
+                "recipientName": recipient_name,
+                "recipientPhone": recipient_phone,
+                "recipientAddress": recipient_addresses[i % len(recipient_addresses)],
+                "weight": f"{0.4 + (i % 5) * 0.35:.2f}",
+                "sizeCategory": ["S", "M"][i % 2],
+                "declaredValue": f"{25.00 + (i % 6) * 12.5:.2f}",
+                "fragile": "false",
+            }
+        )
+    return rows
+
+
 def build_dataset(
     users: list[dict[str, object]],
     points: list[dict[str, object]],
@@ -283,6 +313,7 @@ def build_dataset(
     courier_task_actions: list[dict[str, object]] = []
     point_actions: list[dict[str, object]] = []
     complaints: list[dict[str, object]] = []
+    cancel_actions: list[dict[str, object]] = []
 
     for index in range(max(8, shipment_count)):
         scenario_name = SCENARIO_ROTATION[index % len(SCENARIO_ROTATION)]
@@ -306,11 +337,16 @@ def build_dataset(
         payment_action = "NONE"
         manual_courier_email = ""
 
-        if scenario_name.startswith("OFFLINE_POINT") or scenario_name == "OFFLINE_PAYMENT_PENDING" or scenario_name == "OFFLINE_PAYMENT_CONFIRMED":
+        if scenario_name.startswith("OFFLINE_POINT") or scenario_name in {
+            "OFFLINE_PAYMENT_PENDING", "OFFLINE_PAYMENT_CONFIRMED"
+        }:
             delivery_type = "PICKUP_POINT"
             target_point_code = pickup_code
             payment_method = "OFFLINE_AT_POINT"
         elif "REDIRECT" in scenario_name:
+            target_point_code = pickup_code
+        elif scenario_name == "NOTICE_ISSUED_AFTER_ATTEMPT":
+            # B1: awizo must reference a concrete pickup point for later collection.
             target_point_code = pickup_code
 
         if scenario_name in {
@@ -325,6 +361,8 @@ def build_dataset(
             "COMPLAINT_IN_REVIEW",
             "COMPLAINT_ACCEPTED",
             "MANUAL_ASSIGNMENT_DELIVERED",
+            "NOTICE_ISSUED_AFTER_ATTEMPT",
+            "RETURN_INITIATED",
         }:
             payment_action = "MARK_PAID"
         elif scenario_name == "PAYMENT_FAILED":
@@ -357,6 +395,7 @@ def build_dataset(
         )
         payment_actions.append({"shipmentKey": shipment_key, "action": payment_action})
 
+        # --- courier assignment ---
         if scenario_name in {
             "ASSIGNED_WAITING_ACCEPT",
             "ACCEPTED_WAITING_ROUTE",
@@ -368,6 +407,8 @@ def build_dataset(
             "COMPLAINT_IN_REVIEW",
             "COMPLAINT_ACCEPTED",
             "MANUAL_ASSIGNMENT_DELIVERED",
+            "NOTICE_ISSUED_AFTER_ATTEMPT",
+            "RETURN_INITIATED",
         }:
             courier_assignments.append(
                 {
@@ -378,6 +419,7 @@ def build_dataset(
                 }
             )
 
+        # --- courier task actions ---
         if scenario_name == "ACCEPTED_WAITING_ROUTE":
             courier_task_actions.append(
                 {
@@ -400,7 +442,9 @@ def build_dataset(
                     "deliveredAt": "",
                 }
             )
-        elif scenario_name in {"DELIVERED_COURIER", "COMPLAINT_IN_REVIEW", "COMPLAINT_ACCEPTED", "MANUAL_ASSIGNMENT_DELIVERED"}:
+        elif scenario_name in {
+            "DELIVERED_COURIER", "COMPLAINT_IN_REVIEW", "COMPLAINT_ACCEPTED", "MANUAL_ASSIGNMENT_DELIVERED"
+        }:
             courier_task_actions.append(
                 {
                     "shipmentKey": shipment_key,
@@ -411,7 +455,9 @@ def build_dataset(
                     "deliveredAt": f"2026-05-{9 + (index % 12):02d}T1{index % 8}:30:00",
                 }
             )
-        elif scenario_name in {"REDIRECT_PENDING_POINT_ACCEPT", "REDIRECT_AWAITING_PICKUP", "REDIRECT_RELEASED"}:
+        elif scenario_name in {
+            "REDIRECT_PENDING_POINT_ACCEPT", "REDIRECT_AWAITING_PICKUP", "REDIRECT_RELEASED"
+        }:
             courier_task_actions.append(
                 {
                     "shipmentKey": shipment_key,
@@ -422,7 +468,32 @@ def build_dataset(
                     "deliveredAt": "",
                 }
             )
+        elif scenario_name == "NOTICE_ISSUED_AFTER_ATTEMPT":
+            # B1: courier fails without redirect, then issues awizo notice
+            courier_task_actions.append(
+                {
+                    "shipmentKey": shipment_key,
+                    "action": "FAIL_AND_NOTICE",
+                    "redirectPointCode": "",
+                    "result": "RECIPIENT_ABSENT",
+                    "note": "Recipient absent; awizo notice issued.",
+                    "deliveredAt": "",
+                }
+            )
+        elif scenario_name == "RETURN_INITIATED":
+            # B2: courier fails without redirect, then initiates return process
+            courier_task_actions.append(
+                {
+                    "shipmentKey": shipment_key,
+                    "action": "FAIL_AND_RETURN",
+                    "redirectPointCode": "",
+                    "result": "RECIPIENT_ABSENT",
+                    "note": "Recipient absent after multiple attempts; return initiated.",
+                    "deliveredAt": "",
+                }
+            )
 
+        # --- point actions ---
         if scenario_name == "REDIRECT_AWAITING_PICKUP":
             point_actions.append({"shipmentKey": shipment_key, "pointCode": pickup_code, "action": "ACCEPT"})
         elif scenario_name == "REDIRECT_RELEASED":
@@ -433,6 +504,7 @@ def build_dataset(
                 ]
             )
 
+        # --- complaints ---
         if scenario_name == "COMPLAINT_IN_REVIEW":
             complaints.append(
                 {
@@ -458,6 +530,12 @@ def build_dataset(
                 }
             )
 
+        # --- client cancellations (A7: cancel shipment) ---
+        if scenario_name == "CANCELED_BY_CLIENT":
+            cancel_actions.append({"shipmentKey": shipment_key})
+
+    walk_in_shipments = build_walk_in_shipments(users)
+
     return {
         "users.csv": users,
         "points.csv": points,
@@ -467,6 +545,8 @@ def build_dataset(
         "courier_task_actions.csv": courier_task_actions,
         "point_actions.csv": point_actions,
         "complaints.csv": complaints,
+        "cancel_actions.csv": cancel_actions,
+        "walk_in_shipments.csv": walk_in_shipments,
     }
 
 
@@ -487,6 +567,10 @@ def write_summary(output_dir: Path, tables: dict[str, list[dict[str, object]]]) 
             "- redirected shipments waiting for point acceptance or client pickup",
             "- offline point payment cases left pending for manual testing",
             "- complaints left in review and complaints accepted and closed",
+            "- shipments canceled by the client before payment (A7)",
+            "- failed delivery with awizo notice issued by courier (B1)",
+            "- failed delivery with return process initiated by courier (B2)",
+            "- walk-in shipments created directly at pickup points (C5)",
         ]
     )
     (output_dir / "_summary.txt").write_text("\n".join(lines), encoding="utf-8")
@@ -526,6 +610,20 @@ def main() -> None:
         "courier_task_actions.csv": ["shipmentKey", "action", "redirectPointCode", "result", "note", "deliveredAt"],
         "point_actions.csv": ["shipmentKey", "pointCode", "action"],
         "complaints.csv": ["complaintKey", "shipmentKey", "userEmail", "type", "description", "adminAction", "resolutionNote"],
+        "cancel_actions.csv": ["shipmentKey"],
+        "walk_in_shipments.csv": [
+            "pointWorkerEmail",
+            "senderName",
+            "senderPhone",
+            "senderAddress",
+            "recipientName",
+            "recipientPhone",
+            "recipientAddress",
+            "weight",
+            "sizeCategory",
+            "declaredValue",
+            "fragile",
+        ],
     }
 
     expected_files = set(tables.keys()) | {"_summary.txt"}

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
-import { AlertCircle, Calendar, CheckCircle, CreditCard, MapPin, Printer, RotateCcw, User, XCircle } from 'lucide-react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { AlertCircle, Ban, Calendar, CheckCircle, CreditCard, MapPin, Printer, RotateCcw, User, XCircle } from 'lucide-react';
 import {
+  cancelClientShipment,
   formatCurrency,
   formatDate,
   formatDateTime,
@@ -25,8 +26,11 @@ export default function ShipmentDetails() {
   const [shipment, setShipment] = useState<ClientShipmentDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -89,6 +93,84 @@ export default function ShipmentDetails() {
     } catch {
       setPaymentError('Nie udało się uruchomić płatności. Spróbuj ponownie.');
       setPaymentLoading(false);
+    }
+  }
+
+  async function handleCancelShipment() {
+    if (!currentUser?.email || !shipment?.trackingNumber) return;
+    if (!window.confirm('Czy na pewno chcesz anulować tę przesyłkę? Tej operacji nie można cofnąć.')) return;
+    setCancelLoading(true);
+    setCancelError(null);
+    try {
+      await cancelClientShipment(currentUser.email, shipment.trackingNumber);
+      navigate('/client/shipments');
+    } catch {
+      setCancelError('Nie udało się anulować przesyłki. Spróbuj ponownie.');
+      setCancelLoading(false);
+    }
+  }
+
+  const canCancel =
+    shipment !== null &&
+    ['CREATED', 'PAID', 'READY_FOR_POSTING'].includes(shipment.currentStatus);
+
+  function printShipmentLabel(s: ClientShipmentDetails) {
+    const html = `<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Etykieta — ${s.trackingNumber}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 13px; background: #fff; color: #000; padding: 16px; }
+  .label { width: 105mm; min-height: 148mm; border: 2px solid #000; padding: 8px; }
+  .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px; }
+  .logo { font-size: 18px; font-weight: bold; }
+  .tracking { font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 2px; text-align: center; border: 1px solid #000; padding: 6px; margin-bottom: 8px; }
+  .section { margin-bottom: 8px; }
+  .section-title { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #666; border-bottom: 1px solid #ccc; margin-bottom: 4px; padding-bottom: 2px; }
+  .name { font-size: 15px; font-weight: bold; }
+  .address { font-size: 13px; line-height: 1.4; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px; margin-top: 8px; padding-top: 8px; border-top: 1px solid #ccc; }
+  .meta-item { }
+  .meta-label { color: #666; }
+  .badge { display: inline-block; border: 1px solid #000; padding: 2px 6px; font-size: 11px; font-weight: bold; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="label">
+  <div class="header">
+    <div class="logo">🐧 PingwinPost</div>
+    <div class="badge">${s.delivery.deliveryType ?? 'STANDARD'}</div>
+  </div>
+  <div class="tracking">${s.trackingNumber}</div>
+  <div class="section">
+    <div class="section-title">Nadawca</div>
+    <div class="name">${s.sender.name}</div>
+    <div class="address">${s.sender.address ?? ''}<br>${s.sender.phone ?? ''}</div>
+  </div>
+  <div class="section">
+    <div class="section-title">Odbiorca</div>
+    <div class="name">${s.recipient.name}</div>
+    <div class="address">${s.recipient.address ?? ''}<br>${s.recipient.phone ?? ''}</div>
+  </div>
+  ${s.delivery.targetPointCode ? `<div class="section"><div class="section-title">Punkt odbioru</div><div class="name">${s.delivery.targetPointCode}</div></div>` : ''}
+  <div class="meta">
+    <div class="meta-item"><div class="meta-label">Waga</div>${s.parcel.weight != null ? `${s.parcel.weight} kg` : '—'}</div>
+    <div class="meta-item"><div class="meta-label">Rozmiar</div>${s.parcel.sizeCategory ?? '—'}</div>
+    <div class="meta-item"><div class="meta-label">Status</div>${s.currentStatus}</div>
+    <div class="meta-item"><div class="meta-label">ETA</div>${s.delivery.estimatedDeliveryDate ?? '—'}</div>
+    ${s.parcel.fragile ? '<div class="meta-item" style="grid-column:span 2"><div class="meta-label">⚠ FRAGILE</div></div>' : ''}
+  </div>
+</div>
+<script>window.onload = () => { window.print(); }<\/script>
+</body>
+</html>`;
+    const win = window.open('', '_blank', 'width=500,height=700');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
     }
   }
 
@@ -162,12 +244,26 @@ export default function ShipmentDetails() {
           ) : null}
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => shipment && printShipmentLabel(shipment)}
             className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
           >
             <Printer className="h-4 w-4" />
-            Drukuj
+            Drukuj etykietę
           </button>
+          {canCancel ? (
+            <button
+              type="button"
+              onClick={() => void handleCancelShipment()}
+              disabled={cancelLoading}
+              className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-2 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
+            >
+              <Ban className="h-4 w-4" />
+              {cancelLoading ? 'Anulowanie...' : 'Anuluj przesyłkę'}
+            </button>
+          ) : null}
+          {cancelError ? (
+            <p className="w-full text-sm text-destructive">{cancelError}</p>
+          ) : null}
         </div>
       </div>
 

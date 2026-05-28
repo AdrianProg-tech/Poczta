@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { Building2, Lock, Package, ShieldCheck, Truck, User } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { demoRoleOptions } from '../api';
 import { getDashboardPath } from '../navigation';
 import { useAppStateContext } from '../state/AppStateContext';
@@ -22,6 +23,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { loginAsRole } = useAppStateContext();
+  const { t } = useTranslation();
   const [selectedRoleId, setSelectedRoleId] = useState(demoRoleOptions[0]?.id ?? 'client');
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,7 +60,7 @@ export default function Login() {
         replace: true,
       });
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Nie udalo sie zalogowac.');
+      setAuthError(error instanceof Error ? error.message : t('auth.loginError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -74,11 +76,11 @@ export default function Login() {
             </div>
             <span className="text-3xl">PingwinPost</span>
           </Link>
-          <p className="mt-2 text-white/70">Wersja demo podlaczona do zywego backendu</p>
+          <p className="mt-2 text-white/70">{t('auth.demoNote')}</p>
         </div>
 
         <div className="rounded-xl bg-card p-8 shadow-xl">
-          <div className="mb-6 grid grid-cols-2 gap-3">
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {demoRoleOptions.map((option) => {
               const Icon = roleIcons[option.role];
               return (
@@ -108,7 +110,7 @@ export default function Login() {
 
           <form className="space-y-5" onSubmit={onSubmit}>
             <div>
-              <label className="mb-2 block text-sm">Email</label>
+              <label className="mb-2 block text-sm">{t('auth.email')}</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -127,7 +129,7 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm">Haslo</label>
+              <label className="mb-2 block text-sm">{t('auth.password')}</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -152,7 +154,7 @@ export default function Login() {
               disabled={isSubmitting}
               className="w-full rounded-lg bg-accent py-3 text-white transition-colors hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isSubmitting ? 'Logowanie...' : `Zaloguj jako ${selectedRoleOption.label}`}
+              {isSubmitting ? t('common.loading') : t('auth.loginAs', { role: selectedRoleOption.label })}
             </button>
           </form>
 
@@ -179,13 +181,13 @@ export default function Login() {
           </a>
 
           <div className="mt-4 rounded-lg bg-secondary p-4 text-sm text-muted-foreground">
-            Wszystkie role w wersji demo korzystaja z kont testowych i tymczasowej sesji bearer z haslem `demo1234`.
+            {t('auth.demoInfo')}
           </div>
         </div>
 
         <div className="mt-6 text-center">
           <Link to="/" className="text-sm text-white/70 transition-colors hover:text-white">
-            Wroc do strony glownej
+            {t('auth.backToHome')}
           </Link>
         </div>
       </div>

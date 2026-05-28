@@ -140,7 +140,7 @@ Nie uruchamiaj `load_api_csvs.py` wielokrotnie na tej samej bazie, jezeli chcesz
 ```powershell
 cd H:\poczta
 docker compose down -v
-docker compose up -d oracle-db
+docker compose up -d
 docker compose logs -f oracle-db
 ```
 
@@ -194,6 +194,8 @@ Po tym baza zostaje wypelniona m.in.:
 - courier task actions
 - point actions
 - complaints
+- client cancellations
+- walk-in shipments from point flow
 
 Aktualny seed daje miedzy innymi:
 - shipmenty z `PENDING` i `FAILED` payment
@@ -201,6 +203,10 @@ Aktualny seed daje miedzy innymi:
 - courier taski w stanach `ASSIGNED`, `ACCEPTED`, `IN_PROGRESS`, `COMPLETED`, `FAILED`
 - redirect do point
 - complaint `IN_REVIEW`
+- awizo po nieudanej probie doreczenia
+- zwrot zainicjowany przez kuriera
+- przesylke anulowana przez klienta
+- walk-in klienta obsluzonego w punkcie
 
 Uwaga:
 - offline point payment cases sa na razie celowo zostawiane jako `OFFLINE_PENDING` do recznego testowania i nie sa automatycznie domykane przez seed loader
@@ -240,7 +246,7 @@ cd H:\poczta\backend\poczta-backend
 
 Po seedzie mozna korzystac z przykladowych kont:
 
-- klient: `jan.kowalski.client@example.com`
+- klient: `julia.wozniak.client@example.com`
 - kurier: `courier.warsaw.1@example.com`
 - dispatcher: `ops.dispatch@example.com`
 - admin: `admin.review@example.com`
@@ -263,7 +269,7 @@ Szybki scenariusz:
 
 1. Uruchom `docker compose up -d`, backend i frontend.
 2. Zaloguj sie jako klient:
-   - `jan.kowalski.client@example.com`
+   - `julia.wozniak.client@example.com`
    - haslo: `demo1234`
 3. Wejdz w `Moje przesylki -> Nadaj przesylke`.
 4. Utworz przesylke z metoda platnosci `Online`.

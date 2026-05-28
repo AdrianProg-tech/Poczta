@@ -31,12 +31,14 @@ import {
 import { StatusBadge } from '../components/StatusBadge';
 import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
+import { useTranslation } from 'react-i18next';
 
 function formatCourierLoadLabel(openTasks: number, inProgressTasks: number, failedTasks: number) {
   return `otwarte ${openTasks} / w trasie ${inProgressTasks} / nieudane ${failedTasks}`;
 }
 
 export default function AdminDashboard() {
+  const { t } = useTranslation();
   const {
     state: { currentUser },
   } = useAppStateContext();
@@ -196,7 +198,7 @@ export default function AdminDashboard() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez panel
+          {t('common.refresh')}
         </button>
       </div>
 
@@ -223,6 +225,45 @@ export default function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      {isFullAdmin && (paymentQueue.length > 0 || complaintQueue.length > 0) ? (
+        <div className="mb-6 grid gap-3 md:grid-cols-2">
+          {paymentQueue.length > 0 ? (
+            <Link
+              to="/admin/payments"
+              className="flex items-center justify-between rounded-xl border border-destructive/30 bg-destructive/10 p-5 transition-colors hover:bg-destructive/15"
+            >
+              <div className="flex items-center gap-3">
+                <CreditCard className="h-6 w-6 text-destructive" />
+                <div>
+                  <div className="text-sm text-destructive">Płatności wymagają uwagi</div>
+                  <div className="text-2xl text-destructive">{paymentQueue.length}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                Zarządzaj płatnościami →
+              </div>
+            </Link>
+          ) : null}
+          {complaintQueue.length > 0 ? (
+            <Link
+              to="/admin/complaints"
+              className="flex items-center justify-between rounded-xl border border-warning/30 bg-warning/10 p-5 transition-colors hover:bg-warning/15"
+            >
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-6 w-6 text-warning" />
+                <div>
+                  <div className="text-sm text-warning">Reklamacje w kolejce</div>
+                  <div className="text-2xl text-warning">{complaintQueue.length}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                Zarządzaj reklamacjami →
+              </div>
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mb-8 rounded-xl border border-dashed border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

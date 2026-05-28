@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ArrowUpFromLine, Inbox, RefreshCw } from 'lucide-react';
 import { acceptPointShipment, postPointShipment } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import {
@@ -17,8 +17,10 @@ import {
   prunePointQueueSelection,
   usePointQueueData,
 } from '../pointQueue';
+import { useTranslation } from 'react-i18next';
 
 export default function PointAccept() {
+  const { t } = useTranslation();
   const { busyKey, error, isLoading, loadQueue, pointCode, pointUserEmail, queue, runPointAction, runPointBatchAction } =
     usePointQueueData();
   const [query, setQuery] = useState('');
@@ -127,7 +129,7 @@ export default function PointAccept() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez kolejke
+          {t('common.refresh')}
         </button>
       </div>
 
@@ -161,6 +163,18 @@ export default function PointAccept() {
           </div>
 
           <PointQueueSearch query={query} onQueryChange={setQuery} />
+
+          <div className="rounded-xl border-l-4 border-l-accent bg-accent/5 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <Inbox className="h-5 w-5 text-accent" />
+              <div>
+                <div className="font-medium text-accent">KROK 1 — Przyjęcie do punktu</div>
+                <div className="text-sm text-muted-foreground">
+                  Skanuj lub wybierz przesyłkę i naciśnij „Przyjmij". Po przyjęciu opłacone paczki trafią do sekcji nadania, a redirecty — do wydania klientowi.
+                </div>
+              </div>
+            </div>
+          </div>
 
           <PointQueueSection
             title="Do przyjecia do punktu"
@@ -281,6 +295,18 @@ export default function PointAccept() {
               );
             }}
           />
+
+          <div className="rounded-xl border-l-4 border-l-success bg-success/5 px-5 py-4">
+            <div className="flex items-center gap-3">
+              <ArrowUpFromLine className="h-5 w-5 text-success" />
+              <div>
+                <div className="font-medium text-success">KROK 2 — Nadanie dalej do sieci</div>
+                <div className="text-sm text-muted-foreground">
+                  Te paczki są już przyjęte. Naciśnij „Nadaj dalej" żeby potwierdzić przekazanie do logistyki. To inny przycisk niż w kroku 1 — nie pomyl!
+                </div>
+              </div>
+            </div>
+          </div>
 
           <PointQueueSection
             title="Przyjete, gotowe do nadania"

@@ -17,8 +17,10 @@ import {
   prunePointQueueSelection,
   usePointQueueData,
 } from '../pointQueue';
+import { useTranslation } from 'react-i18next';
 
 export default function PointPaymentVerification() {
+  const { t } = useTranslation();
   const { busyKey, error, isLoading, loadQueue, pointCode, pointUserEmail, queue, runPointAction, runPointBatchAction } =
     usePointQueueData();
   const [query, setQuery] = useState('');
@@ -125,7 +127,7 @@ export default function PointPaymentVerification() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez kolejke
+          {t('common.refresh')}
         </button>
       </div>
 

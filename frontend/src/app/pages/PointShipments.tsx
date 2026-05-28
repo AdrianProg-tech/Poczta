@@ -2,8 +2,10 @@ import { Link } from 'react-router';
 import { ArrowRight, RefreshCw } from 'lucide-react';
 import { DashboardShell } from '../components/DashboardShell';
 import { PointQueueSection, usePointQueueData } from '../pointQueue';
+import { useTranslation } from 'react-i18next';
 
 export default function PointShipments() {
+  const { t } = useTranslation();
   const { error, isLoading, loadQueue, pointCode, queue, queueStats } = usePointQueueData();
   const queueGroups = [
     {
@@ -46,7 +48,7 @@ export default function PointShipments() {
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
         >
           <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          Odswiez kolejke
+          {t('common.refresh')}
         </button>
       </div>
 
