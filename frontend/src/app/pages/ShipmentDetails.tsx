@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AlertCircle, Ban, Calendar, CheckCircle, CreditCard, MapPin, Printer, RotateCcw, User, XCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {
   cancelClientShipment,
   formatCurrency,
   formatDate,
   formatDateTime,
+  formatDeliveryType,
   formatPaymentMethod,
+  formatRoutingOwner,
+  formatShipmentAction,
+  formatShipmentStatus,
   getClientShipmentDetails,
   initiateOnlinePayment,
   verifyStripeSession,
@@ -17,9 +22,10 @@ import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
 
 export default function ShipmentDetails() {
+  const { t } = useTranslation();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const paymentResult = searchParams.get('payment'); // 'success' | 'cancelled'
+  const paymentResult = searchParams.get('payment');
   const {
     state: { currentUser },
   } = useAppStateContext();
@@ -52,29 +58,22 @@ export default function ShipmentDetails() {
       } catch (requestError) {
         if (active) {
           setShipment(null);
-          setError(requestError instanceof Error ? requestError.message : 'Nie znaleziono przesyłki.');
+          setError(requestError instanceof Error ? requestError.message : t('shipmentDetails.loadError'));
         }
       } finally {
-        if (active) {
-          setIsLoading(false);
-        }
+        if (active) setIsLoading(false);
       }
     }
 
     void loadShipment();
+    return () => { active = false; };
+  }, [currentUser?.email, id, t]);
 
-    return () => {
-      active = false;
-    };
-  }, [currentUser?.email, id]);
-
-  // Auto-verify payment when returning from Stripe success page
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     if (paymentResult === 'success' && sessionId && currentUser?.email && shipment?.payment?.paymentId) {
       verifyStripeSession(currentUser.email, shipment.payment.paymentId, sessionId)
         .then(() => {
-          // Reload shipment data to show updated payment status
           getClientShipmentDetails(currentUser.email!, id!)
             .then(data => setShipment(data))
             .catch(() => null);
@@ -91,28 +90,29 @@ export default function ShipmentDetails() {
       const { checkoutUrl } = await initiateOnlinePayment(currentUser.email, shipment.payment.paymentId);
       window.location.href = checkoutUrl;
     } catch {
-      setPaymentError('Nie udało się uruchomić płatności. Spróbuj ponownie.');
+      setPaymentError(t('shipmentDetails.payError'));
       setPaymentLoading(false);
     }
   }
 
   async function handleCancelShipment() {
     if (!currentUser?.email || !shipment?.trackingNumber) return;
-    if (!window.confirm('Czy na pewno chcesz anulować tę przesyłkę? Tej operacji nie można cofnąć.')) return;
+    if (!window.confirm(t('shipmentDetails.cancelConfirm'))) return;
     setCancelLoading(true);
     setCancelError(null);
     try {
       await cancelClientShipment(currentUser.email, shipment.trackingNumber);
       navigate('/client/shipments');
     } catch {
-      setCancelError('Nie udało się anulować przesyłki. Spróbuj ponownie.');
+      setCancelError(t('shipmentDetails.cancelError'));
       setCancelLoading(false);
     }
   }
 
   const canCancel =
     shipment !== null &&
-    ['CREATED', 'PAID', 'READY_FOR_POSTING'].includes(shipment.currentStatus);
+    ['READY_FOR_HANDOVER', 'ACCEPTED_AT_SOURCE'].includes(shipment.currentStatus);
+  const readableActions = shipment?.allowedActions.map((action) => formatShipmentAction(action)).filter(Boolean) ?? [];
 
   function printShipmentLabel(s: ClientShipmentDetails) {
     const html = `<!DOCTYPE html>
@@ -175,20 +175,20 @@ export default function ShipmentDetails() {
   }
 
   if (isLoading) {
-    return <DashboardShell role="client" title="Szczegóły przesyłki">Ładowanie szczegółów...</DashboardShell>;
+    return <DashboardShell role="client" title={t('shipmentDetails.title')}>{t('shipmentDetails.loading')}</DashboardShell>;
   }
 
   if (!shipment) {
     return (
-      <DashboardShell role="client" title="Szczegóły przesyłki">
+      <DashboardShell role="client" title={t('shipmentDetails.title')}>
         <div className="max-w-lg rounded-xl border border-border bg-card p-8 text-center shadow-sm">
-          <h2 className="mb-3 text-2xl">Nie znaleziono przesyłki</h2>
-          <p className="mb-6 text-muted-foreground">{error ?? 'Wybrana przesyłka nie istnieje albo nie jest dostępna.'}</p>
+          <h2 className="mb-3 text-2xl">{t('shipmentDetails.notFound')}</h2>
+          <p className="mb-6 text-muted-foreground">{error ?? t('shipmentDetails.notFoundDesc')}</p>
           <Link
             to="/client/shipments"
             className="rounded-lg bg-accent px-6 py-3 text-white transition-colors hover:bg-accent/90"
           >
-            Wróć do listy przesyłek
+            {t('shipmentDetails.backToList')}
           </Link>
         </div>
       </DashboardShell>
@@ -196,17 +196,17 @@ export default function ShipmentDetails() {
   }
 
   return (
-    <DashboardShell role="client" title="Szczegóły przesyłki">
+    <DashboardShell role="client" title={t('shipmentDetails.title')}>
       {paymentResult === 'success' && (
         <div className="mb-4 flex items-center gap-3 rounded-lg bg-green-500/10 border border-green-500/20 px-4 py-3 text-green-700 dark:text-green-400">
           <CheckCircle className="h-5 w-5 flex-shrink-0" />
-          <span>Płatność zakończona sukcesem. Status zostanie zaktualizowany wkrótce.</span>
+          <span>{t('shipmentDetails.paymentSuccess')}</span>
         </div>
       )}
       {paymentResult === 'cancelled' && (
         <div className="mb-4 flex items-center gap-3 rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3 text-destructive">
           <XCircle className="h-5 w-5 flex-shrink-0" />
-          <span>Płatność została anulowana lub odrzucona. Możesz spróbować ponownie.</span>
+          <span>{t('shipmentDetails.paymentCancelled')}</span>
         </div>
       )}
 
@@ -216,9 +216,17 @@ export default function ShipmentDetails() {
             <h2 className="text-2xl">{shipment.trackingNumber}</h2>
             <StatusBadge status={shipment.currentStatus} />
           </div>
-          <p className="text-muted-foreground">
-            Dozwolone akcje: {shipment.allowedActions.length > 0 ? shipment.allowedActions.join(', ') : 'brak'}
-          </p>
+          <div className="space-y-1 text-muted-foreground">
+            <p>
+              Trasa: {formatShipmentStatus(shipment.delivery.shipmentRouteStatus ?? shipment.currentStatus)} · nastepny owner:{' '}
+              {formatRoutingOwner(shipment.nextOwner)}
+            </p>
+            <p>
+              {t('shipmentDetails.allowedActions', {
+                actions: readableActions.length > 0 ? readableActions.join(', ') : t('shipmentDetails.noActions'),
+              })}
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -230,7 +238,7 @@ export default function ShipmentDetails() {
               className="flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-60"
             >
               <CreditCard className="h-4 w-4" />
-              {paymentLoading ? 'Przekierowywanie...' : 'Zapłać przez Stripe'}
+              {paymentLoading ? t('shipmentDetails.paying') : t('shipmentDetails.payStripe')}
             </button>
           ) : null}
           {shipment.allowedActions.includes('REQUEST_REDIRECTION') ? (
@@ -239,7 +247,7 @@ export default function ShipmentDetails() {
               className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
             >
               <RotateCcw className="h-4 w-4" />
-              Przekieruj do punktu
+              {t('shipmentDetails.redirectToPoint')}
             </Link>
           ) : null}
           <button
@@ -248,7 +256,7 @@ export default function ShipmentDetails() {
             className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
           >
             <Printer className="h-4 w-4" />
-            Drukuj etykietę
+            {t('shipmentDetails.printLabel')}
           </button>
           {canCancel ? (
             <button
@@ -258,24 +266,22 @@ export default function ShipmentDetails() {
               className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-2 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
             >
               <Ban className="h-4 w-4" />
-              {cancelLoading ? 'Anulowanie...' : 'Anuluj przesyłkę'}
+              {cancelLoading ? t('shipmentDetails.cancelling') : t('shipmentDetails.cancelShipment')}
             </button>
           ) : null}
-          {cancelError ? (
-            <p className="w-full text-sm text-destructive">{cancelError}</p>
-          ) : null}
+          {cancelError ? <p className="w-full text-sm text-destructive">{cancelError}</p> : null}
         </div>
       </div>
 
       <div className="mb-6 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="mb-4 text-lg">Dane adresowe</h3>
+            <h3 className="mb-4 text-lg">{t('shipmentDetails.addressData')}</h3>
             <div className="grid gap-6 md:grid-cols-2">
               <div>
                 <div className="mb-3 flex items-center gap-2 text-muted-foreground">
                   <User className="h-4 w-4" />
-                  <span className="text-sm uppercase tracking-wide">Nadawca</span>
+                  <span className="text-sm uppercase tracking-wide">{t('shipmentDetails.sender')}</span>
                 </div>
                 <div className="space-y-1">
                   <div>{shipment.sender.name}</div>
@@ -290,7 +296,7 @@ export default function ShipmentDetails() {
               <div>
                 <div className="mb-3 flex items-center gap-2 text-muted-foreground">
                   <User className="h-4 w-4" />
-                  <span className="text-sm uppercase tracking-wide">Odbiorca</span>
+                  <span className="text-sm uppercase tracking-wide">{t('shipmentDetails.recipient')}</span>
                 </div>
                 <div className="space-y-1">
                   <div>{shipment.recipient.name}</div>
@@ -305,32 +311,32 @@ export default function ShipmentDetails() {
           </div>
 
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="mb-4 text-lg">Parametry paczki</h3>
+            <h3 className="mb-4 text-lg">{t('shipmentDetails.parcelParams')}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <div className="mb-1 text-sm text-muted-foreground">Waga</div>
+                <div className="mb-1 text-sm text-muted-foreground">{t('shipmentDetails.weightLabel')}</div>
                 <div>{shipment.parcel.weight} kg</div>
               </div>
               <div>
-                <div className="mb-1 text-sm text-muted-foreground">Gabaryt</div>
+                <div className="mb-1 text-sm text-muted-foreground">{t('shipmentDetails.sizeLabel')}</div>
                 <div>{shipment.parcel.sizeCategory}</div>
               </div>
               <div>
-                <div className="mb-1 text-sm text-muted-foreground">Wartość deklarowana</div>
+                <div className="mb-1 text-sm text-muted-foreground">{t('shipmentDetails.declaredValue')}</div>
                 <div>{formatCurrency(shipment.parcel.declaredValue)}</div>
               </div>
               <div>
-                <div className="mb-1 text-sm text-muted-foreground">Delikatna</div>
-                <div>{shipment.parcel.fragile ? 'Tak' : 'Nie'}</div>
+                <div className="mb-1 text-sm text-muted-foreground">{t('shipmentDetails.fragileLabel')}</div>
+                <div>{shipment.parcel.fragile ? t('shipmentDetails.yes') : t('shipmentDetails.no')}</div>
               </div>
             </div>
           </div>
 
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="mb-6 text-lg">Historia przesyłki</h3>
+            <h3 className="mb-6 text-lg">{t('shipmentDetails.history')}</h3>
             <div className="space-y-6">
               {shipment.history.length === 0 ? (
-                <div className="text-muted-foreground">Ta przesyłka nie ma jeszcze żadnych zdarzeń trackingowych.</div>
+                <div className="text-muted-foreground">{t('shipmentDetails.noHistory')}</div>
               ) : null}
 
               {shipment.history.map((item, index) => (
@@ -358,24 +364,29 @@ export default function ShipmentDetails() {
 
         <div className="space-y-6">
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="mb-4 text-lg">Dostawa</h3>
+            <h3 className="mb-4 text-lg">{t('shipmentDetails.delivery')}</h3>
             <div className="space-y-4">
               <div className="flex items-center gap-3 rounded-lg bg-accent/10 p-3">
                 <Calendar className="h-5 w-5 text-accent" />
                 <div>
-                  <div className="text-sm text-muted-foreground">Szacowana dostawa</div>
+                  <div className="text-sm text-muted-foreground">{t('shipmentDetails.estimatedDelivery')}</div>
                   <div>{formatDate(shipment.delivery.estimatedDeliveryDate)}</div>
                 </div>
               </div>
 
               <div>
-                <div className="mb-1 text-sm text-muted-foreground">Typ dostawy</div>
-                <div>{shipment.delivery.deliveryType === 'COURIER' ? 'Kurier' : shipment.delivery.deliveryType}</div>
+                <div className="mb-1 text-sm text-muted-foreground">{t('shipmentDetails.deliveryType')}</div>
+                <div>{formatDeliveryType(shipment.delivery.deliveryType)}</div>
+              </div>
+
+              <div>
+                <div className="mb-1 text-sm text-muted-foreground">Status trasy</div>
+                <div>{formatShipmentStatus(shipment.delivery.shipmentRouteStatus ?? shipment.currentStatus)}</div>
               </div>
 
               {shipment.delivery.targetPointCode ? (
                 <div>
-                  <div className="mb-1 text-sm text-muted-foreground">Punkt docelowy</div>
+                  <div className="mb-1 text-sm text-muted-foreground">{t('shipmentDetails.targetPoint')}</div>
                   <div>{shipment.delivery.targetPointCode}</div>
                 </div>
               ) : null}
@@ -383,30 +394,28 @@ export default function ShipmentDetails() {
           </div>
 
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="mb-4 text-lg">Płatność</h3>
+            <h3 className="mb-4 text-lg">{t('shipmentDetails.payment')}</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Status</span>
+                <span className="text-sm text-muted-foreground">{t('shipmentDetails.paymentStatus')}</span>
                 <StatusBadge status={shipment.payment.status} type="payment" />
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Kwota</span>
+                <span className="text-sm text-muted-foreground">{t('shipmentDetails.paymentAmount')}</span>
                 <span>{formatCurrency(shipment.payment.amount)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Metoda</span>
+                <span className="text-sm text-muted-foreground">{t('shipmentDetails.paymentMethod')}</span>
                 <span className="text-sm">{formatPaymentMethod(shipment.payment.method)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Referencja</span>
-                <span className="text-sm">{shipment.payment.externalReference ?? 'Brak'}</span>
+                <span className="text-sm text-muted-foreground">{t('shipmentDetails.paymentRef')}</span>
+                <span className="text-sm">{shipment.payment.externalReference ?? t('shipmentDetails.noReference')}</span>
               </div>
 
               {shipment.payment.status === 'PENDING' && shipment.payment.method === 'ONLINE' && shipment.payment.paymentId ? (
                 <div className="pt-2">
-                  {paymentError ? (
-                    <p className="mb-2 text-sm text-destructive">{paymentError}</p>
-                  ) : null}
+                  {paymentError ? <p className="mb-2 text-sm text-destructive">{paymentError}</p> : null}
                   <button
                     type="button"
                     onClick={() => void handlePayOnline()}
@@ -414,7 +423,7 @@ export default function ShipmentDetails() {
                     className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-white transition-colors hover:bg-accent/90 disabled:opacity-60"
                   >
                     <CreditCard className="h-4 w-4" />
-                    {paymentLoading ? 'Przekierowywanie...' : 'Opłać online (Stripe)'}
+                    {paymentLoading ? t('shipmentDetails.paying') : t('shipmentDetails.payOnlineStripe')}
                   </button>
                 </div>
               ) : null}
@@ -425,15 +434,15 @@ export default function ShipmentDetails() {
             <div className="mb-4 flex items-start gap-3">
               <AlertCircle className="h-5 w-5 flex-shrink-0 text-destructive" />
               <div>
-                <h4 className="mb-1 text-sm">Problem z przesyłką?</h4>
-                <p className="text-sm text-muted-foreground">Reklamacje są już podpięte do żywego backendu.</p>
+                <h4 className="mb-1 text-sm">{t('shipmentDetails.problem')}</h4>
+                <p className="text-sm text-muted-foreground">{t('shipmentDetails.problemDesc')}</p>
               </div>
             </div>
             <Link
               to="/client/claims"
               className="block w-full rounded-lg bg-destructive px-4 py-2 text-center text-white transition-colors hover:bg-destructive/90"
             >
-              Zgłoś reklamację
+              {t('shipmentDetails.fileClaim')}
             </Link>
           </div>
         </div>

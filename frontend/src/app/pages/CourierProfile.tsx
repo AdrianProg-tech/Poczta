@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { CheckCircle, Clock, Mail, MapPin, Package, Truck, User, XCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getCourierTasks, type CourierTaskListItem } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
 
 export default function CourierProfile() {
+  const { t } = useTranslation();
   const {
     state: { currentUser },
   } = useAppStateContext();
@@ -43,60 +45,26 @@ export default function CourierProfile() {
 
   const stats = useMemo(
     () => [
-      {
-        label: 'Wszystkie zadania',
-        value: tasks.length,
-        icon: Package,
-        color: 'text-accent',
-      },
-      {
-        label: 'Przypisane',
-        value: tasks.filter((t) => t.taskStatus === 'ASSIGNED').length,
-        icon: Clock,
-        color: 'text-warning',
-      },
-      {
-        label: 'W trakcie',
-        value: tasks.filter((t) => ['ACCEPTED', 'IN_PROGRESS'].includes(t.taskStatus)).length,
-        icon: Truck,
-        color: 'text-accent',
-      },
-      {
-        label: 'Zakończone',
-        value: tasks.filter((t) => t.taskStatus === 'COMPLETED').length,
-        icon: CheckCircle,
-        color: 'text-success',
-      },
-      {
-        label: 'Nieudane',
-        value: tasks.filter((t) => t.taskStatus === 'FAILED').length,
-        icon: XCircle,
-        color: 'text-destructive',
-      },
-      {
-        label: 'Wymagają płatności',
-        value: tasks.filter((t) => t.requiresPaymentCollection).length,
-        icon: Clock,
-        color: 'text-warning',
-      },
+      { label: t('courierProfile.statAll'), value: tasks.length, icon: Package, color: 'text-accent' },
+      { label: t('courierProfile.statAssigned'), value: tasks.filter((task) => task.taskStatus === 'ASSIGNED').length, icon: Clock, color: 'text-warning' },
+      { label: t('courierProfile.statInProgress'), value: tasks.filter((task) => ['ACCEPTED', 'IN_PROGRESS'].includes(task.taskStatus)).length, icon: Truck, color: 'text-accent' },
+      { label: t('courierProfile.statCompleted'), value: tasks.filter((task) => task.taskStatus === 'COMPLETED').length, icon: CheckCircle, color: 'text-success' },
+      { label: t('courierProfile.statFailed'), value: tasks.filter((task) => task.taskStatus === 'FAILED').length, icon: XCircle, color: 'text-destructive' },
+      { label: t('courierProfile.statPaymentRequired'), value: tasks.filter((task) => task.requiresPaymentCollection).length, icon: Clock, color: 'text-warning' },
     ],
-    [tasks],
+    [tasks, t],
   );
 
   return (
-    <DashboardShell role="courier" title="Mój profil">
+    <DashboardShell role="courier" title={t('courierProfile.title')}>
       <div className="mx-auto max-w-3xl space-y-8">
-
-        {/* Avatar + basic info */}
         <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
           <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-accent text-2xl text-white">
               {initials}
             </div>
-
             <div className="flex-1 text-center sm:text-left">
               <h2 className="text-2xl">{currentUser?.name ?? '—'}</h2>
-
               <div className="mt-3 space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center justify-center gap-2 sm:justify-start">
                   <Mail className="h-4 w-4 shrink-0" />
@@ -104,12 +72,12 @@ export default function CourierProfile() {
                 </div>
                 <div className="flex items-center justify-center gap-2 sm:justify-start">
                   <User className="h-4 w-4 shrink-0" />
-                  <span>Rola: Kurier</span>
+                  <span>{t('courierProfile.role')}</span>
                 </div>
                 {currentUser?.serviceCity ? (
                   <div className="flex items-center justify-center gap-2 sm:justify-start">
                     <MapPin className="h-4 w-4 shrink-0" />
-                    <span>Rejon: {currentUser.serviceCity}</span>
+                    <span>{t('courierProfile.district', { city: currentUser.serviceCity })}</span>
                   </div>
                 ) : null}
               </div>
@@ -117,30 +85,23 @@ export default function CourierProfile() {
           </div>
         </div>
 
-        {/* Task stats */}
         <div>
-          <h3 className="mb-4 text-lg">Statystyki zadań</h3>
+          <h3 className="mb-4 text-lg">{t('courierProfile.statsTitle')}</h3>
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
             {stats.map((item) => (
-              <div
-                key={item.label}
-                className="rounded-xl border border-border bg-card p-5 shadow-sm"
-              >
+              <div key={item.label} className="rounded-xl border border-border bg-card p-5 shadow-sm">
                 <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                   <item.icon className={`h-4 w-4 ${item.color}`} />
                   {item.label}
                 </div>
-                <div className={`text-3xl ${item.color}`}>
-                  {isLoading ? '...' : item.value}
-                </div>
+                <div className={`text-3xl ${item.color}`}>{isLoading ? '...' : item.value}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Quick action */}
         <div>
-          <h3 className="mb-4 text-lg">Szybkie akcje</h3>
+          <h3 className="mb-4 text-lg">{t('courierProfile.quickTitle')}</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <Link
               to="/courier/tasks"
@@ -150,8 +111,8 @@ export default function CourierProfile() {
                 <Truck className="h-5 w-5 text-accent" />
               </div>
               <div>
-                <div className="font-medium">Moje zadania</div>
-                <div className="text-sm text-muted-foreground">Lista zadań doręczeń</div>
+                <div className="font-medium">{t('courierProfile.actionTasks')}</div>
+                <div className="text-sm text-muted-foreground">{t('courierProfile.actionTasksDesc')}</div>
               </div>
             </Link>
 
@@ -163,8 +124,8 @@ export default function CourierProfile() {
                 <Package className="h-5 w-5 text-success" />
               </div>
               <div>
-                <div className="font-medium">Panel kuriera</div>
-                <div className="text-sm text-muted-foreground">Powrót do dashboardu</div>
+                <div className="font-medium">{t('courierProfile.actionDashboard')}</div>
+                <div className="text-sm text-muted-foreground">{t('courierProfile.actionDashboardDesc')}</div>
               </div>
             </Link>
           </div>

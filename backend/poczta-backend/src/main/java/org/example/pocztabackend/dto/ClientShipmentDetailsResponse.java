@@ -5,6 +5,7 @@ import java.util.List;
 public record ClientShipmentDetailsResponse(
         String trackingNumber,
         String currentStatus,
+        String nextOwner,
         ShipmentContactResponse sender,
         ShipmentContactResponse recipient,
         ShipmentParcelResponse parcel,

@@ -25,15 +25,18 @@ public class TrackingEventService {
     private final TrackingEventRepository trackingEventRepository;
     private final ShipmentRepository shipmentRepository;
     private final ShipmentWorkflowService shipmentWorkflowService;
+    private final ShipmentRoutingService shipmentRoutingService;
 
     public TrackingEventService(
             TrackingEventRepository trackingEventRepository,
             ShipmentRepository shipmentRepository,
-            ShipmentWorkflowService shipmentWorkflowService
+            ShipmentWorkflowService shipmentWorkflowService,
+            ShipmentRoutingService shipmentRoutingService
     ) {
         this.trackingEventRepository = trackingEventRepository;
         this.shipmentRepository = shipmentRepository;
         this.shipmentWorkflowService = shipmentWorkflowService;
+        this.shipmentRoutingService = shipmentRoutingService;
     }
 
     @Transactional
@@ -89,7 +92,7 @@ public class TrackingEventService {
 
         return new PublicShipmentTrackingResponse(
                 shipment.getTrackingNumber(),
-                shipment.getStatus(),
+                shipmentRoutingService.snapshot(shipment, null, null).shipmentRouteStatus(),
                 shipment.getDeliveryType(),
                 buildDestinationSummary(shipment),
                 shipment.getEstimatedDeliveryDate(),

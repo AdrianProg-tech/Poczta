@@ -11,9 +11,11 @@ import org.example.pocztabackend.model.Payment;
 import org.example.pocztabackend.model.Point;
 import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.User;
+import org.example.pocztabackend.model.CourierTask;
 import org.example.pocztabackend.model.enums.PaymentStatus;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.PaymentRepository;
+import org.example.pocztabackend.repository.CourierTaskRepository;
 import org.example.pocztabackend.repository.ShipmentRepository;
 import org.example.pocztabackend.repository.TrackingEventRepository;
 import org.springframework.http.HttpStatus;
@@ -28,25 +30,43 @@ public class ContractShipmentQueryService {
 
     private final ShipmentRepository shipmentRepository;
     private final PaymentRepository paymentRepository;
+    private final CourierTaskRepository courierTaskRepository;
     private final TrackingEventRepository trackingEventRepository;
     private final AuthFacadeService authFacadeService;
+    private final ShipmentRoutingService shipmentRoutingService;
 
     public ContractShipmentQueryService(
             ShipmentRepository shipmentRepository,
             PaymentRepository paymentRepository,
+            CourierTaskRepository courierTaskRepository,
             TrackingEventRepository trackingEventRepository,
-            AuthFacadeService authFacadeService
+            AuthFacadeService authFacadeService,
+            ShipmentRoutingService shipmentRoutingService
     ) {
         this.shipmentRepository = shipmentRepository;
         this.paymentRepository = paymentRepository;
+        this.courierTaskRepository = courierTaskRepository;
         this.trackingEventRepository = trackingEventRepository;
         this.authFacadeService = authFacadeService;
+        this.shipmentRoutingService = shipmentRoutingService;
     }
 
     public List<ClientShipmentListItemResponse> getClientShipments(String userEmail) {
         User user = authFacadeService.requireUser(userEmail);
         return shipmentRepository.findAllByCreator_IdOrderByCreatedAtDesc(user.getId()).stream()
-                .map(shipment -> ClientShipmentListItemResponse.from(shipment, getLatestPaymentStatus(shipment)))
+                .map(shipment -> {
+                    ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(
+                            shipment,
+                            getLatestPayment(shipment),
+                            findLatestTask(shipment)
+                    );
+                    return ClientShipmentListItemResponse.from(
+                            shipment,
+                            getLatestPaymentStatus(shipment),
+                            routing.shipmentRouteStatus(),
+                            routing.nextOwner()
+                    );
+                })
                 .toList();
     }
 
@@ -56,6 +76,7 @@ public class ContractShipmentQueryService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
 
         Payment latestPayment = getLatestPayment(shipment);
+        ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, latestPayment, findLatestTask(shipment));
 
         List<TrackingHistoryItemResponse> history = trackingEventRepository
                 .findAllByShipment_IdOrderByEventTimeDesc(shipment.getId())
@@ -65,7 +86,8 @@ public class ContractShipmentQueryService {
 
         return new ClientShipmentDetailsResponse(
                 shipment.getTrackingNumber(),
-                shipment.getStatus() == null ? null : shipment.getStatus().name(),
+                routing.shipmentRouteStatus(),
+                routing.nextOwner(),
                 new ShipmentContactResponse(
                         shipment.getSenderName(),
                         shipment.getSenderPhone(),
@@ -94,12 +116,18 @@ public class ContractShipmentQueryService {
                 ),
                 new ShipmentDeliveryDetailsResponse(
                         shipment.getDeliveryType(),
+                        routing.intakeMethod(),
+                        routing.deliveryMethod(),
+                        routing.shipmentRouteStatus(),
+                        routing.currentNodeType(),
+                        routing.currentNodeCode(),
+                        getPointCode(shipment.getSourcePoint()),
                         getPointCode(shipment.getCurrentPoint()),
                         getPointCode(shipment.getTargetPoint()),
                         shipment.getEstimatedDeliveryDate()
                 ),
                 history,
-                getAllowedActions(shipment)
+                getAllowedActions(shipment, routing)
         );
     }
 
@@ -118,9 +146,17 @@ public class ContractShipmentQueryService {
         return point == null ? null : point.getPointCode();
     }
 
-    private List<String> getAllowedActions(Shipment shipment) {
-        List<String> actions = new ArrayList<>();
-        actions.add("CREATE_COMPLAINT");
+    private CourierTask findLatestTask(Shipment shipment) {
+        return courierTaskRepository.findAllByShipment_IdOrderByAssignedAtDesc(shipment.getId()).stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    private List<String> getAllowedActions(Shipment shipment, ShipmentRoutingSnapshot routing) {
+        List<String> actions = new ArrayList<>(routing.availableActions());
+        if (!actions.contains("CREATE_COMPLAINT")) {
+            actions.add("CREATE_COMPLAINT");
+        }
 
         ShipmentStatus status = shipment.getStatus();
         if (status == ShipmentStatus.CREATED

@@ -41,6 +41,16 @@ function getStatusColor(type: StatusBadgeProps['type'], status: string | null | 
   switch (status) {
     case 'DELIVERED':
       return 'bg-success/10 text-success border-success/20';
+    case 'READY_FOR_HANDOVER':
+    case 'ACCEPTED_AT_SOURCE':
+    case 'IN_TRANSIT_TO_ORIGIN_HUB':
+    case 'AT_ORIGIN_HUB':
+    case 'IN_TRANSIT_TO_DESTINATION_HUB':
+    case 'AT_DESTINATION_HUB':
+    case 'IN_TRANSIT_TO_TARGET_POINT':
+    case 'IN_TRANSIT_TO_TARGET_LOCKER':
+      return 'bg-accent/10 text-accent border-accent/20';
+    case 'AWAITING_LOCKER_PICKUP':
     case 'REGISTERED':
     case 'CREATED':
     case 'PAID':
@@ -52,8 +62,10 @@ function getStatusColor(type: StatusBadgeProps['type'], status: string | null | 
     case 'AWAITING_PICKUP':
     case 'REDIRECTED_TO_PICKUP':
       return 'bg-info/10 text-info border-info/20';
+    case 'DELIVERY_ATTEMPT_FAILED':
     case 'DELIVERY_ATTEMPT':
       return 'bg-warning/10 text-warning border-warning/20';
+    case 'RETURN_IN_TRANSIT':
     case 'RETURNED':
     case 'CANCELED':
       return 'bg-destructive/10 text-destructive border-destructive/20';

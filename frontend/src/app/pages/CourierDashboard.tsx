@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle, Clock, Navigation, Package } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { formatDate, getCourierTasks, type CourierTaskListItem } from '../api';
 import { StatusBadge } from '../components/StatusBadge';
 import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
 
 export default function CourierDashboard() {
+  const { t } = useTranslation();
   const {
     state: { currentUser },
   } = useAppStateContext();
@@ -33,34 +35,19 @@ export default function CourierDashboard() {
 
   const stats = useMemo(
     () => [
-      { label: 'Otwarte zadania', value: tasks.length, icon: Package, color: 'text-accent' },
-      {
-        label: 'W trasie',
-        value: tasks.filter((task) => task.taskStatus === 'IN_PROGRESS').length,
-        icon: Navigation,
-        color: 'text-info',
-      },
-      {
-        label: 'Do startu',
-        value: tasks.filter((task) => task.taskStatus === 'ASSIGNED' || task.taskStatus === 'ACCEPTED').length,
-        icon: Clock,
-        color: 'text-warning',
-      },
-      {
-        label: 'Pozytywne zakończenia',
-        value: tasks.filter((task) => task.shipmentStatus === 'DELIVERED').length,
-        icon: CheckCircle,
-        color: 'text-success',
-      },
+      { label: t('courierDashboard.statOpen'), value: tasks.length, icon: Package, color: 'text-accent' },
+      { label: t('courierDashboard.statInProgress'), value: tasks.filter((task) => task.taskStatus === 'IN_PROGRESS').length, icon: Navigation, color: 'text-info' },
+      { label: t('courierDashboard.statReady'), value: tasks.filter((task) => task.taskStatus === 'ASSIGNED' || task.taskStatus === 'ACCEPTED').length, icon: Clock, color: 'text-warning' },
+      { label: t('courierDashboard.statCompleted'), value: tasks.filter((task) => task.shipmentStatus === 'DELIVERED').length, icon: CheckCircle, color: 'text-success' },
     ],
-    [tasks],
+    [tasks, t],
   );
 
   return (
-    <DashboardShell role="courier" title="Dashboard kuriera">
+    <DashboardShell role="courier" title={t('courierDashboard.title')}>
       <div className="mb-8">
-        <h2 className="mb-2 text-2xl">Dzień dobry, {currentUser?.name.split(' ')[0]}!</h2>
-        <p className="text-muted-foreground">Tu znajdziesz wszystkie przypisane zadania dostawcze na dziś i kolejne dni.</p>
+        <h2 className="mb-2 text-2xl">{t('courierDashboard.welcome', { name: currentUser?.name.split(' ')[0] })}</h2>
+        <p className="text-muted-foreground">{t('courierDashboard.subtitle')}</p>
       </div>
 
       <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -77,13 +64,13 @@ export default function CourierDashboard() {
 
       <div className="rounded-xl border border-border bg-card shadow-sm">
         <div className="border-b border-border p-6">
-          <h3 className="text-xl">Dzisiejsze zadania</h3>
+          <h3 className="text-xl">{t('courierDashboard.todayTasks')}</h3>
         </div>
 
-        {isLoading ? <div className="p-6">Ładowanie zadań...</div> : null}
+        {isLoading ? <div className="p-6">{t('courierDashboard.loading')}</div> : null}
 
         {!isLoading && tasks.length === 0 ? (
-          <div className="p-6 text-muted-foreground">Brak aktywnych zadań dla tego kuriera.</div>
+          <div className="p-6 text-muted-foreground">{t('courierDashboard.empty')}</div>
         ) : null}
 
         <div className="divide-y divide-border">
@@ -98,18 +85,18 @@ export default function CourierDashboard() {
 
                   <div className="grid gap-3 md:grid-cols-2">
                     <div>
-                      <div className="mb-1 text-sm text-muted-foreground">Odbiorca</div>
+                      <div className="mb-1 text-sm text-muted-foreground">{t('courierDashboard.recipient')}</div>
                       <div>{task.recipientName}</div>
                       <div className="text-sm text-muted-foreground">{task.recipientPhone}</div>
                     </div>
                     <div>
-                      <div className="mb-1 text-sm text-muted-foreground">Adres docelowy</div>
+                      <div className="mb-1 text-sm text-muted-foreground">{t('courierDashboard.targetAddress')}</div>
                       <div>{task.targetAddress}</div>
                     </div>
                   </div>
                 </div>
 
-                <div className="text-sm text-muted-foreground">Plan: {formatDate(task.plannedDate)}</div>
+                <div className="text-sm text-muted-foreground">{t('courierDashboard.plannedDate', { date: formatDate(task.plannedDate) })}</div>
               </div>
             </div>
           ))}

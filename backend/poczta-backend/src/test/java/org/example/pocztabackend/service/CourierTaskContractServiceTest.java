@@ -9,6 +9,8 @@ import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
 import org.example.pocztabackend.model.User;
 import org.example.pocztabackend.model.enums.PaymentStatus;
+import org.example.pocztabackend.model.enums.ShipmentNodeType;
+import org.example.pocztabackend.model.enums.ShipmentRouteStatus;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.CourierTaskRepository;
 import org.example.pocztabackend.repository.DeliveryAttemptRepository;
@@ -90,7 +92,8 @@ class CourierTaskContractServiceTest {
                 paymentRepository,
                 paymentService,
                 noticeRepository,
-                returnProcessRepository
+                returnProcessRepository,
+                new ShipmentRoutingService()
         );
     }
 
@@ -104,6 +107,10 @@ class CourierTaskContractServiceTest {
         shipment.setId(UUID.randomUUID());
         shipment.setStatus(ShipmentStatus.OUT_FOR_DELIVERY);
         shipment.setTrackingNumber("PWCOURIER1PL");
+        shipment.setDeliveryType("COURIER");
+        shipment.setDeliveryMethod("COURIER_HOME");
+        shipment.setShipmentRouteStatus(ShipmentRouteStatus.OUT_FOR_DELIVERY.name());
+        shipment.setCurrentNodeType(ShipmentNodeType.COURIER.name());
 
         CourierTask task = new CourierTask();
         task.setId(UUID.randomUUID());
@@ -144,6 +151,10 @@ class CourierTaskContractServiceTest {
         shipment.setId(UUID.randomUUID());
         shipment.setStatus(ShipmentStatus.OUT_FOR_DELIVERY);
         shipment.setTrackingNumber("PWCOURIER2PL");
+        shipment.setDeliveryType("COURIER");
+        shipment.setDeliveryMethod("COURIER_HOME");
+        shipment.setShipmentRouteStatus(ShipmentRouteStatus.OUT_FOR_DELIVERY.name());
+        shipment.setCurrentNodeType(ShipmentNodeType.COURIER.name());
 
         CourierTask task = new CourierTask();
         task.setId(UUID.randomUUID());

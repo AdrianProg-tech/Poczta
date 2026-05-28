@@ -4,11 +4,14 @@ import org.example.pocztabackend.dto.AdminAssignCourierRequest;
 import org.example.pocztabackend.dto.AdminAssignCourierResponse;
 import org.example.pocztabackend.dto.ShipmentStateChangeResponse;
 import org.example.pocztabackend.model.CourierTask;
+import org.example.pocztabackend.model.Payment;
 import org.example.pocztabackend.model.Point;
 import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
 import org.example.pocztabackend.model.User;
 import org.example.pocztabackend.model.enums.PaymentStatus;
+import org.example.pocztabackend.model.enums.ShipmentNodeType;
+import org.example.pocztabackend.model.enums.ShipmentRouteStatus;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.CourierTaskRepository;
 import org.example.pocztabackend.repository.PaymentRepository;
@@ -35,6 +38,7 @@ public class DispatchOperationsService {
     private final UserRepository userRepository;
     private final ShipmentWorkflowService shipmentWorkflowService;
     private final TrackingEventRepository trackingEventRepository;
+    private final ShipmentRoutingService shipmentRoutingService;
 
     public DispatchOperationsService(
             ShipmentRepository shipmentRepository,
@@ -42,7 +46,8 @@ public class DispatchOperationsService {
             CourierTaskRepository courierTaskRepository,
             UserRepository userRepository,
             ShipmentWorkflowService shipmentWorkflowService,
-            TrackingEventRepository trackingEventRepository
+            TrackingEventRepository trackingEventRepository,
+            ShipmentRoutingService shipmentRoutingService
     ) {
         this.shipmentRepository = shipmentRepository;
         this.paymentRepository = paymentRepository;
@@ -50,6 +55,7 @@ public class DispatchOperationsService {
         this.userRepository = userRepository;
         this.shipmentWorkflowService = shipmentWorkflowService;
         this.trackingEventRepository = trackingEventRepository;
+        this.shipmentRoutingService = shipmentRoutingService;
     }
 
     @Transactional
@@ -104,12 +110,11 @@ public class DispatchOperationsService {
         if (!"COURIER".equalsIgnoreCase(shipment.getDeliveryType())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only courier shipments can be assigned to courier dispatch");
         }
-        EnumSet<ShipmentStatus> assignableStatuses = EnumSet.of(
-                ShipmentStatus.READY_FOR_POSTING, ShipmentStatus.POSTED, ShipmentStatus.IN_TRANSIT
-        );
-        if (!assignableStatuses.contains(shipment.getStatus())) {
+        ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, getLatestPayment(shipment), null);
+        if (!"AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())
+                || !"COURIER_HOME".equals(routing.deliveryMethod())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Shipment must be in READY_FOR_POSTING, POSTED or IN_TRANSIT to assign a courier");
+                    "Shipment must be at destination hub in courier-home flow to assign a courier");
         }
         if (hasActiveCourierTask(shipment.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Shipment already has an active courier task");
@@ -199,6 +204,12 @@ public class DispatchOperationsService {
         }
 
         shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.IN_TRANSIT);
+        shipmentRoutingService.applyRouteState(
+                shipment,
+                ShipmentRouteStatus.AT_DESTINATION_HUB,
+                ShipmentNodeType.DESTINATION_HUB,
+                resolveHubCode(shipment)
+        );
         shipmentRepository.save(shipment);
         addTrackingEvent(shipment, ShipmentStatus.IN_TRANSIT, "Sorting hub", "Shipment arrived at sorting hub and is in transit", LocalDateTime.now());
 
@@ -210,10 +221,10 @@ public class DispatchOperationsService {
         Shipment shipment = shipmentRepository.findById(shipmentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
 
-        EnumSet<ShipmentStatus> routableStatuses = EnumSet.of(ShipmentStatus.POSTED, ShipmentStatus.IN_TRANSIT);
+        EnumSet<ShipmentStatus> routableStatuses = EnumSet.of(ShipmentStatus.POSTED, ShipmentStatus.IN_TRANSIT, ShipmentStatus.REDIRECTED_TO_PICKUP);
         if (!routableStatuses.contains(shipment.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Shipment must be in POSTED or IN_TRANSIT to route to pickup point");
+                    "Shipment must be at hub or return flow to route to pickup point");
         }
 
         Point targetPoint = shipment.getTargetPoint();
@@ -228,10 +239,15 @@ public class DispatchOperationsService {
             addTrackingEvent(shipment, ShipmentStatus.IN_TRANSIT, "Sorting hub", "Shipment in transit to destination", LocalDateTime.now());
         }
 
-        shipment.setCurrentPoint(targetPoint);
-        shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.AWAITING_PICKUP);
+        shipment.setCurrentPoint(null);
+        shipmentRoutingService.applyRouteState(
+                shipment,
+                ShipmentRouteStatus.IN_TRANSIT_TO_TARGET_POINT,
+                ShipmentNodeType.DESTINATION_HUB,
+                resolveHubCode(shipment)
+        );
         shipmentRepository.save(shipment);
-        addTrackingEvent(shipment, ShipmentStatus.AWAITING_PICKUP,
+        addTrackingEvent(shipment, ShipmentStatus.IN_TRANSIT,
                 targetPoint.getPointCode(), "Shipment routed to pickup point " + targetPoint.getPointCode(), LocalDateTime.now());
 
         return new ShipmentStateChangeResponse(shipment.getTrackingNumber(), shipment.getStatus().name());
@@ -247,6 +263,24 @@ public class DispatchOperationsService {
 
     private String normalizeStatus(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private Payment getLatestPayment(Shipment shipment) {
+        return paymentRepository.findAllByShipment_IdOrderByCreatedAtDesc(shipment.getId()).stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String resolveHubCode(Shipment shipment) {
+        String city = shipment.getTargetPoint() != null && shipment.getTargetPoint().getCity() != null
+                ? shipment.getTargetPoint().getCity()
+                : shipment.getRecipientAddress();
+        if (city == null || city.isBlank()) {
+            return "HUB-UNKNOWN";
+        }
+        int commaIndex = city.indexOf(',');
+        String normalizedCity = (commaIndex >= 0 ? city.substring(0, commaIndex) : city).trim().toUpperCase(Locale.ROOT);
+        return "HUB-" + normalizedCity;
     }
 
     private void addTrackingEvent(

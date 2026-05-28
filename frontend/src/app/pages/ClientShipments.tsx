@@ -18,7 +18,7 @@ export function canShowPaymentShortcut(shipment: ClientShipmentListItem) {
 }
 
 export function canShowRedirectShortcut(shipment: ClientShipmentListItem) {
-  return !['AWAITING_PICKUP', 'DELIVERED', 'RETURNED', 'CANCELED'].includes(shipment.currentStatus);
+  return !['AWAITING_PICKUP', 'AWAITING_LOCKER_PICKUP', 'DELIVERED', 'RETURNED', 'CANCELED'].includes(shipment.currentStatus);
 }
 
 function printClientShipmentSummary(shipment: ClientShipmentListItem) {

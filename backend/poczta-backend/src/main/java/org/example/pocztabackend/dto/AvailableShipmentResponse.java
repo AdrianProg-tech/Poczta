@@ -11,15 +11,24 @@ public record AvailableShipmentResponse(
         String recipientName,
         String recipientAddress,
         String shipmentStatus,
+        String currentNodeType,
+        String currentNodeCode,
         LocalDateTime createdAt
 ) {
-    public static AvailableShipmentResponse fromEntity(Shipment shipment) {
+    public static AvailableShipmentResponse fromEntity(
+            Shipment shipment,
+            String shipmentStatus,
+            String currentNodeType,
+            String currentNodeCode
+    ) {
         return new AvailableShipmentResponse(
                 shipment.getId(),
                 shipment.getTrackingNumber(),
                 shipment.getRecipientName(),
                 shipment.getRecipientAddress(),
-                shipment.getStatus() == null ? null : shipment.getStatus().name(),
+                shipmentStatus,
+                currentNodeType,
+                currentNodeCode,
                 shipment.getCreatedAt()
         );
     }

@@ -16,6 +16,7 @@ export function formatPointQueueType(type: string) {
   const labels: Record<string, string> = {
     ACCEPT: 'Do przyjecia',
     ACCEPT_REDIRECT: 'Redirect do przyjecia',
+    POST_FROM_SOURCE: 'Gotowe do nadania dalej',
     PICKUP: 'Do wydania',
     OFFLINE_PAYMENT: 'Offline payment',
   };

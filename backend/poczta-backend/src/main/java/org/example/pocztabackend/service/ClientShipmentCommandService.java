@@ -13,6 +13,8 @@ import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
 import org.example.pocztabackend.model.User;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
+import org.example.pocztabackend.model.enums.ShipmentNodeType;
+import org.example.pocztabackend.model.enums.ShipmentRouteStatus;
 import org.example.pocztabackend.repository.PointRepository;
 import org.example.pocztabackend.repository.RedirectionRepository;
 import org.example.pocztabackend.repository.ShipmentRepository;
@@ -38,6 +40,7 @@ public class ClientShipmentCommandService {
     private final RedirectionRepository redirectionRepository;
     private final TrackingEventRepository trackingEventRepository;
     private final ShipmentWorkflowService workflowService;
+    private final ShipmentRoutingService shipmentRoutingService;
 
     public ClientShipmentCommandService(
             ShipmentRepository shipmentRepository,
@@ -46,7 +49,8 @@ public class ClientShipmentCommandService {
             AuthFacadeService authFacadeService,
             RedirectionRepository redirectionRepository,
             TrackingEventRepository trackingEventRepository,
-            ShipmentWorkflowService workflowService
+            ShipmentWorkflowService workflowService,
+            ShipmentRoutingService shipmentRoutingService
     ) {
         this.shipmentRepository = shipmentRepository;
         this.pointRepository = pointRepository;
@@ -55,11 +59,15 @@ public class ClientShipmentCommandService {
         this.redirectionRepository = redirectionRepository;
         this.trackingEventRepository = trackingEventRepository;
         this.workflowService = workflowService;
+        this.shipmentRoutingService = shipmentRoutingService;
     }
 
     @Transactional
     public ShipmentCreatedResponse createShipment(String userEmail, CreateClientShipmentRequest request) {
         User creator = authFacadeService.requireUser(userEmail);
+        String intakeMethod = normalizeRouteOption(request.delivery().intakeMethod(), "intakeMethod");
+        String deliveryMethod = normalizeRouteOption(request.delivery().deliveryMethod(), "deliveryMethod");
+        validateRouteConfiguration(request, intakeMethod, deliveryMethod);
 
         Shipment shipment = new Shipment();
         shipment.setTrackingNumber(generateTrackingNumber());
@@ -70,7 +78,9 @@ public class ClientShipmentCommandService {
         shipment.setRecipientName(request.recipient().name());
         shipment.setRecipientPhone(request.recipient().phone());
         shipment.setRecipientAddress(request.recipient().address());
-        shipment.setDeliveryType(request.delivery().deliveryType().trim().toUpperCase(Locale.ROOT));
+        shipment.setIntakeMethod(intakeMethod);
+        shipment.setDeliveryMethod(deliveryMethod);
+        shipment.setDeliveryType(resolveLegacyDeliveryType(request));
         shipment.setWeight(request.parcel().weight());
         shipment.setSizeCategory(request.parcel().sizeCategory());
         shipment.setDeclaredValue(request.parcel().declaredValue());
@@ -79,14 +89,24 @@ public class ClientShipmentCommandService {
         shipment.setEstimatedDeliveryDate(LocalDate.now().plusDays(2));
         shipment.setCreator(creator);
 
-        if (request.delivery().targetPointCode() != null && !request.delivery().targetPointCode().isBlank()) {
-            Point point = pointRepository.findByPointCode(request.delivery().targetPointCode().trim())
-                    .orElse(null);
-            shipment.setTargetPoint(point);
-            if (point != null && "PICKUP_POINT".equalsIgnoreCase(request.delivery().deliveryType())) {
-                shipment.setCurrentPoint(point);
-            }
+        if (request.delivery().sourcePointCode() != null && !request.delivery().sourcePointCode().isBlank()) {
+            Point point = pointRepository.findByPointCode(request.delivery().sourcePointCode().trim().toUpperCase(Locale.ROOT))
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Source point not found"));
+            shipment.setSourcePoint(point);
         }
+
+        if (request.delivery().targetPointCode() != null && !request.delivery().targetPointCode().isBlank()) {
+            Point point = pointRepository.findByPointCode(request.delivery().targetPointCode().trim().toUpperCase(Locale.ROOT))
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Target point not found"));
+            shipment.setTargetPoint(point);
+        }
+
+        shipmentRoutingService.applyRouteState(
+                shipment,
+                ShipmentRouteStatus.READY_FOR_HANDOVER,
+                ShipmentNodeType.CLIENT,
+                creator.getEmail()
+        );
 
         Shipment savedShipment = shipmentRepository.save(shipment);
 
@@ -204,5 +224,43 @@ public class ClientShipmentCommandService {
                 || status == ShipmentStatus.READY_FOR_POSTING
                 || status == ShipmentStatus.POSTED
                 || status == ShipmentStatus.IN_TRANSIT;
+    }
+
+    private String resolveLegacyDeliveryType(CreateClientShipmentRequest request) {
+        String explicit = request.delivery().deliveryType();
+        if (explicit != null && !explicit.isBlank()) {
+            return explicit.trim().toUpperCase(Locale.ROOT);
+        }
+        return switch (normalizeRouteOption(request.delivery().deliveryMethod(), "deliveryMethod")) {
+            case "PICKUP_POINT" -> "PICKUP_POINT";
+            case "LOCKER_DEMO" -> "PARCEL_LOCKER";
+            default -> "COURIER";
+        };
+    }
+
+    private void validateRouteConfiguration(
+            CreateClientShipmentRequest request,
+            String intakeMethod,
+            String deliveryMethod
+    ) {
+        if ("POINT_DROPOFF".equals(intakeMethod)
+                && (request.delivery().sourcePointCode() == null || request.delivery().sourcePointCode().isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "sourcePointCode is required for POINT_DROPOFF intake");
+        }
+        if ("PICKUP_POINT".equals(deliveryMethod)
+                && (request.delivery().targetPointCode() == null || request.delivery().targetPointCode().isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "targetPointCode is required for PICKUP_POINT delivery");
+        }
+        if ("LOCKER_DEMO".equals(deliveryMethod)
+                && (request.delivery().targetPointCode() == null || request.delivery().targetPointCode().isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "targetPointCode is required for LOCKER_DEMO delivery");
+        }
+    }
+
+    private String normalizeRouteOption(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, fieldName + " is required");
+        }
+        return value.trim().toUpperCase(Locale.ROOT);
     }
 }

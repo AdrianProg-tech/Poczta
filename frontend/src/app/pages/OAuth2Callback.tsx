@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Package } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAppStateContext } from '../state/AppStateContext';
 import { getDashboardPath } from '../navigation';
 
 export default function OAuth2Callback() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { loginWithToken } = useAppStateContext();
@@ -35,7 +37,7 @@ export default function OAuth2Callback() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary to-primary/90">
       <div className="text-center text-white">
         <Package className="mx-auto mb-4 h-12 w-12 animate-pulse" />
-        <p className="text-lg">Logowanie przez Google...</p>
+        <p className="text-lg">{t('oauth2Callback.loggingIn')}</p>
       </div>
     </div>
   );

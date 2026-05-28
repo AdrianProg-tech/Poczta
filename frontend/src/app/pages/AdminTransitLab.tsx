@@ -38,6 +38,7 @@ const transitActionMap: Record<string, string[]> = {
   IN_TRANSIT: ['OUT_FOR_DELIVERY', 'AWAITING_PICKUP', 'RETURNED'],
   OUT_FOR_DELIVERY: ['DELIVERY_ATTEMPT', 'DELIVERED', 'REDIRECTED_TO_PICKUP', 'RETURNED'],
   DELIVERY_ATTEMPT: ['OUT_FOR_DELIVERY', 'REDIRECTED_TO_PICKUP', 'RETURNED'],
+  REDIRECTED_TO_PICKUP: ['AWAITING_PICKUP'],
 };
 
 const PICKUP_POINT_ONLY_ACTIONS = new Set(['AWAITING_PICKUP']);
@@ -62,6 +63,7 @@ export default function AdminTransitLab() {
   const [isLoading, setIsLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   const userEmail = currentUser?.email ?? '';
 
@@ -135,7 +137,30 @@ export default function AdminTransitLab() {
     };
   }
 
-  const transitParcels = useMemo(() => getTransitDemoParcels(parcels).slice(0, 20), [parcels]);
+  const transitParcels = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const base = getTransitDemoParcels(parcels);
+    const filtered = !normalizedQuery
+      ? base
+      : base.filter((parcel) =>
+          [
+            parcel.trackingNumber,
+            parcel.recipientName,
+            parcel.senderName,
+            parcel.deliveryType,
+            parcel.sourcePointCode,
+            parcel.targetPointCode,
+            parcel.currentNodeCode,
+            parcel.routeStatus,
+            parcel.status,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+            .includes(normalizedQuery),
+        );
+    return filtered.slice(0, 20);
+  }, [parcels, query]);
   const laneCards = useMemo(
     () => [
       {
@@ -179,15 +204,26 @@ export default function AdminTransitLab() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => void loadParcels()}
-          disabled={isLoading}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
-        >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          {t('common.refresh')}
-        </button>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <label className="flex min-w-[280px] items-center gap-3 rounded-lg border border-border bg-card px-4 py-2">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Szukaj po trackingu lub punkcie"
+              className="w-full bg-transparent outline-none"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void loadParcels()}
+            disabled={isLoading}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            {t('common.refresh')}
+          </button>
+        </div>
       </div>
 
       {error ? <div className="mb-6 rounded-lg bg-destructive/10 p-4 text-destructive">{error}</div> : null}
@@ -329,7 +365,11 @@ export default function AdminTransitLab() {
         {!isLoading && transitParcels.length === 0 ? (
           <div className="col-span-2 rounded-xl border border-dashed border-border bg-card p-12 text-center text-muted-foreground">
             <Warehouse className="mx-auto mb-4 h-12 w-12 opacity-30" />
-            <p>Brak przesylek w sortowni. Dodaj scenariusz powyzej lub wyslij przesylke z punktu.</p>
+            <p>
+              {query.trim()
+                ? 'Brak przesylek pasujacych do filtra. Zmien tracking albo wyczysc wyszukiwanie.'
+                : 'Brak przesylek w sortowni. Dodaj scenariusz powyzej lub wyslij przesylke z punktu.'}
+            </p>
           </div>
         ) : null}
       </div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useSearchParams } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import {
   createClientComplaint,
   formatComplaintType,
@@ -21,6 +22,7 @@ interface ClaimFormValues {
 }
 
 export default function ClientClaims() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const prefilledTrackingNumber = searchParams.get('tracking');
   const {
@@ -37,9 +39,7 @@ export default function ClientClaims() {
     setValue,
     formState: { errors },
   } = useForm<ClaimFormValues>({
-    defaultValues: {
-      type: 'DELAYED',
-    },
+    defaultValues: { type: 'DELAYED' },
   });
 
   const loadData = useCallback(async () => {
@@ -68,23 +68,14 @@ export default function ClientClaims() {
   }, [loadData]);
 
   useEffect(() => {
-    if (!prefilledTrackingNumber) {
-      return;
-    }
-
-    const matchingShipment = shipments.find((shipment) => shipment.trackingNumber === prefilledTrackingNumber);
-    if (matchingShipment) {
-      setValue('trackingNumber', matchingShipment.trackingNumber);
-    }
+    if (!prefilledTrackingNumber) return;
+    const match = shipments.find((s) => s.trackingNumber === prefilledTrackingNumber);
+    if (match) setValue('trackingNumber', match.trackingNumber);
   }, [prefilledTrackingNumber, setValue, shipments]);
 
   const onSubmit = handleSubmit(async (values) => {
-    if (!currentUser?.email) {
-      return;
-    }
-
+    if (!currentUser?.email) return;
     setSubmitError(null);
-
     try {
       await createClientComplaint(currentUser.email, {
         trackingNumber: values.trackingNumber,
@@ -92,30 +83,25 @@ export default function ClientClaims() {
         subject: values.subject,
         description: values.description,
       });
-      reset({
-        trackingNumber: '',
-        type: 'DELAYED',
-        subject: '',
-        description: '',
-      });
+      reset({ trackingNumber: '', type: 'DELAYED', subject: '', description: '' });
       await loadData();
     } catch (requestError) {
-      setSubmitError(requestError instanceof Error ? requestError.message : 'Nie udało się wysłać reklamacji.');
+      setSubmitError(requestError instanceof Error ? requestError.message : t('clientClaims.submitError'));
     }
   });
 
   return (
-    <DashboardShell role="client" title="Reklamacje">
+    <DashboardShell role="client" title={t('clientClaims.title')}>
       <div className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
         <div className="rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border p-6">
-            <h2 className="text-xl">Zgłoszone reklamacje</h2>
+            <h2 className="text-xl">{t('clientClaims.listTitle')}</h2>
           </div>
           <div className="space-y-4 p-6">
-            {isLoading ? <div>Ładowanie reklamacji...</div> : null}
+            {isLoading ? <div>{t('clientClaims.loading')}</div> : null}
 
             {!isLoading && complaints.length === 0 ? (
-              <div className="text-muted-foreground">Ten klient nie ma jeszcze żadnych reklamacji.</div>
+              <div className="text-muted-foreground">{t('clientClaims.empty')}</div>
             ) : null}
 
             {complaints.map((complaint) => (
@@ -127,9 +113,11 @@ export default function ClientClaims() {
                   </div>
                   <StatusBadge status={complaint.status} type="complaint" />
                 </div>
-                <div className="mb-1 text-sm text-muted-foreground">Przesyłka: {complaint.trackingNumber}</div>
+                <div className="mb-1 text-sm text-muted-foreground">
+                  {t('clientClaims.shipmentLabel', { tracking: complaint.trackingNumber })}
+                </div>
                 <div className="text-sm text-muted-foreground">
-                  {complaint.subject ?? 'Brak osobnego tematu w aktualnym kontrakcie klienta.'}
+                  {complaint.subject ?? t('clientClaims.noSubject')}
                 </div>
               </div>
             ))}
@@ -137,18 +125,18 @@ export default function ClientClaims() {
         </div>
 
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="mb-6 text-xl">Nowa reklamacja</h2>
+          <h2 className="mb-6 text-xl">{t('clientClaims.formTitle')}</h2>
           <form className="space-y-4" onSubmit={onSubmit}>
             <div>
-              <label className="mb-2 block text-sm">Przesyłka</label>
+              <label className="mb-2 block text-sm">{t('clientClaims.fieldShipment')}</label>
               <select
-                {...register('trackingNumber', { required: 'Wybierz przesyłkę.' })}
+                {...register('trackingNumber', { required: t('clientClaims.fieldShipmentRequired') })}
                 className="w-full rounded-lg border border-border bg-input-background px-4 py-3"
               >
-                <option value="">Wybierz numer przesyłki</option>
-                {shipments.map((shipment) => (
-                  <option key={shipment.trackingNumber} value={shipment.trackingNumber}>
-                    {shipment.trackingNumber}
+                <option value="">{t('clientClaims.shipmentPlaceholder')}</option>
+                {shipments.map((s) => (
+                  <option key={s.trackingNumber} value={s.trackingNumber}>
+                    {s.trackingNumber}
                   </option>
                 ))}
               </select>
@@ -156,35 +144,35 @@ export default function ClientClaims() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm">Typ reklamacji</label>
+              <label className="mb-2 block text-sm">{t('clientClaims.fieldType')}</label>
               <select {...register('type')} className="w-full rounded-lg border border-border bg-input-background px-4 py-3">
-                <option value="DELAYED">Opóźnienie</option>
-                <option value="DAMAGED">Uszkodzenie</option>
-                <option value="LOST">Zaginięcie</option>
-                <option value="OTHER">Inne</option>
+                <option value="DELAYED">{t('clientClaims.typeDelayed')}</option>
+                <option value="DAMAGED">{t('clientClaims.typeDamaged')}</option>
+                <option value="LOST">{t('clientClaims.typeLost')}</option>
+                <option value="OTHER">{t('clientClaims.typeOther')}</option>
               </select>
             </div>
 
             <div>
-              <label className="mb-2 block text-sm">Temat</label>
+              <label className="mb-2 block text-sm">{t('clientClaims.fieldSubject')}</label>
               <input
-                {...register('subject', { required: 'Podaj temat reklamacji.' })}
+                {...register('subject', { required: t('clientClaims.subjectRequired') })}
                 className="w-full rounded-lg border border-border bg-input-background px-4 py-3"
-                placeholder="Np. uszkodzona paczka"
+                placeholder={t('clientClaims.subjectPlaceholder')}
               />
               {errors.subject ? <p className="mt-1 text-sm text-destructive">{errors.subject.message}</p> : null}
             </div>
 
             <div>
-              <label className="mb-2 block text-sm">Opis</label>
+              <label className="mb-2 block text-sm">{t('clientClaims.fieldDescription')}</label>
               <textarea
                 {...register('description', {
-                  required: 'Podaj opis reklamacji.',
-                  minLength: { value: 10, message: 'Opis powinien mieć co najmniej 10 znaków.' },
+                  required: t('clientClaims.descRequired'),
+                  minLength: { value: 10, message: t('clientClaims.descMinLength') },
                 })}
                 rows={5}
                 className="w-full resize-none rounded-lg border border-border bg-input-background px-4 py-3"
-                placeholder="Opisz problem z przesyłką"
+                placeholder={t('clientClaims.descPlaceholder')}
               />
               {errors.description ? <p className="mt-1 text-sm text-destructive">{errors.description.message}</p> : null}
             </div>
@@ -192,7 +180,7 @@ export default function ClientClaims() {
             {submitError ? <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{submitError}</div> : null}
 
             <button type="submit" className="w-full rounded-lg bg-accent px-4 py-3 text-white transition-colors hover:bg-accent/90">
-              Wyślij reklamację
+              {t('clientClaims.submit')}
             </button>
           </form>
         </div>

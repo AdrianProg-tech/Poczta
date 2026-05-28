@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { ArrowLeft, ArrowUpFromLine, Inbox, RefreshCw } from 'lucide-react';
 import { acceptPointShipment, postPointShipment } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
@@ -21,17 +21,22 @@ import { useTranslation } from 'react-i18next';
 
 export default function PointAccept() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const { busyKey, error, isLoading, loadQueue, pointCode, pointUserEmail, queue, runPointAction, runPointBatchAction } =
     usePointQueueData();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(() => searchParams.get('q') ?? '');
   const [selectedIncomingKeys, setSelectedIncomingKeys] = useState<Set<string>>(new Set());
   const [selectedReadyToPostKeys, setSelectedReadyToPostKeys] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setQuery(searchParams.get('q') ?? '');
+  }, [searchParams]);
 
   const incomingItems = useMemo(
     () =>
       filterPointQueueItems(
         (queue?.acceptQueue ?? []).filter(
-          (item) => item.shipmentStatus === 'PAID' || item.shipmentStatus === 'REDIRECTED_TO_PICKUP',
+          (item) => item.shipmentStatus === 'READY_FOR_HANDOVER' || item.shipmentStatus === 'IN_TRANSIT_TO_TARGET_POINT',
         ),
         query,
       ),
@@ -40,15 +45,15 @@ export default function PointAccept() {
   const readyToPostItems = useMemo(
     () =>
       filterPointQueueItems(
-        (queue?.acceptQueue ?? []).filter((item) => item.shipmentStatus === 'READY_FOR_POSTING'),
+        (queue?.acceptQueue ?? []).filter((item) => item.shipmentStatus === 'ACCEPTED_AT_SOURCE'),
         query,
       ),
     [query, queue?.acceptQueue],
   );
   const acceptSummary = useMemo(
     () => ({
-      freshIncoming: incomingItems.filter((item) => item.shipmentStatus === 'PAID').length,
-      redirectedIncoming: incomingItems.filter((item) => item.shipmentStatus === 'REDIRECTED_TO_PICKUP').length,
+      freshIncoming: incomingItems.filter((item) => item.shipmentStatus === 'READY_FOR_HANDOVER').length,
+      redirectedIncoming: incomingItems.filter((item) => item.shipmentStatus === 'IN_TRANSIT_TO_TARGET_POINT').length,
       readyToPost: readyToPostItems.length,
     }),
     [incomingItems, readyToPostItems.length],
@@ -262,9 +267,9 @@ export default function PointAccept() {
             renderAction={(item) => {
               const actionKey = `accept-${item.trackingNumber}`;
               const actionLabel =
-                item.shipmentStatus === 'REDIRECTED_TO_PICKUP' ? 'Przyjmij do odbioru' : 'Przyjmij do punktu';
+                item.shipmentStatus === 'IN_TRANSIT_TO_TARGET_POINT' ? 'Przyjmij do odbioru' : 'Przyjmij do punktu';
               const followUpText =
-                item.shipmentStatus === 'REDIRECTED_TO_PICKUP'
+                item.shipmentStatus === 'IN_TRANSIT_TO_TARGET_POINT'
                   ? 'Po tym kroku przesylka przejdzie do kolejki `Wydaj`, bo klient ma ja odebrac w punkcie.'
                   : 'Po tym kroku przesylka trafi do sekcji `Przyjete, gotowe do nadania`, czyli do kolejnego handoffu.';
 

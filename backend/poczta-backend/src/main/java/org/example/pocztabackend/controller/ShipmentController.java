@@ -7,7 +7,10 @@ import org.example.pocztabackend.dto.ShipmentRequest;
 import org.example.pocztabackend.dto.ShipmentResponse;
 import org.example.pocztabackend.dto.ShipmentStatusUpdateRequest;
 import org.example.pocztabackend.model.Shipment;
+import org.example.pocztabackend.model.enums.ShipmentNodeType;
+import org.example.pocztabackend.model.enums.ShipmentRouteStatus;
 import org.example.pocztabackend.repository.ShipmentRepository;
+import org.example.pocztabackend.service.ShipmentRoutingService;
 import org.example.pocztabackend.service.ShipmentWorkflowService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -26,10 +29,16 @@ public class ShipmentController {
 
     private final ShipmentRepository parcelRepository;
     private final ShipmentWorkflowService shipmentWorkflowService;
+    private final ShipmentRoutingService shipmentRoutingService;
 
-    public ShipmentController(ShipmentRepository parcelRepository, ShipmentWorkflowService shipmentWorkflowService) {
+    public ShipmentController(
+            ShipmentRepository parcelRepository,
+            ShipmentWorkflowService shipmentWorkflowService,
+            ShipmentRoutingService shipmentRoutingService
+    ) {
         this.parcelRepository = parcelRepository;
         this.shipmentWorkflowService = shipmentWorkflowService;
+        this.shipmentRoutingService = shipmentRoutingService;
     }
 
     @GetMapping
@@ -78,9 +87,12 @@ public class ShipmentController {
         parcel.setRecipientName(request.recipientName());
         parcel.setRecipientPhone(request.recipientPhone());
         parcel.setDeliveryType(request.deliveryType());
+        parcel.setDeliveryMethod("PICKUP_POINT".equalsIgnoreCase(request.deliveryType()) ? "PICKUP_POINT" : "COURIER_HOME");
+        parcel.setIntakeMethod("POINT_DROPOFF");
         parcel.setWeight(request.weight());
         parcel.setSizeCategory(request.sizeCategory());
         parcel.setCreatedAt(LocalDateTime.now());
+        shipmentRoutingService.applyRouteState(parcel, ShipmentRouteStatus.READY_FOR_HANDOVER, ShipmentNodeType.CLIENT, "ADMIN-DEMO");
 
         return ShipmentResponse.fromEntity(parcelRepository.save(parcel));
     }

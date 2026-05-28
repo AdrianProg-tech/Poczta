@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { Clock, MapPin, Package, Phone, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { formatPointType, getPublicPoints, type PublicPoint } from '../api';
 
 export default function Points() {
+  const { t } = useTranslation();
   const [points, setPoints] = useState<PublicPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export default function Points() {
         }
       } catch (requestError) {
         if (active) {
-          setError(requestError instanceof Error ? requestError.message : 'Nie udało się pobrać punktów.');
+          setError(requestError instanceof Error ? requestError.message : t('points.loadError'));
         }
       } finally {
         if (active) {
@@ -36,7 +38,7 @@ export default function Points() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [t]);
 
   const filteredPoints = useMemo(
     () =>
@@ -63,13 +65,13 @@ export default function Points() {
 
             <nav className="hidden items-center gap-6 md:flex">
               <Link to="/tracking" className="transition-colors hover:text-accent">
-                Śledź przesyłkę
+                {t('publicNav.track')}
               </Link>
               <Link to="/points" className="transition-colors hover:text-accent">
-                Punkty odbioru
+                {t('publicNav.points')}
               </Link>
               <Link to="/login" className="rounded-lg bg-accent px-4 py-2 transition-colors hover:bg-accent/90">
-                Zaloguj się
+                {t('publicNav.login')}
               </Link>
             </nav>
           </div>
@@ -78,7 +80,7 @@ export default function Points() {
 
       <div className="container mx-auto px-4 py-12">
         <div className="mx-auto max-w-6xl">
-          <h1 className="mb-8 text-3xl">Punkty odbioru i paczkomaty</h1>
+          <h1 className="mb-8 text-3xl">{t('points.title')}</h1>
 
           <div className="mb-8 rounded-xl border border-border bg-card p-6 shadow-sm">
             <div className="flex flex-col gap-4 md:flex-row">
@@ -86,7 +88,7 @@ export default function Points() {
                 <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                 <input
                   type="text"
-                  placeholder="Szukaj po mieście, adresie lub kodzie punktu"
+                  placeholder={t('points.searchPlaceholder')}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   className="w-full rounded-lg border border-border bg-input-background py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-accent"
@@ -97,14 +99,14 @@ export default function Points() {
                 onChange={(event) => setTypeFilter(event.target.value)}
                 className="rounded-lg border border-border bg-input-background px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent"
               >
-                <option value="ALL">Wszystkie</option>
-                <option value="PICKUP_POINT">Punkt odbioru</option>
-                <option value="PARCEL_LOCKER">Paczkomat</option>
+                <option value="ALL">{t('points.filterAll')}</option>
+                <option value="PICKUP_POINT">{t('points.filterPickup')}</option>
+                <option value="PARCEL_LOCKER">{t('points.filterLocker')}</option>
               </select>
             </div>
           </div>
 
-          {isLoading ? <div className="rounded-xl bg-card p-6">Ładowanie punktów...</div> : null}
+          {isLoading ? <div className="rounded-xl bg-card p-6">{t('points.loading')}</div> : null}
           {error ? <div className="rounded-xl bg-destructive/10 p-6 text-destructive">{error}</div> : null}
 
           {!isLoading && !error ? (
@@ -148,13 +150,13 @@ export default function Points() {
                         to="/login"
                         className="rounded-lg bg-accent px-4 py-2 text-center text-sm text-white transition-colors hover:bg-accent/90"
                       >
-                        Wybierz w formularzu
+                        {t('points.selectInForm')}
                       </Link>
                       <Link
                         to="/tracking"
                         className="rounded-lg border border-border bg-card px-4 py-2 text-center text-sm transition-colors hover:bg-muted"
                       >
-                        Przejdź do śledzenia
+                        {t('points.goToTracking')}
                       </Link>
                     </div>
                   </div>
@@ -163,7 +165,7 @@ export default function Points() {
 
               {filteredPoints.length === 0 ? (
                 <div className="rounded-xl border border-border bg-card p-6 text-muted-foreground">
-                  Nie znaleziono punktów pasujących do podanych filtrów.
+                  {t('points.noResults')}
                 </div>
               ) : null}
             </div>

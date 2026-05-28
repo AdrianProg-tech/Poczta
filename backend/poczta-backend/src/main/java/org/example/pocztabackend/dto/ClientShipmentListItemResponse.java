@@ -10,16 +10,23 @@ import java.time.LocalDateTime;
 public record ClientShipmentListItemResponse(
         String trackingNumber,
         String currentStatus,
+        String nextOwner,
         String paymentStatus,
         String recipientName,
         String destinationSummary,
         LocalDateTime createdAt,
         LocalDate estimatedDeliveryDate
 ) {
-    public static ClientShipmentListItemResponse from(Shipment shipment, PaymentStatus latestPaymentStatus) {
+    public static ClientShipmentListItemResponse from(
+            Shipment shipment,
+            PaymentStatus latestPaymentStatus,
+            String currentStatus,
+            String nextOwner
+    ) {
         return new ClientShipmentListItemResponse(
                 shipment.getTrackingNumber(),
-                shipment.getStatus() == null ? null : shipment.getStatus().name(),
+                currentStatus,
+                nextOwner,
                 latestPaymentStatus == null ? null : latestPaymentStatus.name(),
                 shipment.getRecipientName(),
                 resolveDestinationSummary(shipment),

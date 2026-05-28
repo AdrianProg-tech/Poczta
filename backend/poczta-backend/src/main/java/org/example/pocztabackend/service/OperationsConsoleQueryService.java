@@ -47,6 +47,7 @@ public class OperationsConsoleQueryService {
     private final ComplaintRepository complaintRepository;
     private final TrackingEventRepository trackingEventRepository;
     private final UserRepository userRepository;
+    private final ShipmentRoutingService shipmentRoutingService;
 
     public OperationsConsoleQueryService(
             ShipmentRepository shipmentRepository,
@@ -54,7 +55,8 @@ public class OperationsConsoleQueryService {
             CourierTaskRepository courierTaskRepository,
             ComplaintRepository complaintRepository,
             TrackingEventRepository trackingEventRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            ShipmentRoutingService shipmentRoutingService
     ) {
         this.shipmentRepository = shipmentRepository;
         this.paymentRepository = paymentRepository;
@@ -62,6 +64,7 @@ public class OperationsConsoleQueryService {
         this.complaintRepository = complaintRepository;
         this.trackingEventRepository = trackingEventRepository;
         this.userRepository = userRepository;
+        this.shipmentRoutingService = shipmentRoutingService;
     }
 
     public OpsDashboardSummaryResponse getDashboardSummary() {
@@ -133,6 +136,7 @@ public class OperationsConsoleQueryService {
     public OpsCourierDispatchResponse getCourierDispatch() {
         List<CourierTask> tasks = courierTaskRepository.findAll();
         List<Shipment> shipments = shipmentRepository.findAll();
+        Map<UUID, Payment> latestPaymentByShipmentId = getLatestPaymentByShipmentId(paymentRepository.findAll());
         List<User> courierUsers = getCourierUsers(tasks);
 
         List<OpsCourierSummaryResponse> courierSummaries = courierUsers.stream()
@@ -142,14 +146,26 @@ public class OperationsConsoleQueryService {
 
         List<OpsDispatchCandidateResponse> pendingAssignments = shipments.stream()
                 .filter(this::isCourierFlow)
-                .filter(shipment -> shipment.getStatus() == ShipmentStatus.READY_FOR_POSTING)
+                .filter(shipment -> "AT_DESTINATION_HUB".equals(
+                        shipmentRoutingService.snapshot(
+                                shipment,
+                                latestPaymentByShipmentId.get(shipment.getId()),
+                                findLatestTaskForShipment(shipment, tasks)
+                        ).shipmentRouteStatus()
+                ))
                 .filter(shipment -> findLatestTaskForShipment(shipment, tasks) == null)
                 .map(shipment -> toDispatchCandidate(shipment, courierSummaries, null))
                 .toList();
 
         List<OpsReassignmentCandidateResponse> reassignmentCandidates = shipments.stream()
                 .filter(this::isCourierFlow)
-                .filter(shipment -> shipment.getStatus() == ShipmentStatus.READY_FOR_POSTING)
+                .filter(shipment -> "AT_DESTINATION_HUB".equals(
+                        shipmentRoutingService.snapshot(
+                                shipment,
+                                latestPaymentByShipmentId.get(shipment.getId()),
+                                findLatestTaskForShipment(shipment, tasks)
+                        ).shipmentRouteStatus()
+                ))
                 .map(shipment -> new AbstractMap.SimpleEntry<>(shipment, findLatestTaskForShipment(shipment, tasks)))
                 .filter(entry -> entry.getValue() != null)
                 .filter(entry -> isReassignmentEligible(entry.getValue()))
@@ -180,17 +196,24 @@ public class OperationsConsoleQueryService {
     ) {
         Payment latestPayment = latestPaymentByShipmentId.get(shipment.getId());
         CourierTask latestTask = findLatestTaskForShipment(shipment, tasks);
-        ShipmentBoardAdvice advice = getShipmentBoardAdvice(shipment, latestPayment, latestTask);
+        ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, latestPayment, latestTask);
+        ShipmentBoardAdvice advice = getShipmentBoardAdvice(shipment, latestPayment, latestTask, routing);
 
         return new OpsShipmentBoardItemResponse(
                 shipment.getId(),
                 shipment.getTrackingNumber(),
+                routing.shipmentRouteStatus(),
                 shipment.getStatus() == null ? null : shipment.getStatus().name(),
                 latestPayment == null || latestPayment.getStatus() == null ? null : latestPayment.getStatus().name(),
                 shipment.getDeliveryType(),
+                routing.intakeMethod(),
+                routing.deliveryMethod(),
                 extractCity(shipment.getSenderAddress()),
                 getDestinationCity(shipment),
+                getPointCode(shipment.getSourcePoint()),
                 getPointCode(shipment.getTargetPoint()),
+                routing.currentNodeType(),
+                routing.currentNodeCode(),
                 latestTask == null || latestTask.getCourier() == null ? null : latestTask.getCourier().getEmail(),
                 advice.nextActionOwner(),
                 advice.nextSuggestedAction(),
@@ -298,7 +321,12 @@ public class OperationsConsoleQueryService {
         return normalizedStatus.equals("ASSIGNED") || normalizedStatus.equals("ACCEPTED");
     }
 
-    private ShipmentBoardAdvice getShipmentBoardAdvice(Shipment shipment, Payment latestPayment, CourierTask latestTask) {
+    private ShipmentBoardAdvice getShipmentBoardAdvice(
+            Shipment shipment,
+            Payment latestPayment,
+            CourierTask latestTask,
+            ShipmentRoutingSnapshot routing
+    ) {
         ShipmentStatus status = shipment.getStatus();
         PaymentStatus paymentStatus = latestPayment == null ? null : latestPayment.getStatus();
 
@@ -317,18 +345,24 @@ public class OperationsConsoleQueryService {
         if (paymentStatus == PaymentStatus.OFFLINE_PENDING) {
             return new ShipmentBoardAdvice("POINT", "CONFIRM_OFFLINE_PAYMENT", "Waiting for offline payment confirmation at point");
         }
-        if (paymentStatus == PaymentStatus.PAID && status == ShipmentStatus.CREATED) {
-            return new ShipmentBoardAdvice("ADMIN", "PREPARE_FOR_DISPATCH", "Payment confirmed but shipment status still needs operational handoff");
+        if ("READY_FOR_HANDOVER".equals(routing.shipmentRouteStatus())) {
+            return new ShipmentBoardAdvice("POINT", "PREPARE_FOR_DISPATCH", "Shipment is paid and waiting for source handover");
         }
-        if (status == ShipmentStatus.PAID) {
-            return new ShipmentBoardAdvice("ADMIN", "PREPARE_FOR_DISPATCH", "Shipment paid but not yet prepared for dispatch");
+        if ("ACCEPTED_AT_SOURCE".equals(routing.shipmentRouteStatus())) {
+            return new ShipmentBoardAdvice("POINT", "POST_FROM_SOURCE", "Point accepted the parcel and should hand it over to the network");
         }
-        if (isCourierFlow(shipment) && latestTask == null &&
-                (status == ShipmentStatus.READY_FOR_POSTING || status == ShipmentStatus.POSTED || status == ShipmentStatus.IN_TRANSIT)) {
+        if ("AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())
+                && "COURIER_HOME".equals(routing.deliveryMethod())
+                && latestTask == null) {
             return new ShipmentBoardAdvice("DISPATCH", "ASSIGN_COURIER", "Courier not assigned yet");
         }
-        if (status == ShipmentStatus.READY_FOR_POSTING && isCourierFlow(shipment) && latestTask != null) {
-            return new ShipmentBoardAdvice("OPS", "HAND_OVER_TO_COURIER", "Shipment ready and courier assigned");
+        if ("AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())
+                && routesIntoPickupPoint(shipment, routing)) {
+            return new ShipmentBoardAdvice("HUB", "ROUTE_TO_PICKUP_POINT", "Destination hub should route this parcel to the target point");
+        }
+        if ("RETURN_IN_TRANSIT".equals(routing.shipmentRouteStatus())
+                && routesIntoPickupPoint(shipment, routing)) {
+            return new ShipmentBoardAdvice("HUB", "ROUTE_TO_PICKUP_POINT", "Redirected parcel returned to hub and must be sent to the pickup point");
         }
         if (normalize(latestTask == null ? null : latestTask.getStatus()).equals("ASSIGNED")) {
             return new ShipmentBoardAdvice("COURIER", "ACCEPT_TASK", "Courier task is waiting for acceptance");
@@ -339,19 +373,23 @@ public class OperationsConsoleQueryService {
         if (normalize(latestTask == null ? null : latestTask.getStatus()).equals("IN_PROGRESS")) {
             return new ShipmentBoardAdvice("COURIER", "COMPLETE_OR_RECORD_ATTEMPT", "Courier is handling the shipment");
         }
-        if (status == ShipmentStatus.REDIRECTED_TO_PICKUP) {
+        if ("IN_TRANSIT_TO_TARGET_POINT".equals(routing.shipmentRouteStatus())) {
             return new ShipmentBoardAdvice("POINT", "ACCEPT_REDIRECTED_SHIPMENT", "Redirected parcel must physically arrive at target point");
         }
-        if (status == ShipmentStatus.AWAITING_PICKUP) {
+        if ("AWAITING_PICKUP".equals(routing.shipmentRouteStatus())) {
             return new ShipmentBoardAdvice("CLIENT", "PICKUP_AT_POINT", "Shipment is ready for recipient pickup");
         }
-        if (status == ShipmentStatus.DELIVERED) {
+        if ("DELIVERED".equals(routing.shipmentRouteStatus())) {
             return new ShipmentBoardAdvice("SYSTEM", "NONE", null);
         }
-        if (status == ShipmentStatus.CANCELED || status == ShipmentStatus.RETURNED) {
+        if ("CANCELED".equals(routing.shipmentRouteStatus()) || "RETURNED".equals(routing.shipmentRouteStatus())) {
             return new ShipmentBoardAdvice("ADMIN", "REVIEW_EXCEPTION", "Shipment flow finished with exception state");
         }
         return new ShipmentBoardAdvice("SYSTEM", "NONE", null);
+    }
+
+    private boolean routesIntoPickupPoint(Shipment shipment, ShipmentRoutingSnapshot routing) {
+        return "PICKUP_POINT".equals(routing.deliveryMethod()) || shipment.getTargetPoint() != null;
     }
 
     private Map<UUID, Payment> getLatestPaymentByShipmentId(List<Payment> payments) {

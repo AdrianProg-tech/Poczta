@@ -21,6 +21,8 @@ import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
 import org.example.pocztabackend.model.User;
 import org.example.pocztabackend.model.enums.PaymentStatus;
+import org.example.pocztabackend.model.enums.ShipmentNodeType;
+import org.example.pocztabackend.model.enums.ShipmentRouteStatus;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.CourierTaskRepository;
 import org.example.pocztabackend.repository.DeliveryAttemptRepository;
@@ -57,6 +59,7 @@ public class CourierTaskContractService {
     private final PaymentService paymentService;
     private final NoticeRepository noticeRepository;
     private final ReturnProcessRepository returnProcessRepository;
+    private final ShipmentRoutingService shipmentRoutingService;
 
     public CourierTaskContractService(
             CourierTaskRepository courierTaskRepository,
@@ -69,7 +72,8 @@ public class CourierTaskContractService {
             PaymentRepository paymentRepository,
             PaymentService paymentService,
             NoticeRepository noticeRepository,
-            ReturnProcessRepository returnProcessRepository
+            ReturnProcessRepository returnProcessRepository,
+            ShipmentRoutingService shipmentRoutingService
     ) {
         this.courierTaskRepository = courierTaskRepository;
         this.shipmentRepository = shipmentRepository;
@@ -82,13 +86,23 @@ public class CourierTaskContractService {
         this.paymentService = paymentService;
         this.noticeRepository = noticeRepository;
         this.returnProcessRepository = returnProcessRepository;
+        this.shipmentRoutingService = shipmentRoutingService;
     }
 
     public List<CourierTaskListItemResponse> getCourierTasks(String userEmailHeader) {
         User courier = operationalActorResolver.requireCourierActor(userEmailHeader);
 
         return courierTaskRepository.findAllByCourier_IdOrderByTaskDateAscAssignedAtAsc(courier.getId()).stream()
-                .map(task -> CourierTaskListItemResponse.fromEntity(task, getLatestPayment(task.getShipment())))
+                .map(task -> {
+                    ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(task.getShipment(), getLatestPayment(task.getShipment()), task);
+                    return CourierTaskListItemResponse.fromEntity(
+                            task,
+                            getLatestPayment(task.getShipment()),
+                            routing.shipmentRouteStatus(),
+                            routing.currentNodeType(),
+                            routing.currentNodeCode()
+                    );
+                })
                 .toList();
     }
 
@@ -102,16 +116,26 @@ public class CourierTaskContractService {
                 .toList();
 
         Payment latestPayment = getLatestPayment(task.getShipment());
-        CourierTaskListItemResponse listItem = CourierTaskListItemResponse.fromEntity(task, latestPayment);
+        ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(task.getShipment(), latestPayment, task);
+        CourierTaskListItemResponse listItem = CourierTaskListItemResponse.fromEntity(
+                task,
+                latestPayment,
+                routing.shipmentRouteStatus(),
+                routing.currentNodeType(),
+                routing.currentNodeCode()
+        );
         return new CourierTaskDetailsResponse(
                 listItem.taskId(),
                 listItem.trackingNumber(),
                 listItem.taskType(),
                 listItem.taskStatus(),
                 listItem.shipmentStatus(),
+                listItem.legacyShipmentStatus(),
                 listItem.recipientName(),
                 listItem.recipientPhone(),
                 listItem.targetAddress(),
+                listItem.currentNodeType(),
+                listItem.currentNodeCode(),
                 listItem.plannedDate(),
                 listItem.paymentStatus(),
                 listItem.paymentMethod(),
@@ -137,7 +161,7 @@ public class CourierTaskContractService {
         requireTaskStatus(task, "ACCEPTED");
 
         Shipment shipment = requireShipment(task);
-        moveShipmentToOutForDelivery(shipment);
+        moveShipmentToOutForDelivery(shipment, task);
 
         task.setStatus("IN_PROGRESS");
         courierTaskRepository.save(task);
@@ -154,7 +178,7 @@ public class CourierTaskContractService {
         requireTaskStatus(task, "IN_PROGRESS");
 
         Shipment shipment = requireShipment(task);
-        moveShipmentToOutForDelivery(shipment);
+        moveShipmentToOutForDelivery(shipment, task);
         Payment latestPayment = getLatestPayment(shipment);
         boolean requiresCourierPaymentCollection = requiresCourierPaymentCollection(latestPayment);
 
@@ -180,6 +204,7 @@ public class CourierTaskContractService {
         }
 
         shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.DELIVERED);
+        shipmentRoutingService.applyRouteState(shipment, ShipmentRouteStatus.DELIVERED, ShipmentNodeType.UNKNOWN, null);
         shipmentRepository.save(shipment);
         addTrackingEvent(
                 shipment,
@@ -204,7 +229,7 @@ public class CourierTaskContractService {
         requireTaskStatus(task, "IN_PROGRESS");
 
         Shipment shipment = requireShipment(task);
-        moveShipmentToOutForDelivery(shipment);
+        moveShipmentToOutForDelivery(shipment, task);
 
         DeliveryAttempt attempt = new DeliveryAttempt();
         attempt.setShipment(shipment);
@@ -215,6 +240,12 @@ public class CourierTaskContractService {
         DeliveryAttempt savedAttempt = deliveryAttemptRepository.save(attempt);
 
         shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.DELIVERY_ATTEMPT);
+        shipmentRoutingService.applyRouteState(
+                shipment,
+                ShipmentRouteStatus.DELIVERY_ATTEMPT_FAILED,
+                ShipmentNodeType.COURIER,
+                task.getCourier() == null ? "COURIER" : task.getCourier().getEmail()
+        );
         shipmentRepository.save(shipment);
         addTrackingEvent(
                 shipment,
@@ -229,12 +260,18 @@ public class CourierTaskContractService {
             shipment.setTargetPoint(redirectPoint);
             shipment.setCurrentPoint(null);
             shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.REDIRECTED_TO_PICKUP);
+            shipmentRoutingService.applyRouteState(
+                    shipment,
+                    ShipmentRouteStatus.RETURN_IN_TRANSIT,
+                    ShipmentNodeType.DESTINATION_HUB,
+                    "HUB-" + extractCity(redirectPoint.getCity())
+            );
             shipmentRepository.save(shipment);
             addTrackingEvent(
                     shipment,
                     ShipmentStatus.REDIRECTED_TO_PICKUP,
                     "Redirected to pickup",
-                    "Shipment redirected to pickup point " + redirectPoint.getPointCode() + " and is moving to point handling",
+                    "Shipment returned to destination hub and queued for pickup point " + redirectPoint.getPointCode(),
                     LocalDateTime.now()
             );
         }
@@ -299,6 +336,7 @@ public class CourierTaskContractService {
         }
 
         Shipment shipment = requireShipment(task);
+        shipmentRoutingService.applyRouteState(shipment, ShipmentRouteStatus.RETURNED, ShipmentNodeType.RETURN_FLOW, "RETURN-" + extractCity(shipment.getRecipientAddress()));
         shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.RETURNED);
         shipmentRepository.save(shipment);
 
@@ -376,27 +414,32 @@ public class CourierTaskContractService {
         );
     }
 
-    private void moveShipmentToOutForDelivery(Shipment shipment) {
+    private void moveShipmentToOutForDelivery(Shipment shipment, CourierTask task) {
         ShipmentStatus currentStatus = shipment.getStatus();
         if (currentStatus == null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Shipment has no current status");
         }
+        ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, getLatestPayment(shipment), task);
         if (currentStatus == ShipmentStatus.OUT_FOR_DELIVERY) {
             return;
         }
-        if (currentStatus == ShipmentStatus.READY_FOR_POSTING) {
-            shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.POSTED);
-            shipmentRepository.save(shipment);
-            addTrackingEvent(shipment, ShipmentStatus.POSTED, "Posted", "Shipment posted from point", LocalDateTime.now());
-            currentStatus = shipment.getStatus();
+        if (!"AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus()) && currentStatus != ShipmentStatus.OUT_FOR_DELIVERY) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Shipment is not ready for courier delivery from route status " + routing.shipmentRouteStatus()
+            );
         }
-        if (currentStatus == ShipmentStatus.POSTED) {
-            shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.IN_TRANSIT);
-            shipmentRepository.save(shipment);
-            addTrackingEvent(shipment, ShipmentStatus.IN_TRANSIT, "In transit", "Shipment moved to linehaul transit", LocalDateTime.now());
+        if (currentStatus != ShipmentStatus.IN_TRANSIT && currentStatus != ShipmentStatus.OUT_FOR_DELIVERY) {
+            shipment.setStatus(ShipmentStatus.IN_TRANSIT);
             currentStatus = shipment.getStatus();
         }
         if (currentStatus == ShipmentStatus.IN_TRANSIT) {
+            shipmentRoutingService.applyRouteState(
+                    shipment,
+                    ShipmentRouteStatus.OUT_FOR_DELIVERY,
+                    ShipmentNodeType.COURIER,
+                    task != null && task.getCourier() != null ? task.getCourier().getEmail() : "COURIER"
+            );
             shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.OUT_FOR_DELIVERY);
             shipmentRepository.save(shipment);
             addTrackingEvent(shipment, ShipmentStatus.OUT_FOR_DELIVERY, "Out for delivery", "Courier started the delivery route", LocalDateTime.now());
@@ -443,11 +486,21 @@ public class CourierTaskContractService {
                     List<CourierTask> tasks = courierTaskRepository.findAllByShipment_IdOrderByAssignedAtDesc(shipment.getId());
                     boolean hasActiveTask = tasks.stream().anyMatch(t -> activeTaskStatuses.contains(t.getStatus()));
                     if (hasActiveTask) return false;
+                    ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, getLatestPayment(shipment), null);
+                    if (!"AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())) return false;
                     if (serviceCity == null || serviceCity.isBlank()) return true;
                     String destinationCity = extractCity(shipment.getRecipientAddress());
                     return serviceCity.equalsIgnoreCase(destinationCity);
                 })
-                .map(AvailableShipmentResponse::fromEntity)
+                .map(shipment -> {
+                    ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, getLatestPayment(shipment), null);
+                    return AvailableShipmentResponse.fromEntity(
+                            shipment,
+                            routing.shipmentRouteStatus(),
+                            routing.currentNodeType(),
+                            routing.currentNodeCode()
+                    );
+                })
                 .toList();
     }
 
@@ -458,8 +511,8 @@ public class CourierTaskContractService {
         Shipment shipment = shipmentRepository.findById(shipmentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
 
-        EnumSet<ShipmentStatus> claimableStatuses = EnumSet.of(ShipmentStatus.POSTED, ShipmentStatus.IN_TRANSIT);
-        if (!claimableStatuses.contains(shipment.getStatus())) {
+        ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, getLatestPayment(shipment), null);
+        if (!"AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Shipment is not available for claiming");
         }
 

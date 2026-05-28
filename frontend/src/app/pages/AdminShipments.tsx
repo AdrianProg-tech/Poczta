@@ -8,8 +8,8 @@ import {
   getAdminUsers,
   getOpsCourierDispatch,
   getOpsShipmentBoard,
-  prepareShipmentForDispatch,
   releasePointShipment,
+  routeShipmentToPickup,
   type AdminUserSummary,
   type OpsCourierDispatchResponse,
   type OpsShipmentBoardItem,
@@ -38,8 +38,10 @@ function formatAction(action: string) {
     RESTART_PAYMENT: 'Ponow platnosc klienta',
     CONFIRM_OFFLINE_PAYMENT: 'Potwierdz platnosc offline',
     PREPARE_FOR_DISPATCH: 'Przygotuj do wysylki',
+    POST_FROM_SOURCE: 'Nadaj dalej z punktu',
     ASSIGN_COURIER: 'Przypisz kuriera',
     HAND_OVER_TO_COURIER: 'Przekaz kurierowi',
+    ROUTE_TO_PICKUP_POINT: 'Skieruj do punktu odbioru',
     ACCEPT_TASK: 'Kurier ma przyjac task',
     START_ROUTE: 'Kurier ma ruszyc w trase',
     COMPLETE_OR_RECORD_ATTEMPT: 'Dorecz albo zapisz probe',
@@ -55,8 +57,10 @@ function formatAction(action: string) {
 function explainAction(action: string) {
   const explanations: Record<string, string> = {
     PREPARE_FOR_DISPATCH: 'Zespol operacyjny powinien przepchnac przesylke z platnosci do pierwszego przekazania.',
+    POST_FROM_SOURCE: 'Punkt przyjal juz przesylke i musi tylko potwierdzic wysylke dalej do sieci.',
     ASSIGN_COURIER: 'Dispatcher powinien wskazac kuriera, aby przesylka zeszla z kolejki oczekiwania.',
     HAND_OVER_TO_COURIER: 'Kolejny ruch jest po stronie kuriera albo punktu przekazujacego przesylke do final-mile.',
+    ROUTE_TO_PICKUP_POINT: 'Hub powinien wyslac przesylke do docelowego punktu, zeby punkt mogl ja potem przyjac i wydac.',
     ACCEPT_TASK: 'Task istnieje, ale kurier nie potwierdzil jeszcze przyjecia.',
     START_ROUTE: 'Task jest przyjety, ale kurier nie ruszyl jeszcze w trase.',
     COMPLETE_OR_RECORD_ATTEMPT: 'Przesylka jest juz w dostawie i wymaga finalnego wyniku po stronie kuriera.',
@@ -453,6 +457,22 @@ export default function AdminShipments() {
                           )
                         ) : null}
 
+                        {shipment.nextSuggestedAction === 'ROUTE_TO_PICKUP_POINT' ? (
+                          <button
+                            type="button"
+                            disabled={isBusy || !currentUser?.email}
+                            onClick={() =>
+                              currentUser?.email &&
+                              runShipmentAction(shipment.shipmentId, () =>
+                                routeShipmentToPickup(currentUser.email, shipment.shipmentId),
+                              )
+                            }
+                            className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
+                          >
+                            Skieruj do punktu
+                          </button>
+                        ) : null}
+
                         {shipment.nextSuggestedAction === 'CONFIRM_OFFLINE_PAYMENT' ? (
                           pointWorkerEmail ? (
                             <button
@@ -523,7 +543,9 @@ export default function AdminShipments() {
 
                         {![
                           'PREPARE_FOR_DISPATCH',
+                          'POST_FROM_SOURCE',
                           'ASSIGN_COURIER',
+                          'ROUTE_TO_PICKUP_POINT',
                           'ACCEPT_REDIRECTED_SHIPMENT',
                           'PICKUP_AT_POINT',
                           'CONFIRM_OFFLINE_PAYMENT',

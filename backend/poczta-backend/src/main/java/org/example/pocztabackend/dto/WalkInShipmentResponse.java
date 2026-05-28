@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 public record WalkInShipmentResponse(
         String trackingNumber,
         String shipmentStatus,
+        String customerEmail,
         String paymentStatus,
         BigDecimal amount,
         String pointCode,

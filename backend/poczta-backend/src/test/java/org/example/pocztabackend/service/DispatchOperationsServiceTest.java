@@ -10,6 +10,8 @@ import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
 import org.example.pocztabackend.model.User;
 import org.example.pocztabackend.model.enums.PaymentStatus;
+import org.example.pocztabackend.model.enums.ShipmentNodeType;
+import org.example.pocztabackend.model.enums.ShipmentRouteStatus;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.CourierTaskRepository;
 import org.example.pocztabackend.repository.PaymentRepository;
@@ -30,6 +32,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -68,7 +71,8 @@ class DispatchOperationsServiceTest {
                 courierTaskRepository,
                 userRepository,
                 new ShipmentWorkflowService(notificationService),
-                trackingEventRepository
+                trackingEventRepository,
+                new ShipmentRoutingService()
         );
     }
 
@@ -124,6 +128,9 @@ class DispatchOperationsServiceTest {
         shipment.setId(shipmentId);
         shipment.setStatus(ShipmentStatus.READY_FOR_POSTING);
         shipment.setDeliveryType("COURIER");
+        shipment.setDeliveryMethod("COURIER_HOME");
+        shipment.setShipmentRouteStatus(ShipmentRouteStatus.AT_DESTINATION_HUB.name());
+        shipment.setCurrentNodeType(ShipmentNodeType.DESTINATION_HUB.name());
 
         User courier = new User();
         courier.setId(courierId);
@@ -162,6 +169,8 @@ class DispatchOperationsServiceTest {
         shipment.setId(shipmentId);
         shipment.setStatus(ShipmentStatus.READY_FOR_POSTING);
         shipment.setDeliveryType("COURIER");
+        shipment.setDeliveryMethod("COURIER_HOME");
+        shipment.setShipmentRouteStatus(ShipmentRouteStatus.AT_DESTINATION_HUB.name());
 
         CourierTask activeTask = new CourierTask();
         activeTask.setStatus("IN_PROGRESS");
@@ -191,6 +200,8 @@ class DispatchOperationsServiceTest {
         shipment.setId(shipmentId);
         shipment.setStatus(ShipmentStatus.READY_FOR_POSTING);
         shipment.setDeliveryType("COURIER");
+        shipment.setDeliveryMethod("COURIER_HOME");
+        shipment.setShipmentRouteStatus(ShipmentRouteStatus.AT_DESTINATION_HUB.name());
 
         User oldCourier = new User();
         oldCourier.setId(oldCourierId);
@@ -252,6 +263,8 @@ class DispatchOperationsServiceTest {
         shipment.setId(shipmentId);
         shipment.setStatus(ShipmentStatus.POSTED);
         shipment.setDeliveryType("COURIER");
+        shipment.setDeliveryMethod("COURIER_HOME");
+        shipment.setShipmentRouteStatus(ShipmentRouteStatus.AT_DESTINATION_HUB.name());
 
         User courier = new User();
         courier.setId(courierId);
@@ -284,6 +297,8 @@ class DispatchOperationsServiceTest {
         shipment.setId(shipmentId);
         shipment.setStatus(ShipmentStatus.IN_TRANSIT);
         shipment.setDeliveryType("COURIER");
+        shipment.setDeliveryMethod("COURIER_HOME");
+        shipment.setShipmentRouteStatus(ShipmentRouteStatus.AT_DESTINATION_HUB.name());
 
         User courier = new User();
         courier.setId(courierId);
@@ -364,9 +379,11 @@ class DispatchOperationsServiceTest {
         ShipmentStateChangeResponse response = dispatchOperationsService.routeToPickupPoint(shipmentId);
 
         assertEquals("PWTEST789PL", response.trackingNumber());
-        assertEquals(ShipmentStatus.AWAITING_PICKUP.name(), response.shipmentStatus());
-        assertEquals(ShipmentStatus.AWAITING_PICKUP, shipment.getStatus());
-        assertEquals(targetPoint, shipment.getCurrentPoint());
+        assertEquals(ShipmentStatus.IN_TRANSIT.name(), response.shipmentStatus());
+        assertEquals(ShipmentStatus.IN_TRANSIT, shipment.getStatus());
+        assertEquals(ShipmentRouteStatus.IN_TRANSIT_TO_TARGET_POINT.name(), shipment.getShipmentRouteStatus());
+        assertNull(shipment.getCurrentPoint());
+        assertEquals(targetPoint, shipment.getTargetPoint());
         verify(trackingEventRepository).save(any(TrackingEvent.class));
     }
 

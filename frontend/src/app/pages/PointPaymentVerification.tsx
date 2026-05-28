@@ -31,20 +31,20 @@ export default function PointPaymentVerification() {
     [query, queue?.offlinePaymentQueue],
   );
   const releaseReadyItems = useMemo(
-    () => offlineItems.filter((item) => item.shipmentStatus === 'PAID' || item.shipmentStatus === 'AWAITING_PICKUP'),
+    () => offlineItems.filter((item) => item.shipmentStatus === 'READY_FOR_HANDOVER' || item.shipmentStatus === 'AWAITING_PICKUP'),
     [offlineItems],
   );
   const financeOnlyItems = useMemo(
-    () => offlineItems.filter((item) => item.shipmentStatus !== 'PAID' && item.shipmentStatus !== 'AWAITING_PICKUP'),
+    () => offlineItems.filter((item) => item.shipmentStatus !== 'READY_FOR_HANDOVER' && item.shipmentStatus !== 'AWAITING_PICKUP'),
     [offlineItems],
   );
   const checkoutSummary = useMemo(
     () => ({
       releaseReady: offlineItems.filter(
-        (item) => item.shipmentStatus === 'PAID' || item.shipmentStatus === 'AWAITING_PICKUP',
+        (item) => item.shipmentStatus === 'READY_FOR_HANDOVER' || item.shipmentStatus === 'AWAITING_PICKUP',
       ).length,
       financeOnly: offlineItems.filter(
-        (item) => item.shipmentStatus !== 'PAID' && item.shipmentStatus !== 'AWAITING_PICKUP',
+        (item) => item.shipmentStatus !== 'READY_FOR_HANDOVER' && item.shipmentStatus !== 'AWAITING_PICKUP',
       ).length,
     }),
     [offlineItems],

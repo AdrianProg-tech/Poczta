@@ -33,6 +33,11 @@ public class Shipment {
     private String recipientPhone;
     private String recipientAddress;
     private String deliveryType;
+    private String intakeMethod;
+    private String deliveryMethod;
+    private String shipmentRouteStatus;
+    private String currentNodeType;
+    private String currentNodeCode;
     private BigDecimal weight;
     private String sizeCategory;
     private BigDecimal declaredValue;
@@ -58,6 +63,11 @@ public class Shipment {
     @JoinColumn(name = "current_point_id")
     @JsonIgnore
     private Point currentPoint;
+
+    @ManyToOne
+    @JoinColumn(name = "source_point_id")
+    @JsonIgnore
+    private Point sourcePoint;
 
     @ManyToOne
     @JoinColumn(name = "target_point_id")
@@ -147,6 +157,46 @@ public class Shipment {
         this.deliveryType = deliveryType;
     }
 
+    public String getIntakeMethod() {
+        return intakeMethod;
+    }
+
+    public void setIntakeMethod(String intakeMethod) {
+        this.intakeMethod = intakeMethod;
+    }
+
+    public String getDeliveryMethod() {
+        return deliveryMethod;
+    }
+
+    public void setDeliveryMethod(String deliveryMethod) {
+        this.deliveryMethod = deliveryMethod;
+    }
+
+    public String getShipmentRouteStatus() {
+        return shipmentRouteStatus;
+    }
+
+    public void setShipmentRouteStatus(String shipmentRouteStatus) {
+        this.shipmentRouteStatus = shipmentRouteStatus;
+    }
+
+    public String getCurrentNodeType() {
+        return currentNodeType;
+    }
+
+    public void setCurrentNodeType(String currentNodeType) {
+        this.currentNodeType = currentNodeType;
+    }
+
+    public String getCurrentNodeCode() {
+        return currentNodeCode;
+    }
+
+    public void setCurrentNodeCode(String currentNodeCode) {
+        this.currentNodeCode = currentNodeCode;
+    }
+
     public BigDecimal getWeight() {
         return weight;
     }
@@ -225,6 +275,14 @@ public class Shipment {
 
     public void setCurrentPoint(Point currentPoint) {
         this.currentPoint = currentPoint;
+    }
+
+    public Point getSourcePoint() {
+        return sourcePoint;
+    }
+
+    public void setSourcePoint(Point sourcePoint) {
+        this.sourcePoint = sourcePoint;
     }
 
     public Point getTargetPoint() {

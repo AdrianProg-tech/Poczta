@@ -3,6 +3,8 @@ package org.example.pocztabackend.dto;
 import java.math.BigDecimal;
 
 public record WalkInShipmentRequest(
+        String customerMode,
+        String customerEmail,
         String senderName,
         String senderPhone,
         String senderAddress,

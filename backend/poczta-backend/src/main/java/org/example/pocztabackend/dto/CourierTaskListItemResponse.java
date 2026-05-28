@@ -14,9 +14,12 @@ public record CourierTaskListItemResponse(
         String taskType,
         String taskStatus,
         String shipmentStatus,
+        String legacyShipmentStatus,
         String recipientName,
         String recipientPhone,
         String targetAddress,
+        String currentNodeType,
+        String currentNodeCode,
         LocalDate plannedDate,
         String paymentStatus,
         String paymentMethod,
@@ -24,8 +27,14 @@ public record CourierTaskListItemResponse(
         String paymentCollectionMethod,
         boolean requiresPaymentCollection
 ) {
-    public static CourierTaskListItemResponse fromEntity(CourierTask task, Payment latestPayment) {
-        String shipmentStatus = task.getShipment() == null || task.getShipment().getStatus() == null
+    public static CourierTaskListItemResponse fromEntity(
+            CourierTask task,
+            Payment latestPayment,
+            String shipmentStatus,
+            String currentNodeType,
+            String currentNodeCode
+    ) {
+        String legacyShipmentStatus = task.getShipment() == null || task.getShipment().getStatus() == null
                 ? null
                 : task.getShipment().getStatus().name();
         String paymentMethod = latestPayment == null ? null : latestPayment.getMethod();
@@ -42,9 +51,12 @@ public record CourierTaskListItemResponse(
                 "DELIVERY",
                 task.getStatus(),
                 shipmentStatus,
+                legacyShipmentStatus,
                 task.getShipment() == null ? null : task.getShipment().getRecipientName(),
                 task.getShipment() == null ? null : task.getShipment().getRecipientPhone(),
                 task.getShipment() == null ? null : task.getShipment().getRecipientAddress(),
+                currentNodeType,
+                currentNodeCode,
                 task.getTaskDate(),
                 paymentStatus,
                 paymentMethod,

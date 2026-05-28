@@ -106,6 +106,7 @@ export interface PublicTrackingResponse {
 export interface ClientShipmentListItem {
   trackingNumber: string;
   currentStatus: string;
+  nextOwner: string;
   paymentStatus: string | null;
   recipientName: string;
   destinationSummary: string;
@@ -137,6 +138,12 @@ export interface ShipmentPaymentDetails {
 
 export interface ShipmentDeliveryDetails {
   deliveryType: string | null;
+  intakeMethod: string | null;
+  deliveryMethod: string | null;
+  shipmentRouteStatus: string | null;
+  currentNodeType: string | null;
+  currentNodeCode: string | null;
+  sourcePointCode: string | null;
   currentPointCode: string | null;
   targetPointCode: string | null;
   estimatedDeliveryDate: string | null;
@@ -152,6 +159,7 @@ export interface TrackingHistoryItem {
 export interface ClientShipmentDetails {
   trackingNumber: string;
   currentStatus: string;
+  nextOwner: string;
   sender: ShipmentContact;
   recipient: ShipmentContact;
   parcel: ShipmentParcel;
@@ -195,9 +203,12 @@ export interface CourierTaskListItem {
   taskType: string;
   taskStatus: string;
   shipmentStatus: string | null;
+  legacyShipmentStatus: string | null;
   recipientName: string;
   recipientPhone: string;
   targetAddress: string;
+  currentNodeType: string | null;
+  currentNodeCode: string | null;
   plannedDate: string | null;
   paymentStatus: string | null;
   paymentMethod: string | null;
@@ -216,6 +227,8 @@ export interface AvailableShipment {
   recipientName: string;
   recipientAddress: string;
   shipmentStatus: string;
+  currentNodeType: string | null;
+  currentNodeCode: string | null;
   createdAt: string;
 }
 
@@ -223,9 +236,13 @@ export interface PointQueueItem {
   trackingNumber: string;
   queueType: string;
   shipmentStatus: string;
+  legacyShipmentStatus: string | null;
   paymentStatus: string | null;
   paymentId: string | null;
   recipientName: string;
+  currentNodeType: string | null;
+  currentNodeCode: string | null;
+  nextOwner: string | null;
   createdAt: string;
   expiresAt: string | null;
 }
@@ -252,11 +269,17 @@ export interface OpsShipmentBoardItem {
   shipmentId: string;
   trackingNumber: string;
   shipmentStatus: string;
+  legacyShipmentStatus: string | null;
   paymentStatus: string | null;
   deliveryType: string | null;
+  intakeMethod: string | null;
+  deliveryMethod: string | null;
   sourceCity: string | null;
   destinationCity: string | null;
+  sourcePointCode: string | null;
   targetPointCode: string | null;
+  currentNodeType: string | null;
+  currentNodeCode: string | null;
   assignedCourierEmail: string | null;
   nextActionOwner: string;
   nextSuggestedAction: string;
@@ -268,11 +291,18 @@ export interface AdminParcelRecord {
   id: string;
   trackingNumber: string;
   status: string;
+  routeStatus?: string | null;
   senderName: string;
   senderPhone: string;
   recipientName: string;
   recipientPhone: string;
   deliveryType: string;
+  intakeMethod?: string | null;
+  deliveryMethod?: string | null;
+  sourcePointCode?: string | null;
+  targetPointCode?: string | null;
+  currentNodeType?: string | null;
+  currentNodeCode?: string | null;
   weight: number;
   sizeCategory: string;
   createdAt: string;
@@ -406,7 +436,10 @@ export interface CreateClientShipmentPayload {
   sender: ShipmentContact;
   recipient: ShipmentContact;
   delivery: {
-    deliveryType: 'COURIER' | 'PICKUP_POINT';
+    deliveryType?: 'COURIER' | 'PICKUP_POINT';
+    intakeMethod: 'POINT_DROPOFF' | 'COURIER_PICKUP' | 'LOCKER_DROPOFF_DEMO';
+    deliveryMethod: 'COURIER_HOME' | 'PICKUP_POINT' | 'LOCKER_DEMO';
+    sourcePointCode?: string;
     targetPointCode?: string;
   };
   parcel: {
@@ -533,6 +566,28 @@ export function formatCurrency(amount: number | null | undefined) {
 
 export function formatShipmentStatus(status: string | null | undefined) {
   switch (status) {
+    case 'READY_FOR_HANDOVER':
+      return 'Gotowa do przekazania';
+    case 'ACCEPTED_AT_SOURCE':
+      return 'Przyjeta w source';
+    case 'IN_TRANSIT_TO_ORIGIN_HUB':
+      return 'W drodze do centrum nadawczego';
+    case 'AT_ORIGIN_HUB':
+      return 'W centrum nadawczym';
+    case 'IN_TRANSIT_TO_DESTINATION_HUB':
+      return 'W tranzycie do hubu docelowego';
+    case 'AT_DESTINATION_HUB':
+      return 'W hubie docelowym';
+    case 'IN_TRANSIT_TO_TARGET_POINT':
+      return 'W drodze do punktu odbioru';
+    case 'IN_TRANSIT_TO_TARGET_LOCKER':
+      return 'W drodze do paczkomatu';
+    case 'AWAITING_LOCKER_PICKUP':
+      return 'Czeka w paczkomacie';
+    case 'DELIVERY_ATTEMPT_FAILED':
+      return 'Nieudana próba doręczenia';
+    case 'RETURN_IN_TRANSIT':
+      return 'Wraca przez centrum operacyjne';
     case 'CREATED':
       return 'Utworzona';
     case 'PAID':
@@ -628,6 +683,19 @@ export function formatPointType(type: PublicPoint['type']) {
   return type === 'PARCEL_LOCKER' ? 'Paczkomat' : 'Punkt odbioru';
 }
 
+export function formatDeliveryType(type: string | null | undefined) {
+  switch (type) {
+    case 'COURIER':
+      return 'Kurier';
+    case 'PICKUP_POINT':
+      return 'Punkt odbioru';
+    case 'PARCEL_LOCKER':
+      return 'Paczkomat demo';
+    default:
+      return type ?? 'Nieznany';
+  }
+}
+
 export function formatQueueType(type: string | null | undefined) {
   switch (type) {
     case 'ACCEPT':
@@ -651,10 +719,14 @@ export function formatOpsAction(action: string | null | undefined) {
       return 'Potwierdź płatność w punkcie';
     case 'PREPARE_FOR_DISPATCH':
       return 'Przygotuj do wysyłki';
+    case 'POST_FROM_SOURCE':
+      return 'Nadaj dalej z punktu';
     case 'ASSIGN_COURIER':
       return 'Przypisz kuriera';
     case 'HAND_OVER_TO_COURIER':
-      return 'Przekaż kurierowi';
+      return 'Przekaż do final-mile';
+    case 'ROUTE_TO_PICKUP_POINT':
+      return 'Skieruj do punktu odbioru';
     case 'ACCEPT_TASK':
       return 'Kurier powinien przyjąć zadanie';
     case 'START_ROUTE':
@@ -674,6 +746,56 @@ export function formatOpsAction(action: string | null | undefined) {
   }
 }
 
+export function formatShipmentAction(action: string | null | undefined) {
+  switch (action) {
+    case 'ACCEPT_AT_SOURCE':
+      return 'Przyjecie w punkcie nadania';
+    case 'POST_FROM_SOURCE':
+      return 'Nadanie dalej z punktu';
+    case 'ASSIGN_COURIER':
+      return 'Przypisanie kuriera';
+    case 'ROUTE_TO_TARGET_POINT':
+      return 'Skierowanie do punktu odbioru';
+    case 'ROUTE_TO_LOCKER':
+      return 'Skierowanie do paczkomatu';
+    case 'COMPLETE_DELIVERY':
+      return 'Doreczenie do odbiorcy';
+    case 'RECORD_ATTEMPT':
+      return 'Zapis nieudanej proby';
+    case 'RETURN_TO_DESTINATION_HUB':
+      return 'Powrot do hubu docelowego';
+    case 'ACCEPT_AT_TARGET_POINT':
+      return 'Przyjecie w punkcie odbioru';
+    case 'RELEASE_TO_RECIPIENT':
+      return 'Wydanie odbiorcy';
+    case 'REQUEST_REDIRECTION':
+      return 'Przekierowanie do punktu';
+    case 'CREATE_COMPLAINT':
+      return 'Zgloszenie reklamacji';
+    default:
+      return action ?? 'Brak';
+  }
+}
+
+export function formatRoutingOwner(owner: string | null | undefined) {
+  switch (owner) {
+    case 'CLIENT':
+      return 'Klient';
+    case 'POINT':
+      return 'Punkt';
+    case 'HUB':
+      return 'Hub / magazyn';
+    case 'COURIER':
+      return 'Kurier';
+    case 'LOCKER':
+      return 'Paczkomat';
+    case 'SYSTEM':
+      return 'System';
+    default:
+      return owner ?? 'Nieznany';
+  }
+}
+
 export function formatOpsOwner(owner: string | null | undefined) {
   switch (owner) {
     case 'CLIENT':
@@ -686,6 +808,8 @@ export function formatOpsOwner(owner: string | null | undefined) {
       return 'Dispatcher';
     case 'OPS':
       return 'Operacje';
+    case 'HUB':
+      return 'Hub / magazyn';
     case 'COURIER':
       return 'Kurier';
     case 'SYSTEM':
@@ -952,6 +1076,8 @@ export async function collectOfflinePaymentAndReleaseShipment(userEmail: string,
 }
 
 export interface WalkInShipmentRequest {
+  customerMode: 'EXISTING' | 'NEW';
+  customerEmail: string;
   senderName: string;
   senderPhone: string;
   senderAddress: string;
@@ -967,6 +1093,7 @@ export interface WalkInShipmentRequest {
 export interface WalkInShipmentResponse {
   trackingNumber: string;
   shipmentStatus: string;
+  customerEmail: string;
   paymentStatus: string;
   amount: number;
   pointCode: string;
