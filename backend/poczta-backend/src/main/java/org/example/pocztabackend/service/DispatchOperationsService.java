@@ -7,8 +7,10 @@ import org.example.pocztabackend.model.CourierTask;
 import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
 import org.example.pocztabackend.model.User;
+import org.example.pocztabackend.model.enums.PaymentStatus;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.CourierTaskRepository;
+import org.example.pocztabackend.repository.PaymentRepository;
 import org.example.pocztabackend.repository.ShipmentRepository;
 import org.example.pocztabackend.repository.TrackingEventRepository;
 import org.example.pocztabackend.repository.UserRepository;
@@ -26,6 +28,7 @@ import java.util.UUID;
 public class DispatchOperationsService {
 
     private final ShipmentRepository shipmentRepository;
+    private final PaymentRepository paymentRepository;
     private final CourierTaskRepository courierTaskRepository;
     private final UserRepository userRepository;
     private final ShipmentWorkflowService shipmentWorkflowService;
@@ -33,12 +36,14 @@ public class DispatchOperationsService {
 
     public DispatchOperationsService(
             ShipmentRepository shipmentRepository,
+            PaymentRepository paymentRepository,
             CourierTaskRepository courierTaskRepository,
             UserRepository userRepository,
             ShipmentWorkflowService shipmentWorkflowService,
             TrackingEventRepository trackingEventRepository
     ) {
         this.shipmentRepository = shipmentRepository;
+        this.paymentRepository = paymentRepository;
         this.courierTaskRepository = courierTaskRepository;
         this.userRepository = userRepository;
         this.shipmentWorkflowService = shipmentWorkflowService;
@@ -49,6 +54,8 @@ public class DispatchOperationsService {
     public ShipmentStateChangeResponse prepareForDispatch(UUID shipmentId) {
         Shipment shipment = shipmentRepository.findById(shipmentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
+
+        reconcilePaidShipmentIfNeeded(shipment);
 
         if (shipment.getStatus() != ShipmentStatus.PAID) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Only paid shipments can be prepared for dispatch");
@@ -69,6 +76,22 @@ public class DispatchOperationsService {
                 shipment.getTrackingNumber(),
                 shipment.getStatus().name()
         );
+    }
+
+    private void reconcilePaidShipmentIfNeeded(Shipment shipment) {
+        if (shipment.getStatus() != ShipmentStatus.CREATED) {
+            return;
+        }
+
+        boolean hasConfirmedOnlinePayment = paymentRepository.findAllByShipment_IdOrderByCreatedAtDesc(shipment.getId()).stream()
+                .findFirst()
+                .map(payment -> payment.getStatus() == PaymentStatus.PAID)
+                .orElse(false);
+
+        if (hasConfirmedOnlinePayment) {
+            shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.PAID);
+            shipmentRepository.save(shipment);
+        }
     }
 
     @Transactional

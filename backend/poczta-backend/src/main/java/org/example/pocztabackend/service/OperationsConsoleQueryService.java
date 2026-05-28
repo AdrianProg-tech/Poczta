@@ -317,6 +317,9 @@ public class OperationsConsoleQueryService {
         if (paymentStatus == PaymentStatus.OFFLINE_PENDING) {
             return new ShipmentBoardAdvice("POINT", "CONFIRM_OFFLINE_PAYMENT", "Waiting for offline payment confirmation at point");
         }
+        if (paymentStatus == PaymentStatus.PAID && status == ShipmentStatus.CREATED) {
+            return new ShipmentBoardAdvice("ADMIN", "PREPARE_FOR_DISPATCH", "Payment confirmed but shipment status still needs operational handoff");
+        }
         if (status == ShipmentStatus.PAID) {
             return new ShipmentBoardAdvice("ADMIN", "PREPARE_FOR_DISPATCH", "Shipment paid but not yet prepared for dispatch");
         }

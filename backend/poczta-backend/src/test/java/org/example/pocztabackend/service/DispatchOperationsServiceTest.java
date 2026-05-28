@@ -3,12 +3,15 @@ package org.example.pocztabackend.service;
 import org.example.pocztabackend.dto.AdminAssignCourierRequest;
 import org.example.pocztabackend.dto.AdminAssignCourierResponse;
 import org.example.pocztabackend.dto.ShipmentStateChangeResponse;
+import org.example.pocztabackend.model.Payment;
 import org.example.pocztabackend.model.CourierTask;
 import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.TrackingEvent;
 import org.example.pocztabackend.model.User;
+import org.example.pocztabackend.model.enums.PaymentStatus;
 import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.CourierTaskRepository;
+import org.example.pocztabackend.repository.PaymentRepository;
 import org.example.pocztabackend.repository.ShipmentRepository;
 import org.example.pocztabackend.repository.TrackingEventRepository;
 import org.example.pocztabackend.repository.UserRepository;
@@ -43,6 +46,9 @@ class DispatchOperationsServiceTest {
     private CourierTaskRepository courierTaskRepository;
 
     @Mock
+    private PaymentRepository paymentRepository;
+
+    @Mock
     private UserRepository userRepository;
 
     @Mock
@@ -57,6 +63,7 @@ class DispatchOperationsServiceTest {
     void setUp() {
         dispatchOperationsService = new DispatchOperationsService(
                 shipmentRepository,
+                paymentRepository,
                 courierTaskRepository,
                 userRepository,
                 new ShipmentWorkflowService(notificationService),
@@ -78,6 +85,30 @@ class DispatchOperationsServiceTest {
         ShipmentStateChangeResponse response = dispatchOperationsService.prepareForDispatch(shipmentId);
 
         assertEquals("PWTEST123PL", response.trackingNumber());
+        assertEquals(ShipmentStatus.READY_FOR_POSTING.name(), response.shipmentStatus());
+        assertEquals(ShipmentStatus.READY_FOR_POSTING, shipment.getStatus());
+        verify(trackingEventRepository).save(any(TrackingEvent.class));
+    }
+
+    @Test
+    void shouldRecoverLegacyCreatedShipmentWhenLatestPaymentIsAlreadyPaid() {
+        UUID shipmentId = UUID.randomUUID();
+        Shipment shipment = new Shipment();
+        shipment.setId(shipmentId);
+        shipment.setTrackingNumber("PWLEGACY123PL");
+        shipment.setStatus(ShipmentStatus.CREATED);
+
+        Payment payment = new Payment();
+        payment.setShipment(shipment);
+        payment.setStatus(PaymentStatus.PAID);
+
+        when(shipmentRepository.findById(shipmentId)).thenReturn(Optional.of(shipment));
+        when(paymentRepository.findAllByShipment_IdOrderByCreatedAtDesc(shipmentId)).thenReturn(List.of(payment));
+        when(shipmentRepository.save(any(Shipment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ShipmentStateChangeResponse response = dispatchOperationsService.prepareForDispatch(shipmentId);
+
+        assertEquals("PWLEGACY123PL", response.trackingNumber());
         assertEquals(ShipmentStatus.READY_FOR_POSTING.name(), response.shipmentStatus());
         assertEquals(ShipmentStatus.READY_FOR_POSTING, shipment.getStatus());
         verify(trackingEventRepository).save(any(TrackingEvent.class));

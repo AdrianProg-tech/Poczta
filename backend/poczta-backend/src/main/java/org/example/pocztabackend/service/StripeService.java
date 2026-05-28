@@ -9,8 +9,11 @@ import com.stripe.net.Webhook;
 import com.stripe.param.checkout.SessionCreateParams;
 import jakarta.annotation.PostConstruct;
 import org.example.pocztabackend.model.Payment;
+import org.example.pocztabackend.model.Shipment;
 import org.example.pocztabackend.model.enums.PaymentStatus;
+import org.example.pocztabackend.model.enums.ShipmentStatus;
 import org.example.pocztabackend.repository.PaymentRepository;
+import org.example.pocztabackend.repository.ShipmentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,9 +42,17 @@ public class StripeService {
     private String cancelUrl;
 
     private final PaymentRepository paymentRepository;
+    private final ShipmentRepository shipmentRepository;
+    private final ShipmentWorkflowService shipmentWorkflowService;
 
-    public StripeService(PaymentRepository paymentRepository) {
+    public StripeService(
+            PaymentRepository paymentRepository,
+            ShipmentRepository shipmentRepository,
+            ShipmentWorkflowService shipmentWorkflowService
+    ) {
         this.paymentRepository = paymentRepository;
+        this.shipmentRepository = shipmentRepository;
+        this.shipmentWorkflowService = shipmentWorkflowService;
     }
 
     @PostConstruct
@@ -109,9 +120,7 @@ public class StripeService {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Payment not found"));
 
             if ("paid".equals(paymentStatus)) {
-                payment.setStatus(PaymentStatus.PAID);
-                payment.setExternalReference(session.getId());
-                paymentRepository.save(payment);
+                markPaymentAndShipmentPaid(payment, session.getId());
                 log.info("Payment {} marked as PAID via session verify", paymentId);
                 return "PAID";
             } else {
@@ -146,9 +155,7 @@ public class StripeService {
 
             UUID paymentId = UUID.fromString(paymentIdStr);
             paymentRepository.findById(paymentId).ifPresent(payment -> {
-                payment.setStatus(PaymentStatus.PAID);
-                payment.setExternalReference(session.getId());
-                paymentRepository.save(payment);
+                markPaymentAndShipmentPaid(payment, session.getId());
                 log.info("Payment {} marked as PAID via Stripe webhook", paymentId);
             });
         }
@@ -169,5 +176,18 @@ public class StripeService {
                 log.info("Payment {} marked as FAILED via Stripe webhook", paymentId);
             });
         }
+    }
+
+    void markPaymentAndShipmentPaid(Payment payment, String externalReference) {
+        payment.setStatus(PaymentStatus.PAID);
+        payment.setExternalReference(externalReference);
+
+        Shipment shipment = payment.getShipment();
+        if (shipment != null && shipment.getStatus() == ShipmentStatus.CREATED) {
+            shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.PAID);
+            shipmentRepository.save(shipment);
+        }
+
+        paymentRepository.save(payment);
     }
 }
