@@ -25,6 +25,7 @@ import org.example.pocztabackend.repository.TrackingEventRepository;
 import org.example.pocztabackend.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.AbstractMap;
 import java.util.Comparator;
@@ -472,7 +473,9 @@ public class OperationsConsoleQueryService {
     }
 
     private boolean matchesCity(String left, String right) {
-        return left != null && right != null && left.equalsIgnoreCase(right);
+        String normalizedLeft = canonicalizeCity(left);
+        String normalizedRight = canonicalizeCity(right);
+        return normalizedLeft != null && normalizedLeft.equals(normalizedRight);
     }
 
     private String buildDisplayName(User user) {
@@ -501,6 +504,25 @@ public class OperationsConsoleQueryService {
         int commaIndex = address.indexOf(',');
         String city = commaIndex >= 0 ? address.substring(0, commaIndex) : address;
         return city.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String canonicalizeCity(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String normalized = Normalizer.normalize(value.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toUpperCase(Locale.ROOT);
+
+        return switch (normalized) {
+            case "WARSZAWA", "WARSAW" -> "WARSAW";
+            case "KRAKOW", "CRACOW" -> "KRAKOW";
+            case "GDANSK" -> "GDANSK";
+            case "WROCLAW" -> "WROCLAW";
+            case "POZNAN" -> "POZNAN";
+            default -> normalized;
+        };
     }
 
     private String normalize(String value) {

@@ -14,12 +14,24 @@ export class ApiError extends Error {
   }
 }
 
+export type DemoLoginGroup = 'client' | 'courier' | 'point' | 'admin' | 'dispatcher';
+
 export interface DemoRoleOption {
-  id: string;
+  id: DemoLoginGroup;
   role: UserRole;
   label: string;
   hint: string;
   defaultEmail?: string;
+}
+
+export interface DemoUserOption {
+  email: string;
+  displayName: string;
+  appRole: UserRole;
+  adminScope: AdminScope | null;
+  pointCode: string | null;
+  pointName: string | null;
+  serviceCity: string | null;
 }
 
 export const demoRoleOptions: DemoRoleOption[] = [
@@ -519,6 +531,10 @@ export async function login(email: string, password: string) {
       password,
     },
   });
+}
+
+export async function getDemoUsers(group: DemoLoginGroup) {
+  return request<DemoUserOption[]>(`/api/auth/demo-users?group=${encodeURIComponent(group)}`);
 }
 
 export async function logout() {

@@ -7,10 +7,12 @@ import {
   Download,
   FlaskConical,
   LayoutDashboard,
+  Lock,
   LogOut,
   MapPin,
   Menu,
   Package,
+  Truck,
   Upload,
   User,
   UserPlus,
@@ -52,6 +54,7 @@ export function Sidebar({ role }: SidebarProps) {
       case 'point':
         return [
           { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/point' },
+          { icon: Package, label: t('nav.shipments'), path: '/point/shipments' },
           { icon: Upload, label: t('point.accept'), path: '/point/accept' },
           { icon: Download, label: t('point.release'), path: '/point/release' },
           { icon: CreditCard, label: t('point.confirmOffline'), path: '/point/payment-verification' },
@@ -81,7 +84,12 @@ export function Sidebar({ role }: SidebarProps) {
 
   const demoItems =
     role === 'admin' && currentUser?.adminScope !== 'DISPATCHER'
-      ? [{ icon: FlaskConical, label: 'Demo Lab', path: '/admin/demo-lab' }]
+      ? [
+          { icon: FlaskConical, label: 'Demo Lab', path: '/admin/demo-lab' },
+          { icon: Lock, label: 'Demo: Skrytki', path: '/admin/demo/locker' },
+          { icon: Truck, label: 'Demo: Tranzyt', path: '/admin/demo/transit' },
+          { icon: Package, label: 'Demo: Przekazania', path: '/admin/demo/handover' },
+        ]
       : [];
 
   const SidebarContent = () => (

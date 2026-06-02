@@ -22,6 +22,57 @@ import { useTranslation } from 'react-i18next';
 
 type TaskFilter = 'ALL' | 'ASSIGNED' | 'ACCEPTED' | 'IN_PROGRESS' | 'FAILED' | 'COMPLETED';
 
+function canonicalizeCity(value: string | null | undefined) {
+  if (!value) {
+    return '';
+  }
+
+  const normalized = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
+
+  switch (normalized) {
+    case 'WARSZAWA':
+    case 'WARSAW':
+      return 'WARSAW';
+    case 'KRAKOW':
+    case 'CRACOW':
+      return 'KRAKOW';
+    case 'GDANSK':
+      return 'GDANSK';
+    case 'WROCLAW':
+      return 'WROCLAW';
+    case 'POZNAN':
+      return 'POZNAN';
+    default:
+      return normalized;
+  }
+}
+
+function extractCityFromAddress(address: string | null | undefined) {
+  if (!address) {
+    return '';
+  }
+
+  return canonicalizeCity(address.split(',')[0]);
+}
+
+function pickRedirectPoint(points: PublicPoint[], address: string | null | undefined) {
+  const pickupPoints = points.filter((point) => point.type === 'PICKUP_POINT');
+  if (pickupPoints.length === 0) {
+    return points[0];
+  }
+
+  const destinationCity = extractCityFromAddress(address);
+  if (!destinationCity) {
+    return pickupPoints[0];
+  }
+
+  return pickupPoints.find((point) => canonicalizeCity(point.city) === destinationCity) ?? pickupPoints[0];
+}
+
 function getCourierTaskNextStep(taskStatus: string, requiresPaymentCollection: boolean) {
   if (taskStatus === 'ASSIGNED') {
     return 'Przyjmij zadanie, aby potwierdzić gotowość do realizacji trasy.';
@@ -77,7 +128,7 @@ export default function CourierTasks() {
       setAvailableShipments(availableData);
       setError(null);
       setRedirectPointByTaskId((current) => {
-        const pickupPoint = pointsData.find((point) => point.type === 'PICKUP_POINT') ?? pointsData[0];
+        const pickupPoint = pickRedirectPoint(pointsData, taskData[0]?.targetAddress);
         if (pickupPoint) {
           setBatchRedirectPointCode((currentValue) => currentValue || pickupPoint.pointCode);
         }
@@ -88,7 +139,7 @@ export default function CourierTasks() {
         const next = { ...current };
         taskData.forEach((task) => {
           if (!next[task.taskId]) {
-            next[task.taskId] = pickupPoint.pointCode;
+            next[task.taskId] = pickRedirectPoint(pointsData, task.targetAddress)?.pointCode ?? pickupPoint.pointCode;
           }
         });
         return next;
@@ -178,7 +229,7 @@ export default function CourierTasks() {
     [selectedTasks],
   );
   const batchStartableTasks = useMemo(
-    () => selectedTasks.filter((task) => task.taskStatus === 'ASSIGNED' || task.taskStatus === 'ACCEPTED'),
+    () => selectedTasks.filter((task) => task.taskStatus === 'ACCEPTED'),
     [selectedTasks],
   );
   const batchCompletableTasks = useMemo(
@@ -573,7 +624,7 @@ export default function CourierTasks() {
                     </button>
                   ) : null}
 
-                  {(task.taskStatus === 'ASSIGNED' || task.taskStatus === 'ACCEPTED') ? (
+                  {task.taskStatus === 'ACCEPTED' ? (
                     <button
                       type="button"
                       disabled={isBusy || !currentUser?.email}

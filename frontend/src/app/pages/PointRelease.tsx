@@ -76,7 +76,8 @@ export default function PointRelease() {
           </div>
           <h2 className="mb-2 text-2xl">Wydanie paczki klientowi</h2>
           <p className="text-muted-foreground">
-            Ten ekran skupia tylko kolejke odbioru dla punktu {pointCode ?? '-'}, bez mieszania jej z przyjeciem i platnosciami.
+            Tu pracujesz juz tylko na paczkach gotowych do odbioru w punkcie {pointCode ?? '-'}. Jesli klient stoi przy okienku,
+            znajdz jego przesylke i potwierdz wydanie.
           </p>
         </div>
 
@@ -101,14 +102,14 @@ export default function PointRelease() {
               <div className="text-sm text-muted-foreground">Gotowe do natychmiastowego wydania</div>
               <div className="mt-2 text-3xl">{pickupSummary.readyToRelease}</div>
               <div className="mt-2 text-sm text-muted-foreground">
-                Rekordy bez blokady finansowej. Operator moze zamknac odbior od razu przy okienku.
+                Te przesylki mozesz wydac od razu. Platnosc nie blokuje juz ruchu operatora.
               </div>
             </div>
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
               <div className="text-sm text-muted-foreground">Wymagaja kroku finansowego</div>
               <div className="mt-2 text-3xl">{pickupSummary.needsFinance}</div>
               <div className="mt-2 text-sm text-muted-foreground">
-                Te przesylki lepiej przepuscic najpierw przez `Potwierdz platnosc offline`, zanim trafi do wydania.
+                Te przesylki zatrzymaj najpierw na kroku finansowym, a dopiero potem wracaj do wydania klientowi.
               </div>
             </div>
           </div>
@@ -117,7 +118,7 @@ export default function PointRelease() {
 
           <PointQueueSection
             title="Gotowe do wydania"
-            description="Wydanie to osobny flow. Operator widzi tylko paczki czekajace na odbior i moze szybko potwierdzic wydanie."
+            description="To jest finalny krok punktu. Wybierz paczke, potwierdz odbior klienta i zamknij wydanie."
             headerAction={
               <div className="flex flex-wrap gap-2">
                 <PointUtilityButton

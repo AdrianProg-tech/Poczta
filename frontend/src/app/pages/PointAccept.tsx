@@ -123,7 +123,7 @@ export default function PointAccept() {
           </div>
           <h2 className="mb-2 text-2xl">Przyjecie i nadanie dalej</h2>
           <p className="text-muted-foreground">
-            Ekran rozdziela dwa realne kroki dla punktu {pointCode ?? '-'}: przyjecie przesylki do punktu i nadanie jej dalej.
+            Najpierw przyjmij paczke fizycznie do punktu {pointCode ?? '-'}, a dopiero potem potwierdz jej wysylke dalej do sieci.
           </p>
         </div>
 

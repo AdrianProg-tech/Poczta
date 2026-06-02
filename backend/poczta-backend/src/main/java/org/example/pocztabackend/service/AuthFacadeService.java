@@ -1,7 +1,9 @@
 package org.example.pocztabackend.service;
 
-import org.example.pocztabackend.dto.CurrentUserResponse;
+import java.util.List;
 import org.example.pocztabackend.dto.AuthLoginResponse;
+import org.example.pocztabackend.dto.CurrentUserResponse;
+import org.example.pocztabackend.dto.DemoUserOptionResponse;
 import org.example.pocztabackend.model.CourierProfile;
 import org.example.pocztabackend.model.PointStaffAssignment;
 import org.example.pocztabackend.model.User;
@@ -12,13 +14,16 @@ public class AuthFacadeService {
 
     private final OperationalActorResolver operationalActorResolver;
     private final AuthSessionService authSessionService;
+    private final AuthDemoUserService authDemoUserService;
 
     public AuthFacadeService(
             OperationalActorResolver operationalActorResolver,
-            AuthSessionService authSessionService
+            AuthSessionService authSessionService,
+            AuthDemoUserService authDemoUserService
     ) {
         this.operationalActorResolver = operationalActorResolver;
         this.authSessionService = authSessionService;
+        this.authDemoUserService = authDemoUserService;
     }
 
     public AuthLoginResponse login(String email, String password) {
@@ -37,6 +42,10 @@ public class AuthFacadeService {
 
     public CurrentUserResponse getCurrentUser(String ignoredUserEmailHeader) {
         return getCurrentUser();
+    }
+
+    public List<DemoUserOptionResponse> getDemoUsers(String group) {
+        return authDemoUserService.listDemoUsers(group);
     }
 
     private CurrentUserResponse toCurrentUserResponse(User user) {

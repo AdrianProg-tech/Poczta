@@ -23,6 +23,57 @@ import { StatusBadge } from '../components/StatusBadge';
 import { useAppStateContext } from '../state/AppStateContext';
 import { useTranslation } from 'react-i18next';
 
+function canonicalizeCity(value: string | null | undefined) {
+  if (!value) {
+    return '';
+  }
+
+  const normalized = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
+
+  switch (normalized) {
+    case 'WARSZAWA':
+    case 'WARSAW':
+      return 'WARSAW';
+    case 'KRAKOW':
+    case 'CRACOW':
+      return 'KRAKOW';
+    case 'GDANSK':
+      return 'GDANSK';
+    case 'WROCLAW':
+      return 'WROCLAW';
+    case 'POZNAN':
+      return 'POZNAN';
+    default:
+      return normalized;
+  }
+}
+
+function extractCityFromAddress(address: string | null | undefined) {
+  if (!address) {
+    return '';
+  }
+
+  return canonicalizeCity(address.split(',')[0]);
+}
+
+function pickRedirectPoint(points: PublicPoint[], address: string | null | undefined) {
+  const pickupPoints = points.filter((point) => point.type === 'PICKUP_POINT');
+  if (pickupPoints.length === 0) {
+    return points[0];
+  }
+
+  const destinationCity = extractCityFromAddress(address);
+  if (!destinationCity) {
+    return pickupPoints[0];
+  }
+
+  return pickupPoints.find((point) => canonicalizeCity(point.city) === destinationCity) ?? pickupPoints[0];
+}
+
 function buildHistoricNotice(trackingData: PublicTrackingResponse | null): IssueNoticeResponse | null {
   if (!trackingData) {
     return null;
@@ -79,7 +130,7 @@ export default function CourierTaskDetails() {
     try {
       const [taskData, pointsData] = await Promise.all([getCourierTaskDetails(currentUser.email, id), getPublicPoints()]);
       const trackingData = await getPublicTracking(taskData.trackingNumber);
-      const pickupPoint = pointsData.find((point) => point.type === 'PICKUP_POINT') ?? pointsData[0];
+      const pickupPoint = pickRedirectPoint(pointsData, taskData.targetAddress);
 
       setTask(taskData);
       setPoints(pointsData);
@@ -333,7 +384,7 @@ export default function CourierTaskDetails() {
                   </button>
                 ) : null}
 
-                {(task.taskStatus === 'ASSIGNED' || task.taskStatus === 'ACCEPTED') ? (
+                {task.taskStatus === 'ACCEPTED' ? (
                   <button
                     type="button"
                     disabled={busyAction === 'start' || !currentUser?.email}

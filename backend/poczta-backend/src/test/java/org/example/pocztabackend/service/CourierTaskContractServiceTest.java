@@ -36,6 +36,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -200,5 +201,40 @@ class CourierTaskContractServiceTest {
         verify(trackingEventRepository).save(trackingEventCaptor.capture());
         assertEquals(ShipmentStatus.DELIVERED.name(), trackingEventCaptor.getValue().getStatus());
         verify(paymentService).confirmOfflinePayment(payment.getId(), "CARD");
+    }
+
+    @Test
+    void shouldStartAcceptedTaskForLegacyInTransitShipmentAtDestinationHub() {
+        User courier = new User();
+        courier.setId(UUID.randomUUID());
+        courier.setEmail("courier@example.com");
+
+        Shipment shipment = new Shipment();
+        shipment.setId(UUID.randomUUID());
+        shipment.setStatus(ShipmentStatus.IN_TRANSIT);
+        shipment.setTrackingNumber("PWSTARTLEGACY1PL");
+        shipment.setDeliveryType("COURIER");
+        shipment.setDeliveryMethod("COURIER_HOME");
+        shipment.setRecipientAddress("Warszawa, Test 1");
+
+        CourierTask task = new CourierTask();
+        task.setId(UUID.randomUUID());
+        task.setCourier(courier);
+        task.setShipment(shipment);
+        task.setStatus("ACCEPTED");
+
+        when(operationalActorResolver.requireCourierActor(null)).thenReturn(courier);
+        when(courierTaskRepository.findById(task.getId())).thenReturn(Optional.of(task));
+        when(paymentRepository.findAllByShipment_IdOrderByCreatedAtDesc(shipment.getId())).thenReturn(List.of());
+        when(shipmentRepository.save(any(Shipment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(courierTaskRepository.save(any(CourierTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourierTaskStateChangeResponse response = assertDoesNotThrow(() ->
+                courierTaskContractService.startCourierTask(null, task.getId())
+        );
+
+        assertEquals("IN_PROGRESS", response.taskStatus());
+        assertEquals(ShipmentStatus.OUT_FOR_DELIVERY, shipment.getStatus());
+        assertEquals("OUT_FOR_DELIVERY", shipment.getShipmentRouteStatus());
     }
 }

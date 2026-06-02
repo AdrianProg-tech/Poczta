@@ -194,7 +194,7 @@ public class ShipmentRoutingService {
 
     private boolean isTaskInFlight(CourierTask latestTask) {
         String status = normalize(latestTask.getStatus());
-        return "ACCEPTED".equals(status) || "IN_PROGRESS".equals(status);
+        return "IN_PROGRESS".equals(status);
     }
 
     private boolean isLockerDelivery(Shipment shipment) {

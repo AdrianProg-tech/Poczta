@@ -7,7 +7,9 @@ import Home from './pages/Home';
 import Tracking from './pages/Tracking';
 import Points from './pages/Points';
 import Login from './pages/Login';
+import LoginDemo from './pages/LoginDemo';
 import OAuth2Callback from './pages/OAuth2Callback';
+import DemoHelp from './pages/DemoHelp';
 import InfoPage from './pages/InfoPage';
 import NotFound from './pages/NotFound';
 
@@ -67,6 +69,10 @@ export const router = createBrowserRouter([
     Component: InfoPage,
   },
   {
+    path: '/demo-help',
+    Component: DemoHelp,
+  },
+  {
     path: '/oauth2-callback',
     Component: OAuth2Callback,
   },
@@ -76,6 +82,10 @@ export const router = createBrowserRouter([
       {
         path: '/login',
         Component: Login,
+      },
+      {
+        path: '/login-demo',
+        Component: LoginDemo,
       },
     ],
   },
