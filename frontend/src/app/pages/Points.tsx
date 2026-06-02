@@ -147,14 +147,8 @@ export default function Points() {
 
                     <div className="flex flex-col gap-2 md:w-44">
                       <Link
-                        to="/login"
-                        className="rounded-lg bg-accent px-4 py-2 text-center text-sm text-white transition-colors hover:bg-accent/90"
-                      >
-                        {t('points.selectInForm')}
-                      </Link>
-                      <Link
                         to="/tracking"
-                        className="rounded-lg border border-border bg-card px-4 py-2 text-center text-sm transition-colors hover:bg-muted"
+                        className="rounded-lg bg-accent px-4 py-2 text-center text-sm text-white transition-colors hover:bg-accent/90"
                       >
                         {t('points.goToTracking')}
                       </Link>

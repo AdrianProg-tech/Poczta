@@ -635,20 +635,83 @@
       "b1": "User data is used for shipment handling.",
       "b2": "Shipment statuses and history are visible after logging in.",
       "b3": "Only authorised system users have access to data."
+    }
+  },
+  "formatters": {
+    "noData": "N/A",
+    "unknown": "Unknown",
+    "paymentMethod": {
+      "ONLINE": "Online (Stripe)",
+      "OFFLINE_AT_POINT": "Cash at point"
     },
-    "register": {
-      "title": "Register",
-      "description": "Create an account to manage shipments, payments, and claims in one place.",
-      "b1": "You can go to the login screen and select a user role.",
-      "b2": "After logging in you'll access the appropriate user dashboard.",
-      "b3": "Your account enables shipment tracking and service management."
+    "deliveryType": {
+      "COURIER": "Courier to door",
+      "PICKUP_POINT": "Pickup point",
+      "PARCEL_LOCKER": "Parcel locker (demo)"
     },
-    "forgot-password": {
-      "title": "Reset password",
-      "description": "If you've forgotten your password, use the secure recovery process.",
-      "b1": "Check your inbox after submitting a password reset request.",
-      "b2": "The reset link has a limited validity period.",
-      "b3": "If you have problems, contact customer support."
+    "queueType": {
+      "ACCEPT": "Intake",
+      "PICKUP": "Release",
+      "OFFLINE_PAYMENT": "Offline payment"
+    },
+    "pointType": {
+      "PARCEL_LOCKER": "Parcel locker",
+      "PICKUP_POINT": "Pickup point"
+    },
+    "complaintType": {
+      "DELAYED": "Delay",
+      "DAMAGED": "Damage",
+      "LOST": "Lost",
+      "OTHER": "Other"
+    },
+    "routingOwner": {
+      "CLIENT": "Client",
+      "POINT": "Point",
+      "HUB": "Hub / warehouse",
+      "COURIER": "Courier",
+      "LOCKER": "Parcel locker",
+      "SYSTEM": "System"
+    },
+    "opsOwner": {
+      "CLIENT": "Client",
+      "ADMIN": "Administrator",
+      "POINT": "Point",
+      "DISPATCH": "Dispatcher",
+      "OPS": "Operations",
+      "HUB": "Hub / warehouse",
+      "COURIER": "Courier",
+      "SYSTEM": "System"
+    },
+    "opsAction": {
+      "MARK_PAYMENT_PAID": "Confirm payment",
+      "RESTART_PAYMENT": "Client must retry payment",
+      "CONFIRM_OFFLINE_PAYMENT": "Confirm offline payment at point",
+      "PREPARE_FOR_DISPATCH": "Prepare for dispatch",
+      "POST_FROM_SOURCE": "Post from source point",
+      "ASSIGN_COURIER": "Assign courier",
+      "HAND_OVER_TO_COURIER": "Hand over to final-mile",
+      "ROUTE_TO_PICKUP_POINT": "Route to pickup point",
+      "ACCEPT_TASK": "Courier should accept task",
+      "START_ROUTE": "Start route",
+      "COMPLETE_OR_RECORD_ATTEMPT": "Deliver or record attempt",
+      "ACCEPT_REDIRECTED_SHIPMENT": "Accept at point",
+      "PICKUP_AT_POINT": "Client pickup",
+      "REVIEW_EXCEPTION": "Review exception",
+      "NONE": "None"
+    },
+    "shipmentAction": {
+      "ACCEPT_AT_SOURCE": "Accept at source point",
+      "POST_FROM_SOURCE": "Post from source point",
+      "ASSIGN_COURIER": "Assign courier",
+      "ROUTE_TO_TARGET_POINT": "Route to pickup point",
+      "ROUTE_TO_LOCKER": "Route to parcel locker",
+      "COMPLETE_DELIVERY": "Complete delivery",
+      "RECORD_ATTEMPT": "Record failed attempt",
+      "RETURN_TO_DESTINATION_HUB": "Return to destination hub",
+      "ACCEPT_AT_TARGET_POINT": "Accept at pickup point",
+      "RELEASE_TO_RECIPIENT": "Release to recipient",
+      "REQUEST_REDIRECTION": "Request redirection",
+      "CREATE_COMPLAINT": "Create complaint"
     }
   },
   "theme": {

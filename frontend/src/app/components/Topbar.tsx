@@ -1,4 +1,4 @@
-import { Bell, Globe, Moon, Sun, User } from 'lucide-react';
+import { Globe, Moon, Sun, User } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
 import { getRoleLabel } from '../navigation';
@@ -43,11 +43,6 @@ export function Topbar({ title, userName = 'Jan Kowalski' }: TopbarProps) {
             className="p-2 hover:bg-muted rounded-lg transition-colors text-foreground"
           >
             {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
-
-          <button className="relative p-2 hover:bg-muted rounded-lg transition-colors">
-            <Bell className="w-5 h-5 text-foreground" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full"></span>
           </button>
 
           <div className="flex items-center gap-3 pl-4 border-l border-border">

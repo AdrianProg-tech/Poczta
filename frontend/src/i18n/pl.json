@@ -635,20 +635,83 @@
       "b1": "Dane użytkownika są używane do obsługi przesyłek.",
       "b2": "Statusy i historia przesyłek są widoczne po zalogowaniu.",
       "b3": "Dostęp do danych mają wyłącznie uprawnieni użytkownicy systemu."
+    }
+  },
+  "formatters": {
+    "noData": "Brak danych",
+    "unknown": "Nieznany",
+    "paymentMethod": {
+      "ONLINE": "Online (Stripe)",
+      "OFFLINE_AT_POINT": "Gotówka w punkcie"
     },
-    "register": {
-      "title": "Rejestracja",
-      "description": "Załóż konto, aby zarządzać przesyłkami, płatnościami i reklamacjami w jednym miejscu.",
-      "b1": "Możesz przejść do ekranu logowania i wybrać rolę użytkownika.",
-      "b2": "Po zalogowaniu uzyskasz dostęp do odpowiedniego panelu użytkownika.",
-      "b3": "Konto umożliwia śledzenie przesyłek i zarządzanie usługami."
+    "deliveryType": {
+      "COURIER": "Kurier do drzwi",
+      "PICKUP_POINT": "Punkt odbioru",
+      "PARCEL_LOCKER": "Paczkomat (demo)"
     },
-    "forgot-password": {
-      "title": "Reset hasła",
-      "description": "Jeśli nie pamiętasz hasła, skorzystaj z bezpiecznego procesu odzyskiwania dostępu.",
-      "b1": "Sprawdź skrzynkę mailową po wysłaniu prośby o reset hasła.",
-      "b2": "Link do resetu hasła ma ograniczony czas ważności.",
-      "b3": "W razie problemów skontaktuj się z obsługą klienta."
+    "queueType": {
+      "ACCEPT": "Przyjęcie",
+      "PICKUP": "Wydanie",
+      "OFFLINE_PAYMENT": "Płatność offline"
+    },
+    "pointType": {
+      "PARCEL_LOCKER": "Paczkomat",
+      "PICKUP_POINT": "Punkt odbioru"
+    },
+    "complaintType": {
+      "DELAYED": "Opóźnienie",
+      "DAMAGED": "Uszkodzenie",
+      "LOST": "Zaginięcie",
+      "OTHER": "Inne"
+    },
+    "routingOwner": {
+      "CLIENT": "Klient",
+      "POINT": "Punkt",
+      "HUB": "Hub / magazyn",
+      "COURIER": "Kurier",
+      "LOCKER": "Paczkomat",
+      "SYSTEM": "System"
+    },
+    "opsOwner": {
+      "CLIENT": "Klient",
+      "ADMIN": "Administrator",
+      "POINT": "Punkt",
+      "DISPATCH": "Dyspozytor",
+      "OPS": "Operacje",
+      "HUB": "Hub / magazyn",
+      "COURIER": "Kurier",
+      "SYSTEM": "System"
+    },
+    "opsAction": {
+      "MARK_PAYMENT_PAID": "Potwierdź płatność",
+      "RESTART_PAYMENT": "Klient musi ponowić płatność",
+      "CONFIRM_OFFLINE_PAYMENT": "Potwierdź płatność w punkcie",
+      "PREPARE_FOR_DISPATCH": "Przygotuj do wysyłki",
+      "POST_FROM_SOURCE": "Nadaj dalej z punktu",
+      "ASSIGN_COURIER": "Przypisz kuriera",
+      "HAND_OVER_TO_COURIER": "Przekaż do final-mile",
+      "ROUTE_TO_PICKUP_POINT": "Skieruj do punktu odbioru",
+      "ACCEPT_TASK": "Kurier powinien przyjąć zadanie",
+      "START_ROUTE": "Rozpocznij trasę",
+      "COMPLETE_OR_RECORD_ATTEMPT": "Dostarcz lub zapisz próbę",
+      "ACCEPT_REDIRECTED_SHIPMENT": "Przyjmij w punkcie",
+      "PICKUP_AT_POINT": "Odbiór klienta",
+      "REVIEW_EXCEPTION": "Sprawdź wyjątek",
+      "NONE": "Brak"
+    },
+    "shipmentAction": {
+      "ACCEPT_AT_SOURCE": "Przyjęcie w punkcie nadania",
+      "POST_FROM_SOURCE": "Nadanie dalej z punktu",
+      "ASSIGN_COURIER": "Przypisanie kuriera",
+      "ROUTE_TO_TARGET_POINT": "Skierowanie do punktu odbioru",
+      "ROUTE_TO_LOCKER": "Skierowanie do paczkomatu",
+      "COMPLETE_DELIVERY": "Doręczenie do odbiorcy",
+      "RECORD_ATTEMPT": "Zapis nieudanej próby",
+      "RETURN_TO_DESTINATION_HUB": "Powrót do hubu docelowego",
+      "ACCEPT_AT_TARGET_POINT": "Przyjęcie w punkcie odbioru",
+      "RELEASE_TO_RECIPIENT": "Wydanie odbiorcy",
+      "REQUEST_REDIRECTION": "Przekierowanie do punktu",
+      "CREATE_COMPLAINT": "Zgłoszenie reklamacji"
     }
   },
   "theme": {

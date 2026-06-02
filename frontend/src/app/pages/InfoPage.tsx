@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
-const KNOWN_SLUGS = ['pricing', 'about', 'careers', 'contact', 'faq', 'terms', 'privacy', 'register', 'forgot-password'] as const;
+const KNOWN_SLUGS = ['pricing', 'about', 'careers', 'contact', 'faq', 'terms', 'privacy'] as const;
 type InfoSlug = typeof KNOWN_SLUGS[number];
 
 function isKnownSlug(slug: string): slug is InfoSlug {

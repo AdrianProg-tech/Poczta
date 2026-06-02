@@ -1,3 +1,4 @@
+import i18n from '../i18n/config';
 import { readStoredSession } from './authSession';
 import type { AdminScope, AppUser, UserRole } from './types';
 
@@ -527,11 +528,9 @@ export async function logout() {
 }
 
 export function formatDate(dateTime: string | null | undefined) {
-  if (!dateTime) {
-    return 'Brak danych';
-  }
-
-  return new Intl.DateTimeFormat('pl-PL', {
+  if (!dateTime) return i18n.t('formatters.noData');
+  const locale = i18n.language === 'en' ? 'en-GB' : 'pl-PL';
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -539,11 +538,9 @@ export function formatDate(dateTime: string | null | undefined) {
 }
 
 export function formatDateTime(dateTime: string | null | undefined) {
-  if (!dateTime) {
-    return 'Brak danych';
-  }
-
-  return new Intl.DateTimeFormat('pl-PL', {
+  if (!dateTime) return i18n.t('formatters.noData');
+  const locale = i18n.language === 'en' ? 'en-GB' : 'pl-PL';
+  return new Intl.DateTimeFormat(locale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -553,11 +550,9 @@ export function formatDateTime(dateTime: string | null | undefined) {
 }
 
 export function formatCurrency(amount: number | null | undefined) {
-  if (amount == null) {
-    return 'Brak danych';
-  }
-
-  return new Intl.NumberFormat('pl-PL', {
+  if (amount == null) return i18n.t('formatters.noData');
+  const locale = i18n.language === 'en' ? 'en-GB' : 'pl-PL';
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'PLN',
     minimumFractionDigits: 2,
@@ -565,258 +560,85 @@ export function formatCurrency(amount: number | null | undefined) {
 }
 
 export function formatShipmentStatus(status: string | null | undefined) {
-  switch (status) {
-    case 'READY_FOR_HANDOVER':
-      return 'Gotowa do przekazania';
-    case 'ACCEPTED_AT_SOURCE':
-      return 'Przyjeta w source';
-    case 'IN_TRANSIT_TO_ORIGIN_HUB':
-      return 'W drodze do centrum nadawczego';
-    case 'AT_ORIGIN_HUB':
-      return 'W centrum nadawczym';
-    case 'IN_TRANSIT_TO_DESTINATION_HUB':
-      return 'W tranzycie do hubu docelowego';
-    case 'AT_DESTINATION_HUB':
-      return 'W hubie docelowym';
-    case 'IN_TRANSIT_TO_TARGET_POINT':
-      return 'W drodze do punktu odbioru';
-    case 'IN_TRANSIT_TO_TARGET_LOCKER':
-      return 'W drodze do paczkomatu';
-    case 'AWAITING_LOCKER_PICKUP':
-      return 'Czeka w paczkomacie';
-    case 'DELIVERY_ATTEMPT_FAILED':
-      return 'Nieudana próba doręczenia';
-    case 'RETURN_IN_TRANSIT':
-      return 'Wraca przez centrum operacyjne';
-    case 'CREATED':
-      return 'Utworzona';
-    case 'PAID':
-      return 'Opłacona';
-    case 'POSTED':
-      return 'Nadana';
-    case 'READY_FOR_POSTING':
-      return 'Gotowa do wysyłki';
-    case 'IN_TRANSIT':
-      return 'W transporcie';
-    case 'OUT_FOR_DELIVERY':
-      return 'W doręczeniu';
-    case 'DELIVERY_ATTEMPT':
-      return 'Próba doręczenia';
-    case 'REDIRECTED_TO_PICKUP':
-      return 'Przekierowana do punktu';
-    case 'AWAITING_PICKUP':
-      return 'Czeka na odbiór';
-    case 'DELIVERED':
-      return 'Doręczona';
-    case 'RETURNED':
-      return 'Zwrócona';
-    case 'CANCELED':
-      return 'Anulowana';
-    default:
-      return status ?? 'Nieznany';
-  }
+  if (!status) return i18n.t('formatters.unknown');
+  const key = `status.shipment.${status}`;
+  const translated = i18n.t(key);
+  // i18n returns the key itself when not found — fall back to the raw value
+  return translated === key ? status : translated;
 }
 
 export function formatPaymentStatus(status: string | null | undefined) {
-  switch (status) {
-    case 'PAID':
-      return 'Opłacona';
-    case 'OFFLINE_CONFIRMED':
-      return 'Potwierdzona offline';
-    case 'PENDING':
-      return 'Oczekująca';
-    case 'FAILED':
-      return 'Nieudana';
-    case 'CANCELED':
-      return 'Anulowana';
-    case 'OFFLINE_PENDING':
-      return 'Offline - do potwierdzenia';
-    default:
-      return status ?? 'Nieznany';
-  }
+  if (!status) return i18n.t('formatters.unknown');
+  const key = `status.payment.${status}`;
+  const translated = i18n.t(key);
+  return translated === key ? status : translated;
 }
 
 export function formatPaymentMethod(method: string | null | undefined) {
-  switch (method) {
-    case 'ONLINE':
-      return 'Online';
-    case 'OFFLINE_AT_POINT':
-      return 'Płatność w punkcie';
-    default:
-      return method ?? 'Nieznana';
-  }
+  if (!method) return i18n.t('formatters.unknown');
+  const key = `formatters.paymentMethod.${method}`;
+  const translated = i18n.t(key);
+  return translated === key ? method : translated;
 }
 
 export function formatComplaintStatus(status: string | null | undefined) {
-  switch (status) {
-    case 'NEW':
-      return 'Nowa';
-    case 'IN_REVIEW':
-      return 'W trakcie';
-    case 'ACCEPTED':
-      return 'Uznana';
-    case 'REJECTED':
-      return 'Odrzucona';
-    case 'CLOSED':
-      return 'Zamknięta';
-    default:
-      return status ?? 'Nieznany';
-  }
+  if (!status) return i18n.t('formatters.unknown');
+  const key = `status.complaint.${status}`;
+  const translated = i18n.t(key);
+  return translated === key ? status : translated;
 }
 
 export function formatComplaintType(type: string | null | undefined) {
-  switch (type) {
-    case 'DELAYED':
-      return 'Opóźnienie';
-    case 'DAMAGED':
-      return 'Uszkodzenie';
-    case 'LOST':
-      return 'Zaginięcie';
-    case 'OTHER':
-      return 'Inne';
-    default:
-      return type ?? 'Nieznany';
-  }
+  if (!type) return i18n.t('formatters.unknown');
+  const key = `formatters.complaintType.${type}`;
+  const translated = i18n.t(key);
+  return translated === key ? type : translated;
 }
 
 export function formatPointType(type: PublicPoint['type']) {
-  return type === 'PARCEL_LOCKER' ? 'Paczkomat' : 'Punkt odbioru';
+  return i18n.t(`formatters.pointType.${type}`, { defaultValue: type });
 }
 
 export function formatDeliveryType(type: string | null | undefined) {
-  switch (type) {
-    case 'COURIER':
-      return 'Kurier';
-    case 'PICKUP_POINT':
-      return 'Punkt odbioru';
-    case 'PARCEL_LOCKER':
-      return 'Paczkomat demo';
-    default:
-      return type ?? 'Nieznany';
-  }
+  if (!type) return i18n.t('formatters.unknown');
+  const key = `formatters.deliveryType.${type}`;
+  const translated = i18n.t(key);
+  return translated === key ? type : translated;
 }
 
 export function formatQueueType(type: string | null | undefined) {
-  switch (type) {
-    case 'ACCEPT':
-      return 'Do przyjęcia';
-    case 'PICKUP':
-      return 'Do wydania';
-    case 'OFFLINE_PAYMENT':
-      return 'Offline payment';
-    default:
-      return type ?? 'Nieznana';
-  }
+  if (!type) return i18n.t('formatters.unknown');
+  const key = `formatters.queueType.${type}`;
+  const translated = i18n.t(key);
+  return translated === key ? type : translated;
 }
 
 export function formatOpsAction(action: string | null | undefined) {
-  switch (action) {
-    case 'MARK_PAYMENT_PAID':
-      return 'Potwierdź płatność';
-    case 'RESTART_PAYMENT':
-      return 'Klient musi ponowić płatność';
-    case 'CONFIRM_OFFLINE_PAYMENT':
-      return 'Potwierdź płatność w punkcie';
-    case 'PREPARE_FOR_DISPATCH':
-      return 'Przygotuj do wysyłki';
-    case 'POST_FROM_SOURCE':
-      return 'Nadaj dalej z punktu';
-    case 'ASSIGN_COURIER':
-      return 'Przypisz kuriera';
-    case 'HAND_OVER_TO_COURIER':
-      return 'Przekaż do final-mile';
-    case 'ROUTE_TO_PICKUP_POINT':
-      return 'Skieruj do punktu odbioru';
-    case 'ACCEPT_TASK':
-      return 'Kurier powinien przyjąć zadanie';
-    case 'START_ROUTE':
-      return 'Rozpocznij trasę';
-    case 'COMPLETE_OR_RECORD_ATTEMPT':
-      return 'Dostarcz lub zapisz próbę';
-    case 'ACCEPT_REDIRECTED_SHIPMENT':
-      return 'Przyjmij w punkcie';
-    case 'PICKUP_AT_POINT':
-      return 'Odbiór klienta';
-    case 'REVIEW_EXCEPTION':
-      return 'Sprawdź wyjątek';
-    case 'NONE':
-      return 'Brak';
-    default:
-      return action ?? 'Brak';
-  }
+  if (!action || action === 'NONE') return i18n.t('formatters.opsAction.NONE');
+  const key = `formatters.opsAction.${action}`;
+  const translated = i18n.t(key);
+  return translated === key ? action : translated;
 }
 
 export function formatShipmentAction(action: string | null | undefined) {
-  switch (action) {
-    case 'ACCEPT_AT_SOURCE':
-      return 'Przyjecie w punkcie nadania';
-    case 'POST_FROM_SOURCE':
-      return 'Nadanie dalej z punktu';
-    case 'ASSIGN_COURIER':
-      return 'Przypisanie kuriera';
-    case 'ROUTE_TO_TARGET_POINT':
-      return 'Skierowanie do punktu odbioru';
-    case 'ROUTE_TO_LOCKER':
-      return 'Skierowanie do paczkomatu';
-    case 'COMPLETE_DELIVERY':
-      return 'Doreczenie do odbiorcy';
-    case 'RECORD_ATTEMPT':
-      return 'Zapis nieudanej proby';
-    case 'RETURN_TO_DESTINATION_HUB':
-      return 'Powrot do hubu docelowego';
-    case 'ACCEPT_AT_TARGET_POINT':
-      return 'Przyjecie w punkcie odbioru';
-    case 'RELEASE_TO_RECIPIENT':
-      return 'Wydanie odbiorcy';
-    case 'REQUEST_REDIRECTION':
-      return 'Przekierowanie do punktu';
-    case 'CREATE_COMPLAINT':
-      return 'Zgloszenie reklamacji';
-    default:
-      return action ?? 'Brak';
-  }
+  if (!action) return i18n.t('formatters.opsAction.NONE');
+  const key = `formatters.shipmentAction.${action}`;
+  const translated = i18n.t(key);
+  return translated === key ? action : translated;
 }
 
 export function formatRoutingOwner(owner: string | null | undefined) {
-  switch (owner) {
-    case 'CLIENT':
-      return 'Klient';
-    case 'POINT':
-      return 'Punkt';
-    case 'HUB':
-      return 'Hub / magazyn';
-    case 'COURIER':
-      return 'Kurier';
-    case 'LOCKER':
-      return 'Paczkomat';
-    case 'SYSTEM':
-      return 'System';
-    default:
-      return owner ?? 'Nieznany';
-  }
+  if (!owner) return i18n.t('formatters.unknown');
+  const key = `formatters.routingOwner.${owner}`;
+  const translated = i18n.t(key);
+  return translated === key ? owner : translated;
 }
 
 export function formatOpsOwner(owner: string | null | undefined) {
-  switch (owner) {
-    case 'CLIENT':
-      return 'Klient';
-    case 'ADMIN':
-      return 'Administrator';
-    case 'POINT':
-      return 'Punkt';
-    case 'DISPATCH':
-      return 'Dispatcher';
-    case 'OPS':
-      return 'Operacje';
-    case 'HUB':
-      return 'Hub / magazyn';
-    case 'COURIER':
-      return 'Kurier';
-    case 'SYSTEM':
-      return 'System';
-    default:
-      return owner ?? 'Nieznany';
-  }
+  if (!owner) return i18n.t('formatters.unknown');
+  const key = `formatters.opsOwner.${owner}`;
+  const translated = i18n.t(key);
+  return translated === key ? owner : translated;
 }
 
 export async function getCurrentUser(email?: string) {
