@@ -181,7 +181,7 @@ export default function AdminUsers() {
         <div>
           <h2 className="text-xl">Katalog uzytkownikow</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Live read-model dla admina z rolami operacyjnymi, `serviceCity` i przypisaniem do punktu.
+            Zarzadzaj kontami, rolami i przypisaniem ludzi do miast kurierow oraz punktow odbioru.
           </p>
         </div>
 

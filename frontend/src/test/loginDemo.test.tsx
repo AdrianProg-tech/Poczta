@@ -67,11 +67,11 @@ describe('LoginDemo', () => {
     );
 
     await waitFor(() => expect(getDemoUsersMock).toHaveBeenCalledWith('client'));
-    expect(screen.getByRole('option', { name: /Jan Kowalski/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Jan Kowalski - jan\.kowalski\.client@example\.com/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Dispatcher/i }));
 
     await waitFor(() => expect(getDemoUsersMock).toHaveBeenLastCalledWith('dispatcher'));
-    expect(screen.getByRole('option', { name: /Ola Dispatch/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Ola Dispatch - ops\.dispatch@example\.com/i })).toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const KNOWN_SLUGS = ['pricing', 'about', 'careers', 'contact', 'faq', 'terms', 'privacy'] as const;
 type InfoSlug = typeof KNOWN_SLUGS[number];
@@ -14,6 +15,7 @@ export default function InfoPage() {
   const safeSlug: InfoSlug = isKnownSlug(slug) ? slug : 'about';
 
   const title = t(`infoPage.${safeSlug}.title`);
+  usePageTitle(title);
   const description = t(`infoPage.${safeSlug}.description`);
   const bullets = [
     t(`infoPage.${safeSlug}.b1`),

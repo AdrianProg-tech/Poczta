@@ -85,10 +85,10 @@ export function Sidebar({ role }: SidebarProps) {
   const demoItems =
     role === 'admin' && currentUser?.adminScope !== 'DISPATCHER'
       ? [
-          { icon: FlaskConical, label: 'Demo Lab', path: '/admin/demo-lab' },
-          { icon: Lock, label: 'Demo: Skrytki', path: '/admin/demo/locker' },
-          { icon: Truck, label: 'Demo: Tranzyt', path: '/admin/demo/transit' },
-          { icon: Package, label: 'Demo: Przekazania', path: '/admin/demo/handover' },
+          { icon: FlaskConical, label: 'Laboratorium demo', path: '/admin/demo-lab' },
+          { icon: Lock, label: 'Symulacja skrytek', path: '/admin/demo/locker' },
+          { icon: Truck, label: 'Centrum sortowania', path: '/admin/demo/transit' },
+          { icon: Package, label: 'Przekazania operacyjne', path: '/admin/demo/handover' },
         ]
       : [];
 
@@ -103,7 +103,7 @@ export function Sidebar({ role }: SidebarProps) {
         </Link>
       </div>
 
-      <nav className="flex-1 overflow-y-auto space-y-1 p-4">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
         {menuItems.map((item) => {
           const isActive =
             location.pathname === item.path ||

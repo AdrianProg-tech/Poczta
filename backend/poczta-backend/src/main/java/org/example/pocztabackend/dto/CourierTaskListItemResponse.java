@@ -34,6 +34,9 @@ public record CourierTaskListItemResponse(
             String currentNodeType,
             String currentNodeCode
     ) {
+        String taskType = task.getTaskType() == null || task.getTaskType().isBlank()
+                ? "DELIVERY"
+                : task.getTaskType().trim().toUpperCase();
         String legacyShipmentStatus = task.getShipment() == null || task.getShipment().getStatus() == null
                 ? null
                 : task.getShipment().getStatus().name();
@@ -43,18 +46,28 @@ public record CourierTaskListItemResponse(
                 : latestPayment.getStatus().name();
         boolean requiresPaymentCollection = latestPayment != null
                 && latestPayment.getStatus() == PaymentStatus.OFFLINE_PENDING
+                && "DELIVERY".equals(taskType)
                 && "OFFLINE_AT_COURIER".equalsIgnoreCase(paymentMethod);
+        String contactName = task.getShipment() == null
+                ? null
+                : "PICKUP".equals(taskType) ? task.getShipment().getSenderName() : task.getShipment().getRecipientName();
+        String contactPhone = task.getShipment() == null
+                ? null
+                : "PICKUP".equals(taskType) ? task.getShipment().getSenderPhone() : task.getShipment().getRecipientPhone();
+        String targetAddress = task.getShipment() == null
+                ? null
+                : "PICKUP".equals(taskType) ? task.getShipment().getSenderAddress() : task.getShipment().getRecipientAddress();
 
         return new CourierTaskListItemResponse(
                 task.getId(),
                 task.getShipment() == null ? null : task.getShipment().getTrackingNumber(),
-                "DELIVERY",
+                taskType,
                 task.getStatus(),
                 shipmentStatus,
                 legacyShipmentStatus,
-                task.getShipment() == null ? null : task.getShipment().getRecipientName(),
-                task.getShipment() == null ? null : task.getShipment().getRecipientPhone(),
-                task.getShipment() == null ? null : task.getShipment().getRecipientAddress(),
+                contactName,
+                contactPhone,
+                targetAddress,
                 currentNodeType,
                 currentNodeCode,
                 task.getTaskDate(),

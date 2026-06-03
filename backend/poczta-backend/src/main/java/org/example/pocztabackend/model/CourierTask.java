@@ -19,6 +19,7 @@ public class CourierTask {
     private UUID id;
 
     private LocalDate taskDate;
+    private String taskType;
     private String status;
     private LocalDateTime assignedAt;
 

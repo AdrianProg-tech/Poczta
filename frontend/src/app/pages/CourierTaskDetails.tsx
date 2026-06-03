@@ -60,18 +60,26 @@ function extractCityFromAddress(address: string | null | undefined) {
   return canonicalizeCity(address.split(',')[0]);
 }
 
-function pickRedirectPoint(points: PublicPoint[], address: string | null | undefined) {
+function findPickupPointByCity(points: PublicPoint[], city: string | null | undefined) {
   const pickupPoints = points.filter((point) => point.type === 'PICKUP_POINT');
   if (pickupPoints.length === 0) {
     return points[0];
   }
 
-  const destinationCity = extractCityFromAddress(address);
-  if (!destinationCity) {
+  const normalizedCity = canonicalizeCity(city);
+  if (!normalizedCity) {
     return pickupPoints[0];
   }
 
-  return pickupPoints.find((point) => canonicalizeCity(point.city) === destinationCity) ?? pickupPoints[0];
+  return pickupPoints.find((point) => canonicalizeCity(point.city) === normalizedCity) ?? pickupPoints[0];
+}
+
+function pickRedirectPoint(
+  points: PublicPoint[],
+  address: string | null | undefined,
+  preferredCity?: string | null | undefined,
+) {
+  return findPickupPointByCity(points, extractCityFromAddress(address)) ?? findPickupPointByCity(points, preferredCity);
 }
 
 function buildHistoricNotice(trackingData: PublicTrackingResponse | null): IssueNoticeResponse | null {
@@ -102,6 +110,14 @@ function buildHistoricNotice(trackingData: PublicTrackingResponse | null): Issue
   };
 }
 
+function isPickupTask(taskType: string | null | undefined) {
+  return taskType?.toUpperCase() === 'PICKUP';
+}
+
+function formatTaskType(taskType: string | null | undefined) {
+  return isPickupTask(taskType) ? 'Odbior od nadawcy' : 'Doreczenie do odbiorcy';
+}
+
 export default function CourierTaskDetails() {
   const { t } = useTranslation();
   const { id } = useParams();
@@ -130,13 +146,13 @@ export default function CourierTaskDetails() {
     try {
       const [taskData, pointsData] = await Promise.all([getCourierTaskDetails(currentUser.email, id), getPublicPoints()]);
       const trackingData = await getPublicTracking(taskData.trackingNumber);
-      const pickupPoint = pickRedirectPoint(pointsData, taskData.targetAddress);
+      const pickupPoint = pickRedirectPoint(pointsData, taskData.targetAddress, currentUser?.serviceCity);
 
       setTask(taskData);
       setPoints(pointsData);
       setTracking(trackingData);
       setIssuedNotice(buildHistoricNotice(trackingData));
-      setRedirectPointCode((current) => current || pickupPoint?.pointCode || '');
+      setRedirectPointCode(pickupPoint?.pointCode || '');
       setError(null);
     } catch (requestError) {
       setTask(null);
@@ -145,7 +161,7 @@ export default function CourierTaskDetails() {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser?.email, id]);
+  }, [currentUser?.email, currentUser?.serviceCity, id]);
 
   useEffect(() => {
     void loadTask();
@@ -187,9 +203,55 @@ export default function CourierTaskDetails() {
       return description.includes('return') || description.includes('zwrot');
     });
   }, [task?.shipmentStatus, tracking?.currentStatus, timelineItems]);
+  const routeStatus = task?.shipmentStatus ?? tracking?.currentStatus ?? null;
+  const hasPickupPointContext = useMemo(() => {
+    const destinationSummary = tracking?.destinationSummary ?? '';
+    if (/[A-Z]{3}-[A-Z]{3}-\d{2}/.test(destinationSummary)) {
+      return true;
+    }
+
+    return ['REDIRECTED_TO_PICKUP', 'RETURN_IN_TRANSIT', 'IN_TRANSIT_TO_TARGET_POINT', 'AWAITING_PICKUP'].includes(
+      routeStatus ?? '',
+    );
+  }, [routeStatus, tracking?.destinationSummary]);
+  const canIssueNotice = task?.taskStatus === 'FAILED' && !issuedNotice && !returnAlreadyStarted && hasPickupPointContext;
   const actionPlan = useMemo(() => {
     if (!task) {
       return null;
+    }
+
+    if (isPickupTask(task.taskType)) {
+      if (task.taskStatus === 'ASSIGNED') {
+        return {
+          title: 'Nastepny krok: przyjmij zadanie odbioru',
+          description: 'Dispatcher przydzielil kuriera do odbioru paczki od nadawcy, ale kurier nie potwierdzil jeszcze zadania.',
+          bullets: ['Przyjmij zadanie.', 'Po akceptacji rozpocznij odbior, gdy jestes gotowy do wyjazdu.'],
+        };
+      }
+
+      if (task.taskStatus === 'ACCEPTED') {
+        return {
+          title: 'Nastepny krok: rozpocznij odbior',
+          description: 'Zadanie odbioru jest juz po stronie kuriera i czeka na wyjazd do nadawcy.',
+          bullets: ['Rozpocznij odbior.', 'Po starcie zadanie przejdzie do aktywnego odbioru paczki.'],
+        };
+      }
+
+      if (task.taskStatus === 'IN_PROGRESS') {
+        return {
+          title: 'Masz aktywny odbior od nadawcy',
+          description: 'Kurier jest w trasie po paczke i powinien potwierdzic odbior, aby wprowadzic przesylke do sieci.',
+          bullets: ['Odbierz paczke od nadawcy.', 'Po potwierdzeniu paczka trafi do centrum sortowania.'],
+        };
+      }
+
+      if (task.taskStatus === 'FAILED') {
+        return {
+          title: 'Odbior nie zostal zakonczony',
+          description: 'Ten scenariusz wymaga dalszej decyzji po stronie operacyjnej albo ponownego przydzialu.',
+          bullets: ['Sprawdz szczegoly zadania i tracking.', 'W razie potrzeby popros dispatcher o nowy przydzial.'],
+        };
+      }
     }
 
     if (task.taskStatus === 'ASSIGNED') {
@@ -287,12 +349,12 @@ export default function CourierTaskDetails() {
                   </div>
                   <p className="text-sm text-muted-foreground">Task ID: {task.taskId}</p>
                 </div>
-                <div className="rounded-lg bg-secondary px-4 py-2 text-sm">{task.taskType}</div>
+                <div className="rounded-lg bg-secondary px-4 py-2 text-sm">{formatTaskType(task.taskType)}</div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <div className="mb-1 text-sm text-muted-foreground">Odbiorca</div>
+                  <div className="mb-1 text-sm text-muted-foreground">{isPickupTask(task.taskType) ? 'Nadawca' : 'Odbiorca'}</div>
                   <div>{task.recipientName}</div>
                 </div>
                 <div>
@@ -300,7 +362,7 @@ export default function CourierTaskDetails() {
                   <div>{task.recipientPhone}</div>
                 </div>
                 <div className="md:col-span-2">
-                  <div className="mb-1 text-sm text-muted-foreground">Adres docelowy</div>
+                  <div className="mb-1 text-sm text-muted-foreground">{isPickupTask(task.taskType) ? 'Adres odbioru' : 'Adres docelowy'}</div>
                   <div>{task.targetAddress}</div>
                 </div>
                 <div>
@@ -319,7 +381,13 @@ export default function CourierTaskDetails() {
                 </div>
                 <div>
                   <div className="mb-1 text-sm text-muted-foreground">Pobranie przy odbiorze</div>
-                  <div>{task.requiresPaymentCollection ? 'Tak, kurier musi domknac platnosc przy odbiorze' : 'Nie'}</div>
+                  <div>
+                    {isPickupTask(task.taskType)
+                      ? 'Nie, platnosc nie jest pobierana podczas odbioru od nadawcy.'
+                      : task.requiresPaymentCollection
+                        ? 'Tak, kurier musi domknac platnosc przy odbiorze.'
+                        : 'Nie'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -394,13 +462,30 @@ export default function CourierTaskDetails() {
                     className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                   >
                     <Truck className="h-4 w-4" />
-                    Rozpocznij trase
+                    {isPickupTask(task.taskType) ? 'Rozpocznij odbior' : 'Rozpocznij trase'}
                   </button>
                 ) : null}
 
                 {task.taskStatus === 'IN_PROGRESS' ? (
                   <>
-                    {task.requiresPaymentCollection ? (
+                    {isPickupTask(task.taskType) ? (
+                      <button
+                        type="button"
+                        disabled={busyAction === 'complete' || !currentUser?.email}
+                        onClick={() =>
+                          currentUser?.email &&
+                          runTaskAction('complete', () =>
+                            completeCourierTask(currentUser.email, task.taskId, {
+                              note: 'Paczka odebrana od nadawcy z widoku szczegolow kuriera',
+                            }),
+                          )
+                        }
+                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
+                      >
+                        <CheckSquare className="h-4 w-4" />
+                        Potwierdz odbior od nadawcy
+                      </button>
+                    ) : task.requiresPaymentCollection ? (
                       <div className="space-y-3 rounded-lg border border-border p-4">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <CreditCard className="h-4 w-4" />
@@ -464,44 +549,50 @@ export default function CourierTaskDetails() {
                       </button>
                     )}
 
-                    <div className="space-y-2 rounded-lg border border-border p-3">
-                      <div className="text-sm text-muted-foreground">Redirect po nieudanej probie</div>
-                      <select
-                        value={redirectPointCode}
-                        onChange={(event) => setRedirectPointCode(event.target.value)}
-                        className="w-full rounded-lg border border-border bg-card px-3 py-2 outline-none"
-                      >
-                        {pickupPoints.map((point) => (
-                          <option key={point.pointCode} value={point.pointCode}>
-                            {point.pointCode} | {point.city}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        disabled={busyAction === 'attempt' || !currentUser?.email || !redirectPointCode}
-                        onClick={() =>
-                          currentUser?.email &&
-                          redirectPointCode &&
-                          runTaskAction('attempt', () =>
-                            recordCourierAttempt(currentUser.email, task.taskId, {
-                              result: 'RECIPIENT_ABSENT',
-                              note: 'Recipient unavailable during frontend demo',
-                              redirectToPickup: true,
-                              redirectPointCode,
-                            }),
-                          )
-                        }
-                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                        Zapisz nieudana probe
-                      </button>
-                    </div>
+                    {!isPickupTask(task.taskType) ? (
+                      <div className="space-y-2 rounded-lg border border-border p-3">
+                        <div className="text-sm text-muted-foreground">Redirect po nieudanej probie</div>
+                        <select
+                          value={redirectPointCode}
+                          onChange={(event) => setRedirectPointCode(event.target.value)}
+                          className="w-full rounded-lg border border-border bg-card px-3 py-2 outline-none"
+                        >
+                          {pickupPoints.map((point) => (
+                            <option key={point.pointCode} value={point.pointCode}>
+                              {point.pointCode} | {point.city}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          disabled={busyAction === 'attempt' || !currentUser?.email || !redirectPointCode}
+                          onClick={() =>
+                            currentUser?.email &&
+                            redirectPointCode &&
+                            runTaskAction('attempt', () =>
+                              recordCourierAttempt(currentUser.email, task.taskId, {
+                                result: 'RECIPIENT_ABSENT',
+                                note: 'Recipient unavailable during frontend demo',
+                                redirectToPickup: true,
+                                redirectPointCode,
+                              }),
+                            )
+                          }
+                          className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                          Zapisz nieudana probe
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">
+                        Po potwierdzeniu odbioru paczka zostanie przekazana do sieci i ruszy do centrum sortowania.
+                      </div>
+                    )}
                   </>
                 ) : null}
 
-                {task.taskStatus === 'FAILED' ? (
+                {task.taskStatus === 'FAILED' && !isPickupTask(task.taskType) ? (
                   <div className="space-y-3">
                     {issuedNotice ? (
                       <div className="rounded-lg border border-success/30 bg-success/10 p-4 text-sm">
@@ -517,7 +608,7 @@ export default function CourierTaskDetails() {
                     ) : (
                       <button
                         type="button"
-                        disabled={busyAction === 'notice' || !currentUser?.email}
+                        disabled={busyAction === 'notice' || !currentUser?.email || !canIssueNotice}
                         onClick={() =>
                           currentUser?.email &&
                           runTaskAction('notice', async () => {
@@ -531,6 +622,11 @@ export default function CourierTaskDetails() {
                         {busyAction === 'notice' ? 'Wystawianie awizo...' : 'Wystaw awizo'}
                       </button>
                     )}
+                    {!issuedNotice && !canIssueNotice && !returnAlreadyStarted ? (
+                      <div className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-sm text-muted-foreground">
+                        Awizo jest dostepne dopiero po przekierowaniu przesylki do punktu odbioru.
+                      </div>
+                    ) : null}
 
                     <button
                       type="button"
@@ -545,13 +641,23 @@ export default function CourierTaskDetails() {
                       className="flex w-full items-center justify-center gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-2 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-70"
                     >
                       <Undo2 className="h-4 w-4" />
-                      {busyAction === 'return' ? 'Inicjowanie zwrotu...' : 'Zainicjuj zwrot'}
+                      {busyAction === 'return'
+                        ? 'Inicjowanie zwrotu...'
+                        : returnAlreadyStarted
+                          ? 'Zwrot juz zainicjowany'
+                          : 'Zainicjuj zwrot'}
                     </button>
                     {returnAlreadyStarted ? (
                       <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-muted-foreground">
                         Zwrot tej przesylki jest juz w toku albo zostal zakonczony.
                       </div>
                     ) : null}
+                  </div>
+                ) : null}
+
+                {task.taskStatus === 'FAILED' && isPickupTask(task.taskType) ? (
+                  <div className="rounded-lg bg-secondary p-4 text-sm text-muted-foreground">
+                    Odbior od nadawcy nie zostal zakonczony. Dalsza decyzja nalezy do dispatchera lub operacji.
                   </div>
                 ) : null}
 
@@ -571,7 +677,7 @@ export default function CourierTaskDetails() {
                   <span>{tracking?.trackingNumber ?? task.trackingNumber}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-muted-foreground">Cel dostawy</span>
+                  <span className="text-muted-foreground">{isPickupTask(task.taskType) ? 'Adres odbioru' : 'Cel dostawy'}</span>
                   <span className="text-right">{tracking?.destinationSummary ?? task.targetAddress}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
@@ -588,7 +694,11 @@ export default function CourierTaskDetails() {
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-muted-foreground">Sposob pobrania</span>
-                  <span>{task.paymentCollectionMethod ?? (task.requiresPaymentCollection ? 'Do wyboru przy doreczeniu' : 'Brak')}</span>
+                  <span>
+                    {isPickupTask(task.taskType)
+                      ? 'Nie dotyczy odbioru od nadawcy'
+                      : task.paymentCollectionMethod ?? (task.requiresPaymentCollection ? 'Do wyboru przy doreczeniu' : 'Brak')}
+                  </span>
                 </div>
               </div>
             </div>

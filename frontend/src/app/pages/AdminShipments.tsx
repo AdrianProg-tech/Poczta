@@ -38,6 +38,10 @@ function formatAction(action: string) {
     RESTART_PAYMENT: 'Ponow platnosc klienta',
     CONFIRM_OFFLINE_PAYMENT: 'Potwierdz platnosc offline',
     PREPARE_FOR_DISPATCH: 'Przygotuj do wysylki',
+    ASSIGN_PICKUP_COURIER: 'Przypisz kuriera po odbior',
+    ACCEPT_PICKUP_TASK: 'Kurier ma przyjac odbior',
+    START_PICKUP_ROUTE: 'Kurier ma ruszyc po odbior',
+    COMPLETE_PICKUP_FROM_SENDER: 'Kurier ma odebrac od nadawcy',
     POST_FROM_SOURCE: 'Nadaj dalej z punktu',
     ASSIGN_COURIER: 'Przypisz kuriera',
     HAND_OVER_TO_COURIER: 'Przekaz kurierowi',
@@ -57,9 +61,13 @@ function formatAction(action: string) {
 function explainAction(action: string) {
   const explanations: Record<string, string> = {
     PREPARE_FOR_DISPATCH: 'Zespol operacyjny powinien przepchnac przesylke z platnosci do pierwszego przekazania.',
+    ASSIGN_PICKUP_COURIER: 'Dispatcher powinien wskazac kuriera, ktory odbierze paczke od nadawcy.',
+    ACCEPT_PICKUP_TASK: 'Kurier ma juz przydzielony odbior, ale nie potwierdzil jeszcze przejecia zadania.',
+    START_PICKUP_ROUTE: 'Kurier potwierdzil zadanie odbioru, ale jeszcze nie ruszyl po paczke.',
+    COMPLETE_PICKUP_FROM_SENDER: 'Kurier powinien potwierdzic odbior paczki od nadawcy i wprowadzenie jej do sieci.',
     POST_FROM_SOURCE: 'Punkt przyjal juz przesylke i musi tylko potwierdzic wysylke dalej do sieci.',
     ASSIGN_COURIER: 'Dispatcher powinien wskazac kuriera, aby przesylka zeszla z kolejki oczekiwania.',
-    HAND_OVER_TO_COURIER: 'Kolejny ruch jest po stronie kuriera albo punktu przekazujacego przesylke do final-mile.',
+    HAND_OVER_TO_COURIER: 'Kolejny ruch jest po stronie kuriera albo punktu, ktory przekazuje przesylke do doreczenia.',
     ROUTE_TO_PICKUP_POINT: 'Hub powinien wyslac przesylke do docelowego punktu, zeby punkt mogl ja potem przyjac i wydac.',
     ACCEPT_TASK: 'Task istnieje, ale kurier nie potwierdzil jeszcze przyjecia.',
     START_ROUTE: 'Task jest przyjety, ale kurier nie ruszyl jeszcze w trase.',
@@ -68,9 +76,42 @@ function explainAction(action: string) {
     ACCEPT_REDIRECTED_SHIPMENT: 'Punkt powinien przyjac redirect, aby przesylka trafila do odbioru klienta.',
     PICKUP_AT_POINT: 'Klient moze odebrac przesylke, a punkt powinien pilnowac release flow.',
     REVIEW_EXCEPTION: 'Przesylka utknela w stanie wymagajacym recznej analizy albo decyzji operacyjnej.',
-    NONE: 'Nie ma sugerowanego kolejnego ruchu w tym read-modelu.',
+    NONE: 'Na tym etapie nie ma sugerowanej szybkiej akcji.',
   };
-  return explanations[action] ?? 'Sprawdz te przesylke recznie, bo read-model nie ma dla niej prostego playbooka.';
+  return explanations[action] ?? 'Sprawdz szczegoly przesylki i zdecyduj o kolejnym ruchu operacyjnym.';
+}
+
+function formatTaskType(taskType: string | null | undefined) {
+  if (taskType === 'PICKUP') {
+    return 'Odbior od nadawcy';
+  }
+  if (taskType === 'DELIVERY') {
+    return 'Doreczenie do odbiorcy';
+  }
+  return null;
+}
+
+function describeResponsibleActor(shipment: OpsShipmentBoardItem) {
+  if (shipment.activeTaskType === 'PICKUP') {
+    return shipment.assignedCourierEmail
+      ? `Kurier odbioru: ${shipment.assignedCourierEmail}`
+      : `Miasto odbioru: ${shipment.sourceCity ?? 'brak danych'}`;
+  }
+  if (shipment.nextActionOwner === 'POINT') {
+    const pointCode =
+      shipment.nextSuggestedAction === 'ACCEPT_REDIRECTED_SHIPMENT' || shipment.nextSuggestedAction === 'PICKUP_AT_POINT'
+        ? shipment.targetPointCode
+        : shipment.sourcePointCode ?? shipment.targetPointCode;
+    return pointCode ? `Punkt: ${pointCode}` : 'Punkt operacyjny';
+  }
+  if (shipment.nextActionOwner === 'HUB') {
+    return `Hub: ${shipment.destinationCity ?? shipment.sourceCity ?? 'brak miasta'}`;
+  }
+  if (shipment.assignedCourierEmail) {
+    const taskType = formatTaskType(shipment.activeTaskType);
+    return taskType ? `${taskType}: ${shipment.assignedCourierEmail}` : `Kurier: ${shipment.assignedCourierEmail}`;
+  }
+  return null;
 }
 
 export default function AdminShipments() {
@@ -168,7 +209,9 @@ export default function AdminShipments() {
   }, [shipments]);
   const boardSummary = useMemo(
     () => ({
-      prepare: shipments.filter((shipment) => shipment.nextSuggestedAction === 'PREPARE_FOR_DISPATCH').length,
+      prepare: shipments.filter((shipment) =>
+        ['PREPARE_FOR_DISPATCH', 'ASSIGN_PICKUP_COURIER', 'POST_FROM_SOURCE'].includes(shipment.nextSuggestedAction),
+      ).length,
       assign: shipments.filter((shipment) => shipment.nextSuggestedAction === 'ASSIGN_COURIER').length,
       courierCheckout: shipments.filter((shipment) => shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER').length,
       point: shipments.filter(
@@ -187,9 +230,9 @@ export default function AdminShipments() {
     <DashboardShell role="admin" title="Tablica przesylek">
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="text-xl">Operacyjny board przesylek</h2>
+          <h2 className="text-xl">Tablica przesylek</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Live read-model z `/api/ops/shipments-board`, z filtrowaniem pod realne scenariusze operacyjne.
+            Lista przesylek z podpowiedziami, kto powinien wykonac nastepny ruch i jaka akcja jest teraz najwazniejsza.
           </p>
         </div>
 
@@ -257,7 +300,7 @@ export default function AdminShipments() {
         >
           <div className="text-sm text-muted-foreground">Kolejka przygotowania</div>
           <div className="mt-2 text-2xl">{boardSummary.prepare}</div>
-          <div className="mt-2 text-sm text-muted-foreground">Platnosc potwierdzona, ale jeszcze bez operacyjnego handoffu.</div>
+          <div className="mt-2 text-sm text-muted-foreground">Platnosc potwierdzona, ale przesylka jeszcze nie weszla do sieci albo czeka na pierwszy handoff.</div>
         </button>
         <button
           type="button"
@@ -343,8 +386,12 @@ export default function AdminShipments() {
                 {filteredShipments.map((shipment) => {
                   const suggestion = suggestions.get(shipment.shipmentId);
                   const isBusy = busyShipmentId === shipment.shipmentId;
-                  const pointWorkerEmail = shipment.targetPointCode
-                    ? pointWorkerEmailByCode.get(shipment.targetPointCode)
+                  const responsiblePointCode =
+                    shipment.nextSuggestedAction === 'ACCEPT_REDIRECTED_SHIPMENT' || shipment.nextSuggestedAction === 'PICKUP_AT_POINT'
+                      ? shipment.targetPointCode
+                      : shipment.sourcePointCode ?? shipment.targetPointCode;
+                  const pointWorkerEmail = responsiblePointCode
+                    ? pointWorkerEmailByCode.get(responsiblePointCode)
                     : undefined;
 
                   return (
@@ -368,11 +415,22 @@ export default function AdminShipments() {
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         <div>{shipment.destinationCity ?? 'Brak miasta'}</div>
                         <div>{shipment.targetPointCode ? `Punkt: ${shipment.targetPointCode}` : 'Dostawa do drzwi'}</div>
+                        {shipment.activeTaskType === 'PICKUP' ? (
+                          <div className="mt-1">Odbior od nadawcy: {shipment.sourceCity ?? 'brak miasta'}</div>
+                        ) : null}
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
                           <div className="mt-1 text-warning">Platnosc pobraniowa po stronie kuriera.</div>
                         ) : null}
                       </td>
-                      <td className="px-6 py-4 text-sm">{formatOwner(shipment.nextActionOwner)}</td>
+                      <td className="px-6 py-4 text-sm">
+                        <div>{formatOwner(shipment.nextActionOwner)}</div>
+                        {describeResponsibleActor(shipment) ? (
+                          <div className="mt-1 text-xs text-muted-foreground">{describeResponsibleActor(shipment)}</div>
+                        ) : null}
+                        {pointWorkerEmail && shipment.nextActionOwner === 'POINT' ? (
+                          <div className="mt-1 text-xs text-muted-foreground">Operator: {pointWorkerEmail}</div>
+                        ) : null}
+                      </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         <div>{formatAction(shipment.nextSuggestedAction)}</div>
                         {shipment.blockedReason ? <div className="mt-1">{shipment.blockedReason}</div> : null}
@@ -386,6 +444,9 @@ export default function AdminShipments() {
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         <div>{shipment.assignedCourierEmail ?? suggestion?.suggestedCourierEmail ?? 'Brak'}</div>
+                        {formatTaskType(shipment.activeTaskType) ? (
+                          <div className="mt-1">{formatTaskType(shipment.activeTaskType)}</div>
+                        ) : null}
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
                           <div className="mt-1 text-warning">Zespol operacyjny powinien monitorowac rozliczenie po stronie kuriera.</div>
                         ) : null}
@@ -397,7 +458,7 @@ export default function AdminShipments() {
                           </div>
                         ) : null}
 
-                        {shipment.nextSuggestedAction === 'ASSIGN_COURIER' ? (() => {
+                        {shipment.nextSuggestedAction === 'ASSIGN_COURIER' || shipment.nextSuggestedAction === 'ASSIGN_PICKUP_COURIER' ? (() => {
                           const selectedId = courierSelections.get(shipment.shipmentId) ?? suggestion?.suggestedCourierId ?? '';
                           return (
                             <div className="space-y-2">
@@ -429,7 +490,11 @@ export default function AdminShipments() {
                                 }
                                 className="w-full rounded-lg bg-success px-3 py-2 text-sm text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                               >
-                                {isBusy ? 'Przypisywanie...' : 'Przypisz kuriera'}
+                                {isBusy
+                                  ? 'Przypisywanie...'
+                                  : shipment.nextSuggestedAction === 'ASSIGN_PICKUP_COURIER'
+                                    ? 'Przypisz kuriera po odbior'
+                                    : 'Przypisz kuriera'}
                               </button>
                             </div>
                           );
@@ -541,15 +606,25 @@ export default function AdminShipments() {
                           </div>
                         ) : null}
 
+                        {['ACCEPT_PICKUP_TASK', 'START_PICKUP_ROUTE', 'COMPLETE_PICKUP_FROM_SENDER'].includes(shipment.nextSuggestedAction) ? (
+                          <div className="text-sm text-muted-foreground">
+                            To jest kolejny krok po stronie kuriera odbierajacego paczke od nadawcy.
+                          </div>
+                        ) : null}
+
                         {![
                           'PREPARE_FOR_DISPATCH',
                           'POST_FROM_SOURCE',
+                          'ASSIGN_PICKUP_COURIER',
                           'ASSIGN_COURIER',
                           'ROUTE_TO_PICKUP_POINT',
                           'ACCEPT_REDIRECTED_SHIPMENT',
                           'PICKUP_AT_POINT',
                           'CONFIRM_OFFLINE_PAYMENT',
                           'COLLECT_PAYMENT_AND_DELIVER',
+                          'ACCEPT_PICKUP_TASK',
+                          'START_PICKUP_ROUTE',
+                          'COMPLETE_PICKUP_FROM_SENDER',
                         ].includes(shipment.nextSuggestedAction) ? (
                           <div className="text-sm text-muted-foreground">Brak szybkiej akcji</div>
                         ) : null}

@@ -1,8 +1,10 @@
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function NotFound() {
   const { t } = useTranslation();
+  usePageTitle('404');
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">

@@ -225,7 +225,6 @@ class CourierTaskContractServiceTest {
 
         when(operationalActorResolver.requireCourierActor(null)).thenReturn(courier);
         when(courierTaskRepository.findById(task.getId())).thenReturn(Optional.of(task));
-        when(paymentRepository.findAllByShipment_IdOrderByCreatedAtDesc(shipment.getId())).thenReturn(List.of());
         when(shipmentRepository.save(any(Shipment.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(courierTaskRepository.save(any(CourierTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -236,5 +235,78 @@ class CourierTaskContractServiceTest {
         assertEquals("IN_PROGRESS", response.taskStatus());
         assertEquals(ShipmentStatus.OUT_FOR_DELIVERY, shipment.getStatus());
         assertEquals("OUT_FOR_DELIVERY", shipment.getShipmentRouteStatus());
+    }
+
+    @Test
+    void shouldStartPickupTaskWithoutMovingShipmentToOutForDelivery() {
+        User courier = new User();
+        courier.setId(UUID.randomUUID());
+        courier.setEmail("courier.krakow.1@example.com");
+
+        Shipment shipment = new Shipment();
+        shipment.setId(UUID.randomUUID());
+        shipment.setStatus(ShipmentStatus.PAID);
+        shipment.setTrackingNumber("PWPICKUPSTART1PL");
+        shipment.setShipmentRouteStatus(ShipmentRouteStatus.READY_FOR_HANDOVER.name());
+        shipment.setCurrentNodeType(ShipmentNodeType.COURIER.name());
+
+        CourierTask task = new CourierTask();
+        task.setId(UUID.randomUUID());
+        task.setCourier(courier);
+        task.setShipment(shipment);
+        task.setTaskType("PICKUP");
+        task.setStatus("ACCEPTED");
+
+        when(operationalActorResolver.requireCourierActor(null)).thenReturn(courier);
+        when(courierTaskRepository.findById(task.getId())).thenReturn(Optional.of(task));
+        when(shipmentRepository.save(any(Shipment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(courierTaskRepository.save(any(CourierTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourierTaskStateChangeResponse response = courierTaskContractService.startCourierTask(null, task.getId());
+
+        assertEquals("IN_PROGRESS", response.taskStatus());
+        assertEquals(ShipmentStatus.PAID, shipment.getStatus());
+        assertEquals(ShipmentRouteStatus.READY_FOR_HANDOVER.name(), shipment.getShipmentRouteStatus());
+        assertEquals(ShipmentNodeType.COURIER.name(), shipment.getCurrentNodeType());
+        assertEquals(courier.getEmail(), shipment.getCurrentNodeCode());
+    }
+
+    @Test
+    void shouldCompletePickupTaskAndPostShipmentIntoNetwork() {
+        User courier = new User();
+        courier.setId(UUID.randomUUID());
+        courier.setEmail("courier.krakow.1@example.com");
+
+        Shipment shipment = new Shipment();
+        shipment.setId(UUID.randomUUID());
+        shipment.setStatus(ShipmentStatus.PAID);
+        shipment.setTrackingNumber("PWPICKUPDONE1PL");
+        shipment.setRecipientAddress("Warszawa, Test 1");
+        shipment.setShipmentRouteStatus(ShipmentRouteStatus.READY_FOR_HANDOVER.name());
+        shipment.setCurrentNodeType(ShipmentNodeType.COURIER.name());
+
+        CourierTask task = new CourierTask();
+        task.setId(UUID.randomUUID());
+        task.setCourier(courier);
+        task.setShipment(shipment);
+        task.setTaskType("PICKUP");
+        task.setStatus("IN_PROGRESS");
+
+        when(operationalActorResolver.requireCourierActor(null)).thenReturn(courier);
+        when(courierTaskRepository.findById(task.getId())).thenReturn(Optional.of(task));
+        when(shipmentRepository.save(any(Shipment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(courierTaskRepository.save(any(CourierTask.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CourierTaskStateChangeResponse response = courierTaskContractService.completeDelivery(
+                null,
+                task.getId(),
+                new CompleteDeliveryRequest(LocalDateTime.now(), "Picked up from sender", false, null)
+        );
+
+        assertEquals("COMPLETED", response.taskStatus());
+        assertEquals(ShipmentStatus.POSTED, shipment.getStatus());
+        assertEquals(ShipmentRouteStatus.IN_TRANSIT_TO_DESTINATION_HUB.name(), shipment.getShipmentRouteStatus());
+        assertEquals(ShipmentNodeType.DESTINATION_HUB.name(), shipment.getCurrentNodeType());
+        assertEquals("HUB-Warszawa", shipment.getCurrentNodeCode());
     }
 }

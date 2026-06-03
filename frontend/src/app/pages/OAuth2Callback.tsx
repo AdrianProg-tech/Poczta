@@ -4,9 +4,11 @@ import { Package } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAppStateContext } from '../state/AppStateContext';
 import { getDashboardPath } from '../navigation';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function OAuth2Callback() {
   const { t } = useTranslation();
+  usePageTitle(t('oauth2Callback.loggingIn'));
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { loginWithToken } = useAppStateContext();

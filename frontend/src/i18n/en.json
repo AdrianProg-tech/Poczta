@@ -299,8 +299,11 @@
     "noHistory": "This shipment has no tracking events yet.",
     "delivery": "Delivery",
     "estimatedDelivery": "Estimated delivery",
+    "intakeMethod": "How you hand it over",
+    "deliveryMethod": "How it will be received",
     "deliveryType": "Delivery type",
     "deliveryTypeCourier": "Courier",
+    "sourcePoint": "Source point",
     "targetPoint": "Target point",
     "payment": "Payment",
     "paymentStatus": "Status",
@@ -642,7 +645,18 @@
     "unknown": "Unknown",
     "paymentMethod": {
       "ONLINE": "Online (Stripe)",
-      "OFFLINE_AT_POINT": "Cash at point"
+      "OFFLINE_AT_POINT": "Cash at point",
+      "OFFLINE_AT_COURIER": "Pay the courier on delivery"
+    },
+    "intakeMethod": {
+      "POINT_DROPOFF": "Drop off at a point",
+      "COURIER_PICKUP": "Courier pickup",
+      "LOCKER_DROPOFF_DEMO": "Drop off in parcel locker (demo)"
+    },
+    "deliveryMethod": {
+      "COURIER_HOME": "Delivery to the door",
+      "PICKUP_POINT": "Pickup at a point",
+      "LOCKER_DEMO": "Pickup from parcel locker (demo)"
     },
     "deliveryType": {
       "COURIER": "Courier to door",

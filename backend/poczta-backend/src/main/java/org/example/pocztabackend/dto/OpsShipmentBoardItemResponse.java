@@ -19,6 +19,7 @@ public record OpsShipmentBoardItemResponse(
         String currentNodeType,
         String currentNodeCode,
         String assignedCourierEmail,
+        String activeTaskType,
         String nextActionOwner,
         String nextSuggestedAction,
         String blockedReason,

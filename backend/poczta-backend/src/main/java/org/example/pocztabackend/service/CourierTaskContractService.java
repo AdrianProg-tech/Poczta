@@ -161,7 +161,24 @@ public class CourierTaskContractService {
         requireTaskStatus(task, "ACCEPTED");
 
         Shipment shipment = requireShipment(task);
-        moveShipmentToOutForDelivery(shipment, task);
+        if (isPickupTask(task)) {
+            shipmentRoutingService.applyRouteState(
+                    shipment,
+                    ShipmentRouteStatus.READY_FOR_HANDOVER,
+                    ShipmentNodeType.COURIER,
+                    task.getCourier() == null ? "COURIER" : task.getCourier().getEmail()
+            );
+            shipmentRepository.save(shipment);
+            addTrackingEvent(
+                    shipment,
+                    shipment.getStatus(),
+                    "Pickup route",
+                    "Courier started route to pick up parcel from sender",
+                    LocalDateTime.now()
+            );
+        } else {
+            moveShipmentToOutForDelivery(shipment, task);
+        }
 
         task.setStatus("IN_PROGRESS");
         courierTaskRepository.save(task);
@@ -178,6 +195,13 @@ public class CourierTaskContractService {
         requireTaskStatus(task, "IN_PROGRESS");
 
         Shipment shipment = requireShipment(task);
+        if (isPickupTask(task)) {
+            completePickupFromSender(shipment, task, request.deliveredAt(), request.note());
+            task.setStatus("COMPLETED");
+            courierTaskRepository.save(task);
+            return toStateChangeResponse(task);
+        }
+
         moveShipmentToOutForDelivery(shipment, task);
         Payment latestPayment = getLatestPayment(shipment);
         boolean requiresCourierPaymentCollection = requiresCourierPaymentCollection(latestPayment);
@@ -226,6 +250,9 @@ public class CourierTaskContractService {
             RecordDeliveryAttemptRequest request
     ) {
         CourierTask task = getTaskForCourier(userEmailHeader, taskId);
+        if (isPickupTask(task)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Delivery attempt is only available for last-mile delivery tasks");
+        }
         requireTaskStatus(task, "IN_PROGRESS");
 
         Shipment shipment = requireShipment(task);
@@ -290,6 +317,9 @@ public class CourierTaskContractService {
     @Transactional
     public IssueNoticeResponse issueNotice(String userEmailHeader, UUID taskId) {
         CourierTask task = getTaskForCourier(userEmailHeader, taskId);
+        if (isPickupTask(task)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Notice can only be issued for last-mile delivery tasks");
+        }
         if (!"FAILED".equals(task.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Notice can only be issued for a failed task");
         }
@@ -331,6 +361,9 @@ public class CourierTaskContractService {
     @Transactional
     public InitiateReturnResponse initiateReturn(String userEmailHeader, UUID taskId, String reason) {
         CourierTask task = getTaskForCourier(userEmailHeader, taskId);
+        if (isPickupTask(task)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Return can only be initiated for last-mile delivery tasks");
+        }
         if (!"FAILED".equals(task.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Return can only be initiated for a failed task");
         }
@@ -394,6 +427,17 @@ public class CourierTaskContractService {
                 .orElse(null);
     }
 
+    private boolean isPickupTask(CourierTask task) {
+        return "PICKUP".equalsIgnoreCase(taskType(task));
+    }
+
+    private String taskType(CourierTask task) {
+        if (task == null || task.getTaskType() == null || task.getTaskType().isBlank()) {
+            return "DELIVERY";
+        }
+        return task.getTaskType().trim().toUpperCase(Locale.ROOT);
+    }
+
     private void requireTaskStatus(CourierTask task, String expectedStatus) {
         String actualStatus = task.getStatus() == null ? null : task.getStatus().trim().toUpperCase(Locale.ROOT);
         if (!expectedStatus.equals(actualStatus)) {
@@ -454,6 +498,43 @@ public class CourierTaskContractService {
         }
     }
 
+    private void completePickupFromSender(
+            Shipment shipment,
+            CourierTask task,
+            LocalDateTime pickupCompletedAt,
+            String note
+    ) {
+        LocalDateTime eventTime = pickupCompletedAt == null ? LocalDateTime.now() : pickupCompletedAt;
+        if (shipment.getStatus() == ShipmentStatus.PAID) {
+            shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.READY_FOR_POSTING);
+        }
+        if (shipment.getStatus() == ShipmentStatus.READY_FOR_POSTING) {
+            shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.POSTED);
+        }
+        if (shipment.getStatus() != ShipmentStatus.POSTED) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Shipment is not ready to enter linehaul after pickup from sender"
+            );
+        }
+
+        shipment.setCurrentPoint(null);
+        shipmentRoutingService.applyRouteState(
+                shipment,
+                ShipmentRouteStatus.IN_TRANSIT_TO_DESTINATION_HUB,
+                ShipmentNodeType.DESTINATION_HUB,
+                "HUB-" + extractCity(shipment.getRecipientAddress())
+        );
+        shipmentRepository.save(shipment);
+        addTrackingEvent(
+                shipment,
+                ShipmentStatus.POSTED,
+                "Courier pickup",
+                withOptionalNote("Courier picked up parcel from sender and handed it into the network", note),
+                eventTime
+        );
+    }
+
     private Point resolveRedirectPoint(Shipment shipment, String redirectPointCode) {
         if (redirectPointCode != null && !redirectPointCode.isBlank()) {
             return pointRepository.findByPointCode(redirectPointCode.trim().toUpperCase(Locale.ROOT))
@@ -476,8 +557,9 @@ public class CourierTaskContractService {
         CourierProfile profile = operationalActorResolver.getCourierProfile(courier);
         String serviceCity = profile != null ? profile.getServiceCity() : null;
 
-        List<ShipmentStatus> eligibleStatuses = List.of(ShipmentStatus.POSTED, ShipmentStatus.IN_TRANSIT);
-        List<Shipment> candidates = shipmentRepository.findAllByStatusInAndDeliveryType(eligibleStatuses, "COURIER");
+        List<Shipment> candidates = shipmentRepository.findAll().stream()
+                .filter(shipment -> isEligibleForCourierClaim(shipment, getLatestPayment(shipment), serviceCity))
+                .toList();
 
         Set<String> activeTaskStatuses = Set.of("ASSIGNED", "ACCEPTED", "IN_PROGRESS");
 
@@ -487,10 +569,7 @@ public class CourierTaskContractService {
                     boolean hasActiveTask = tasks.stream().anyMatch(t -> activeTaskStatuses.contains(t.getStatus()));
                     if (hasActiveTask) return false;
                     ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, getLatestPayment(shipment), null);
-                    if (!"AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())) return false;
-                    if (serviceCity == null || serviceCity.isBlank()) return true;
-                    String destinationCity = extractCity(shipment.getRecipientAddress());
-                    return serviceCity.equalsIgnoreCase(destinationCity);
+                    return isOperationalCityMatch(serviceCity, shipment, routing);
                 })
                 .map(shipment -> {
                     ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, getLatestPayment(shipment), null);
@@ -512,7 +591,7 @@ public class CourierTaskContractService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
 
         ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, getLatestPayment(shipment), null);
-        if (!"AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())) {
+        if (!canCourierClaim(shipment, routing)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Shipment is not available for claiming");
         }
 
@@ -526,15 +605,68 @@ public class CourierTaskContractService {
         CourierTask task = new CourierTask();
         task.setShipment(shipment);
         task.setCourier(courier);
+        task.setTaskType(determineClaimTaskType(shipment, routing));
         task.setStatus("ASSIGNED");
         task.setTaskDate(LocalDate.now());
         task.setAssignedAt(LocalDateTime.now());
         courierTaskRepository.save(task);
 
+        if (isPickupTask(task)) {
+            shipmentRoutingService.applyRouteState(
+                    shipment,
+                    ShipmentRouteStatus.READY_FOR_HANDOVER,
+                    ShipmentNodeType.COURIER,
+                    courier.getEmail()
+            );
+            shipmentRepository.save(shipment);
+        }
+
         addTrackingEvent(shipment, shipment.getStatus(), "Courier dispatch",
-                "Shipment claimed by courier " + courier.getEmail(), LocalDateTime.now());
+                "Shipment claimed by courier " + courier.getEmail() + " for " + taskType(task).toLowerCase(Locale.ROOT), LocalDateTime.now());
 
         return toStateChangeResponse(task);
+    }
+
+    private boolean canCourierClaim(Shipment shipment, ShipmentRoutingSnapshot routing) {
+        return ("AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus()) && "COURIER_HOME".equals(routing.deliveryMethod()))
+                || ("READY_FOR_HANDOVER".equals(routing.shipmentRouteStatus()) && "COURIER_PICKUP".equals(routing.intakeMethod()) && isPickupPaymentReady(getLatestPayment(shipment)));
+    }
+
+    private String determineClaimTaskType(Shipment shipment, ShipmentRoutingSnapshot routing) {
+        if ("READY_FOR_HANDOVER".equals(routing.shipmentRouteStatus()) && "COURIER_PICKUP".equals(routing.intakeMethod())) {
+            return "PICKUP";
+        }
+        return "DELIVERY";
+    }
+
+    private boolean isEligibleForCourierClaim(Shipment shipment, Payment latestPayment, String serviceCity) {
+        ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, latestPayment, null);
+        if (!canCourierClaim(shipment, routing)) {
+            return false;
+        }
+        return isOperationalCityMatch(serviceCity, shipment, routing);
+    }
+
+    private boolean isOperationalCityMatch(String serviceCity, Shipment shipment, ShipmentRoutingSnapshot routing) {
+        if (serviceCity == null || serviceCity.isBlank()) {
+            return true;
+        }
+        String relevantCity = "COURIER_PICKUP".equals(routing.intakeMethod()) && "READY_FOR_HANDOVER".equals(routing.shipmentRouteStatus())
+                ? extractCity(shipment.getSenderAddress())
+                : extractCity(shipment.getRecipientAddress());
+        return serviceCity.equalsIgnoreCase(relevantCity);
+    }
+
+    private boolean isPickupPaymentReady(Payment payment) {
+        if (payment == null || payment.getStatus() == null) {
+            return false;
+        }
+        if (payment.getStatus() == PaymentStatus.PAID || payment.getStatus() == PaymentStatus.OFFLINE_CONFIRMED) {
+            return true;
+        }
+        return payment.getStatus() == PaymentStatus.OFFLINE_PENDING
+                && payment.getMethod() != null
+                && "OFFLINE_AT_COURIER".equalsIgnoreCase(payment.getMethod());
     }
 
     private String extractCity(String address) {

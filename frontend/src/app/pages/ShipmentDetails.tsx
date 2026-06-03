@@ -7,7 +7,9 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
+  formatDeliveryMethod,
   formatDeliveryType,
+  formatIntakeMethod,
   formatPaymentMethod,
   formatRoutingOwner,
   formatShipmentAction,
@@ -21,8 +23,213 @@ import { StatusBadge } from '../components/StatusBadge';
 import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
 
+type CustomerGuidance = {
+  current: string;
+  customerAction: string;
+  nextStep: string;
+};
+
+function buildCustomerGuidance(
+  shipment: ClientShipmentDetails,
+  routeStatus: string,
+  canCancel: boolean,
+  isEnglish: boolean,
+): CustomerGuidance {
+  const targetPoint = shipment.delivery.targetPointCode;
+  const sourcePoint = shipment.delivery.sourcePointCode;
+  const intakeMethod = shipment.delivery.intakeMethod;
+  const deliveryMethod = shipment.delivery.deliveryMethod;
+  const paymentMethod = shipment.payment.method;
+  const paymentStatus = shipment.payment.status;
+
+  if (paymentStatus === 'PENDING' && paymentMethod === 'ONLINE') {
+    return {
+      current: isEnglish
+        ? 'Your shipment has been created and is waiting for online payment confirmation.'
+        : 'Przesylka zostala utworzona i czeka na potwierdzenie platnosci online.',
+      customerAction: isEnglish
+        ? 'Pay for the shipment, then print the label and attach it to the parcel.'
+        : 'Oplac przesylke, a potem wydrukuj etykiete i naklej ja na paczke.',
+      nextStep: isEnglish
+        ? 'After payment, the parcel can be handed over to a point or prepared for courier pickup.'
+        : 'Po oplaceniu paczke mozna nadac w punkcie albo przygotowac do odbioru przez kuriera.',
+    };
+  }
+
+  if (routeStatus === 'READY_FOR_HANDOVER') {
+    if (intakeMethod === 'POINT_DROPOFF') {
+      return {
+        current: isEnglish
+          ? 'The parcel is ready to be handed over to the network through a point.'
+          : 'Paczka jest gotowa do przekazania do sieci przez punkt nadania.',
+        customerAction: paymentMethod === 'OFFLINE_AT_POINT'
+          ? (isEnglish
+            ? `Print the label, attach it to the parcel, take it to ${sourcePoint ?? 'the selected point'} and pay at drop-off.`
+            : `Wydrukuj etykiete, naklej ja na paczke, zanies ja do ${sourcePoint ?? 'wybranego punktu'} i oplac przy nadaniu.`)
+          : canCancel
+            ? (isEnglish
+              ? `Print the label, attach it to the parcel and take it to ${sourcePoint ?? 'the selected point'}. You can still cancel the shipment before it is posted onward.`
+              : `Wydrukuj etykiete, naklej ja na paczke i zanies ja do ${sourcePoint ?? 'wybranego punktu'}. Na tym etapie nadal mozna anulowac przesylke.`)
+            : (isEnglish
+              ? `Print the label, attach it to the parcel and take it to ${sourcePoint ?? 'the selected point'}.`
+              : `Wydrukuj etykiete, naklej ja na paczke i zanies ja do ${sourcePoint ?? 'wybranego punktu'}.`),
+        nextStep: isEnglish
+          ? 'After point intake, the parcel will be posted onward and sent to the sorting hub.'
+          : 'Po przyjeciu w punkcie paczka zostanie nadana dalej i trafi do centrum sortowania.',
+      };
+    }
+
+    if (shipment.delivery.currentNodeType === 'COURIER') {
+      const assignedCourier = shipment.delivery.currentNodeCode;
+      return {
+        current: isEnglish
+          ? 'A pickup courier has already been assigned to collect your parcel from the sender address.'
+          : 'Kurier odbioru zostal juz przydzielony i odbierze paczke spod adresu nadawcy.',
+        customerAction: isEnglish
+          ? 'Keep the parcel packed, labeled and ready for handover to the courier.'
+          : 'Przygotuj zapakowana paczke z etykieta i badz gotowy do przekazania jej kurierowi.',
+        nextStep: isEnglish
+          ? `The assigned courier${assignedCourier ? ` (${assignedCourier})` : ''} will confirm pickup and hand the parcel into the network.`
+          : `Przydzielony kurier${assignedCourier ? ` (${assignedCourier})` : ''} potwierdzi odbior i wprowadzi paczke do sieci.`,
+      };
+    }
+
+    return {
+      current: isEnglish
+        ? 'The parcel is waiting to be handed over to the network by courier pickup.'
+        : 'Paczka czeka na przekazanie do sieci przez odbior kuriera.',
+      customerAction: isEnglish
+        ? 'Print the label, attach it to the parcel and keep it ready for pickup.'
+        : 'Wydrukuj etykiete, naklej ja na paczke i przygotuj ja do odbioru przez kuriera.',
+      nextStep: isEnglish
+        ? 'Once pickup is confirmed, the parcel will go to the sorting hub.'
+        : 'Po potwierdzeniu odbioru paczka pojedzie do centrum sortowania.',
+    };
+  }
+
+  if (routeStatus === 'ACCEPTED_AT_SOURCE') {
+    return {
+      current: isEnglish
+        ? 'The point has already accepted your parcel.'
+        : 'Punkt nadania przyjal juz Twoja paczke.',
+      customerAction: isEnglish ? 'No action is needed from you right now.' : 'Na tym etapie nie musisz juz nic robic.',
+      nextStep: isEnglish
+        ? 'The parcel will be posted onward and moved to the sorting hub.'
+        : 'Paczka zostanie nadana dalej i ruszy do centrum sortowania.',
+    };
+  }
+
+  if (routeStatus === 'IN_TRANSIT_TO_DESTINATION_HUB' || routeStatus === 'AT_ORIGIN_HUB') {
+    return {
+      current: isEnglish ? 'Your parcel is moving through the sorting network.' : 'Twoja paczka jedzie przez centrum sortowania.',
+      customerAction: isEnglish ? 'No action is needed from you right now.' : 'Na tym etapie nie musisz nic robic.',
+      nextStep: isEnglish
+        ? 'Next it will arrive in the destination city for final delivery or pickup.'
+        : 'Nastepnie dotrze do miasta odbiorcy i trafi do doreczenia albo do punktu odbioru.',
+    };
+  }
+
+  if (routeStatus === 'AT_DESTINATION_HUB') {
+    return {
+      current: isEnglish
+        ? 'The parcel has reached the destination city hub.'
+        : 'Paczka dotarla juz do hubu w miescie odbiorcy.',
+      customerAction: isEnglish ? 'No action is needed from you right now.' : 'Na tym etapie nie musisz nic robic.',
+      nextStep: deliveryMethod === 'PICKUP_POINT'
+        ? (isEnglish
+          ? `Next it will be routed to pickup point ${targetPoint ?? ''}.`
+          : `Nastepnie zostanie skierowana do punktu odbioru ${targetPoint ?? ''}.`)
+        : (isEnglish
+          ? 'Next a courier will be assigned for final delivery.'
+          : 'Nastepnie kurier zostanie przydzielony do finalnego doreczenia.'),
+    };
+  }
+
+  if (routeStatus === 'OUT_FOR_DELIVERY') {
+    return {
+      current: isEnglish
+        ? 'A courier has your parcel and is on the delivery route.'
+        : 'Kurier ma juz Twoja paczke i jest w trasie do odbiorcy.',
+      customerAction: paymentMethod === 'OFFLINE_AT_COURIER'
+        ? (isEnglish
+          ? 'Be ready for courier delivery. Payment will be collected on delivery.'
+          : 'Przygotuj sie na doreczenie. Platnosc zostanie pobrana przez kuriera przy odbiorze.')
+        : (isEnglish
+          ? 'Be ready for delivery.'
+          : 'Badz gotowy na kontakt z kurierem i doreczenie paczki.'),
+      nextStep: isEnglish
+        ? 'If delivery succeeds, the shipment will be marked as delivered.'
+        : 'Jesli doreczenie sie powiedzie, przesylka zostanie oznaczona jako doreczona.',
+    };
+  }
+
+  if (routeStatus === 'IN_TRANSIT_TO_TARGET_POINT') {
+    return {
+      current: isEnglish ? 'The parcel is on its way to the pickup point.' : 'Paczka jedzie do punktu odbioru.',
+      customerAction: isEnglish
+        ? 'No action is needed yet. Wait until the point confirms receipt.'
+        : 'Na razie nie musisz nic robic. Poczekaj, az punkt potwierdzi przyjecie paczki.',
+      nextStep: isEnglish
+        ? `After intake at ${targetPoint ?? 'the point'}, the parcel will wait there for pickup.`
+        : `Po przyjeciu w ${targetPoint ?? 'punkcie'} paczka bedzie tam czekac na odbior.`,
+    };
+  }
+
+  if (routeStatus === 'AWAITING_PICKUP' || routeStatus === 'AWAITING_LOCKER_PICKUP') {
+    return {
+      current: routeStatus === 'AWAITING_LOCKER_PICKUP'
+        ? (isEnglish ? 'The parcel is waiting in the locker for pickup.' : 'Paczka czeka juz w paczkomacie na odbior.')
+        : (isEnglish ? 'The parcel is waiting at the pickup point.' : 'Paczka czeka juz w punkcie odbioru.'),
+      customerAction: routeStatus === 'AWAITING_LOCKER_PICKUP'
+        ? (isEnglish ? 'Go to the locker and collect the parcel.' : 'Mozesz teraz odebrac paczke z paczkomatu.')
+        : (isEnglish ? `Go to ${targetPoint ?? 'the selected point'} and collect the parcel.` : `Mozesz teraz odebrac paczke w ${targetPoint ?? 'wybranym punkcie'}.`),
+      nextStep: isEnglish
+        ? 'After pickup, the shipment will be marked as delivered.'
+        : 'Po odbiorze przesylka zostanie oznaczona jako doreczona.',
+    };
+  }
+
+  if (routeStatus === 'DELIVERY_ATTEMPT_FAILED' || routeStatus === 'RETURN_IN_TRANSIT') {
+    return {
+      current: isEnglish
+        ? 'The delivery attempt failed and the parcel is being redirected.'
+        : 'Proba doreczenia nie udala sie i paczka jest teraz przekierowywana.',
+      customerAction: isEnglish
+        ? 'Wait for confirmation that the parcel is ready at a pickup point.'
+        : 'Poczekaj na potwierdzenie, ze paczka jest gotowa do odbioru w punkcie.',
+      nextStep: isEnglish
+        ? 'Once the point accepts it, you will be able to collect it there.'
+        : 'Gdy punkt ja przyjmie, bedziesz mogl odebrac paczke na miejscu.',
+    };
+  }
+
+  if (routeStatus === 'DELIVERED') {
+    return {
+      current: isEnglish ? 'The shipment has been delivered successfully.' : 'Przesylka zostala pomyslnie doreczona.',
+      customerAction: isEnglish ? 'No action is needed from you.' : 'Nie musisz juz nic robic.',
+      nextStep: isEnglish ? 'This shipment is completed.' : 'Ten proces jest juz zakonczony.',
+    };
+  }
+
+  if (routeStatus === 'CANCELED') {
+    return {
+      current: isEnglish ? 'The shipment has been cancelled.' : 'Przesylka zostala anulowana.',
+      customerAction: isEnglish ? 'No further action is needed.' : 'Nie sa potrzebne dalsze dzialania.',
+      nextStep: isEnglish ? 'The parcel will not continue in the network.' : 'Paczka nie bedzie dalej obslugiwana w sieci.',
+    };
+  }
+
+  return {
+    current: isEnglish ? 'Your shipment is being processed.' : 'Twoja przesylka jest w trakcie obslugi.',
+    customerAction: isEnglish ? 'Check the latest status and wait for the next update.' : 'Sprawdzaj status i czekaj na kolejna aktualizacje.',
+    nextStep: isEnglish
+      ? 'The next operational step will appear after the network updates this shipment.'
+      : 'Kolejny krok pojawi sie po aktualizacji operacyjnej tej przesylki.',
+  };
+}
+
 export default function ShipmentDetails() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const paymentResult = searchParams.get('payment');
@@ -111,8 +318,13 @@ export default function ShipmentDetails() {
 
   const canCancel =
     shipment !== null &&
-    ['READY_FOR_HANDOVER', 'ACCEPTED_AT_SOURCE'].includes(shipment.currentStatus);
+    ['READY_FOR_HANDOVER', 'ACCEPTED_AT_SOURCE'].includes(shipment.currentStatus) &&
+    shipment.delivery.currentNodeType !== 'COURIER';
   const readableActions = shipment?.allowedActions.map((action) => formatShipmentAction(action)).filter(Boolean) ?? [];
+  const routeStatus = shipment?.delivery.shipmentRouteStatus ?? shipment?.currentStatus ?? null;
+  const customerGuidance = shipment
+    ? buildCustomerGuidance(shipment, routeStatus ?? shipment.currentStatus, canCancel, i18n.language === 'en')
+    : null;
 
   function printShipmentLabel(s: ClientShipmentDetails) {
     const html = `<!DOCTYPE html>
@@ -221,11 +433,13 @@ export default function ShipmentDetails() {
               Trasa: {formatShipmentStatus(shipment.delivery.shipmentRouteStatus ?? shipment.currentStatus)} · nastepny owner:{' '}
               {formatRoutingOwner(shipment.nextOwner)}
             </p>
-            <p>
-              {t('shipmentDetails.allowedActions', {
-                actions: readableActions.length > 0 ? readableActions.join(', ') : t('shipmentDetails.noActions'),
-              })}
-            </p>
+            {readableActions.length > 0 ? (
+              <p className="text-sm">
+                {t('shipmentDetails.allowedActions', {
+                  actions: readableActions.join(', '),
+                })}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -272,6 +486,29 @@ export default function ShipmentDetails() {
           {cancelError ? <p className="w-full text-sm text-destructive">{cancelError}</p> : null}
         </div>
       </div>
+
+      {customerGuidance ? (
+        <div className="mb-6 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="mb-2 text-sm uppercase tracking-wide text-muted-foreground">
+              {i18n.language === 'en' ? 'What is happening now' : 'Co dzieje sie teraz'}
+            </div>
+            <div>{customerGuidance.current}</div>
+          </div>
+          <div className="rounded-xl border border-accent/20 bg-accent/5 p-5 shadow-sm">
+            <div className="mb-2 text-sm uppercase tracking-wide text-muted-foreground">
+              {i18n.language === 'en' ? 'What you should do' : 'Co trzeba zrobic'}
+            </div>
+            <div>{customerGuidance.customerAction}</div>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="mb-2 text-sm uppercase tracking-wide text-muted-foreground">
+              {i18n.language === 'en' ? 'What happens next' : 'Co bedzie dalej'}
+            </div>
+            <div>{customerGuidance.nextStep}</div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-6 grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -375,6 +612,16 @@ export default function ShipmentDetails() {
               </div>
 
               <div>
+                <div className="mb-1 text-sm text-muted-foreground">{t('shipmentDetails.intakeMethod')}</div>
+                <div>{formatIntakeMethod(shipment.delivery.intakeMethod)}</div>
+              </div>
+
+              <div>
+                <div className="mb-1 text-sm text-muted-foreground">{t('shipmentDetails.deliveryMethod')}</div>
+                <div>{formatDeliveryMethod(shipment.delivery.deliveryMethod)}</div>
+              </div>
+
+              <div>
                 <div className="mb-1 text-sm text-muted-foreground">{t('shipmentDetails.deliveryType')}</div>
                 <div>{formatDeliveryType(shipment.delivery.deliveryType)}</div>
               </div>
@@ -383,6 +630,13 @@ export default function ShipmentDetails() {
                 <div className="mb-1 text-sm text-muted-foreground">Status trasy</div>
                 <div>{formatShipmentStatus(shipment.delivery.shipmentRouteStatus ?? shipment.currentStatus)}</div>
               </div>
+
+              {shipment.delivery.sourcePointCode ? (
+                <div>
+                  <div className="mb-1 text-sm text-muted-foreground">{t('shipmentDetails.sourcePoint')}</div>
+                  <div>{shipment.delivery.sourcePointCode}</div>
+                </div>
+              ) : null}
 
               {shipment.delivery.targetPointCode ? (
                 <div>

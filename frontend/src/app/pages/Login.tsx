@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { demoRoleOptions } from '../api';
 import { getDashboardPath } from '../navigation';
 import { useAppStateContext } from '../state/AppStateContext';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 interface LoginFormValues {
   email: string;
@@ -20,10 +21,11 @@ const roleIcons = {
 } as const;
 
 export default function Login() {
+  const { t } = useTranslation();
+  usePageTitle(t('auth.login'));
   const navigate = useNavigate();
   const location = useLocation();
   const { loginAsRole } = useAppStateContext();
-  const { t } = useTranslation();
   const [selectedRoleId, setSelectedRoleId] = useState(demoRoleOptions[0]?.id ?? 'client');
   const [authError, setAuthError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

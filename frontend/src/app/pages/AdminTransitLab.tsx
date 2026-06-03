@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { AlertTriangle, ArrowLeft, CirclePlay, MapPin, PackagePlus, RefreshCw, Truck, Warehouse } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CirclePlay, MapPin, RefreshCw, Truck, Warehouse } from 'lucide-react';
 import {
-  buildScenarioPayload,
   getLaneCount,
   getTransitDemoParcels,
-  scenarioTemplates,
   transitionMeta,
   transitStoryMeta,
 } from '../adminDemoFlows';
 import {
   addAdminTrackingEvent,
   advanceShipmentToInTransit,
-  createAdminParcel,
   formatDateTime,
   getAdminParcels,
   routeShipmentToPickup,
@@ -24,26 +21,16 @@ import { StatusBadge } from '../components/StatusBadge';
 import { useAppStateContext } from '../state/AppStateContext';
 import { useTranslation } from 'react-i18next';
 
-const transitScenarios = scenarioTemplates.filter(
-  (scenario) =>
-    scenario.id === 'courier-ready' ||
-    scenario.id === 'linehaul-transit' ||
-    scenario.id === 'delivery-attempt' ||
-    scenario.id === 'return-flow',
-);
-
 const transitActionMap: Record<string, string[]> = {
   READY_FOR_POSTING: ['POSTED'],
   POSTED: ['IN_TRANSIT'],
-  IN_TRANSIT: ['OUT_FOR_DELIVERY', 'AWAITING_PICKUP', 'RETURNED'],
+  IN_TRANSIT: ['AWAITING_PICKUP', 'RETURNED'],
   OUT_FOR_DELIVERY: ['DELIVERY_ATTEMPT', 'DELIVERED', 'REDIRECTED_TO_PICKUP', 'RETURNED'],
   DELIVERY_ATTEMPT: ['OUT_FOR_DELIVERY', 'REDIRECTED_TO_PICKUP', 'RETURNED'],
   REDIRECTED_TO_PICKUP: ['AWAITING_PICKUP'],
 };
 
 const PICKUP_POINT_ONLY_ACTIONS = new Set(['AWAITING_PICKUP']);
-const COURIER_ONLY_ACTIONS = new Set(['OUT_FOR_DELIVERY']);
-
 const routeToPickupMeta = {
   label: 'Skieruj do punktu odbioru',
   description: 'Posortuj i wyślij do docelowego punktu/paczkomatu. Przesyłka pojawi się w kolejce punktu.',
@@ -101,9 +88,6 @@ export default function AdminTransitLab() {
     return allActions.filter((action) => {
       if (PICKUP_POINT_ONLY_ACTIONS.has(action)) {
         return parcel.deliveryType === 'PICKUP_POINT';
-      }
-      if (COURIER_ONLY_ACTIONS.has(action)) {
-        return parcel.deliveryType === 'COURIER';
       }
       return true;
     });
@@ -195,12 +179,12 @@ export default function AdminTransitLab() {
           <div className="mb-3">
             <Link to="/admin/demo-lab" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
-              Wroc do demo operations lab
+              Wroc do laboratorium demo
             </Link>
           </div>
-          <h2 className="mb-2 text-2xl">Centrum sortowania / Transit Hub</h2>
+          <h2 className="mb-2 text-2xl">Centrum sortowania</h2>
           <p className="text-muted-foreground">
-            Symuluj sortownie i tranzyt. Przesylki COURIER trafiaja do kuriera, przesylki PICKUP_POINT trafiaja do punktu odbioru.
+            Symuluj sortownie i tranzyt. Po dotarciu do hubu przesylki kurierskie przypisuj dalej w Tablica przesylek, a przesylki PICKUP_POINT kieruj do punktu odbioru.
           </p>
         </div>
 
@@ -227,29 +211,6 @@ export default function AdminTransitLab() {
       </div>
 
       {error ? <div className="mb-6 rounded-lg bg-destructive/10 p-4 text-destructive">{error}</div> : null}
-
-      <div className="mb-6 grid gap-4 xl:grid-cols-2">
-        {transitScenarios.map((scenario) => {
-          const key = `create-${scenario.id}`;
-          return (
-            <div key={scenario.id} className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <div className="mb-2 flex items-center gap-3">
-                <PackagePlus className="h-5 w-5 text-accent" />
-                <h3 className="text-lg">{scenario.label}</h3>
-              </div>
-              <p className="mb-4 text-sm text-muted-foreground">{scenario.description}</p>
-              <button
-                type="button"
-                disabled={busyKey === key}
-                onClick={() => void runAction(key, () => createAdminParcel(buildScenarioPayload(scenario.payload)))}
-                className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
-              >
-                Dodaj scenariusz tranzytu
-              </button>
-            </div>
-          );
-        })}
-      </div>
 
       <div className="mb-6 rounded-xl border border-dashed border-border bg-card p-6 shadow-sm">
         <div className="flex items-center gap-3">
@@ -365,13 +326,13 @@ export default function AdminTransitLab() {
         {!isLoading && transitParcels.length === 0 ? (
           <div className="col-span-2 rounded-xl border border-dashed border-border bg-card p-12 text-center text-muted-foreground">
             <Warehouse className="mx-auto mb-4 h-12 w-12 opacity-30" />
-            <p>
-              {query.trim()
-                ? 'Brak przesylek pasujacych do filtra. Zmien tracking albo wyczysc wyszukiwanie.'
-                : 'Brak przesylek w sortowni. Dodaj scenariusz powyzej lub wyslij przesylke z punktu.'}
-            </p>
-          </div>
-        ) : null}
+              <p>
+                {query.trim()
+                  ? 'Brak przesylek pasujacych do filtra. Zmien tracking albo wyczysc wyszukiwanie.'
+                  : 'Brak przesylek w sortowni. Wyslij przesylke z punktu albo przygotuj seed w glownym laboratorium demo.'}
+              </p>
+            </div>
+          ) : null}
       </div>
     </DashboardShell>
   );

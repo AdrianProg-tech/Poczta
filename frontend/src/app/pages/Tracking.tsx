@@ -4,9 +4,11 @@ import { Calendar, MapPin, Package, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ApiError, formatDate, formatDateTime, getPublicTracking, type PublicTrackingResponse } from '../api';
 import { StatusBadge } from '../components/StatusBadge';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function Tracking() {
   const { t } = useTranslation();
+  usePageTitle(t('publicNav.track'));
   const [searchParams, setSearchParams] = useSearchParams();
   const initialValue = searchParams.get('number') ?? '';
   const [trackingNumber, setTrackingNumber] = useState(initialValue);

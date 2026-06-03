@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { UserRole } from '../types';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 interface DashboardShellProps {
   role: UserRole;
@@ -10,6 +11,8 @@ interface DashboardShellProps {
 }
 
 export function DashboardShell({ role, title, children }: DashboardShellProps) {
+  usePageTitle(title);
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       <Sidebar role={role} />

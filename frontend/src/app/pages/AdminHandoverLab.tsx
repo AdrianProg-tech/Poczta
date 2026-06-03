@@ -1,26 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { ArrowLeft, CirclePlay, MapPin, PackagePlus, RefreshCw, Repeat, Truck } from 'lucide-react';
+import { ArrowLeft, CirclePlay, MapPin, RefreshCw, Repeat, Truck } from 'lucide-react';
 import {
-  buildScenarioPayload,
   getHandoverDemoParcels,
   getLaneCount,
   handoverStoryMeta,
-  scenarioTemplates,
   transitionMeta,
 } from '../adminDemoFlows';
-import { addAdminTrackingEvent, createAdminParcel, formatDateTime, getAdminParcels, type AdminParcelRecord } from '../api';
+import { addAdminTrackingEvent, formatDateTime, getAdminParcels, type AdminParcelRecord } from '../api';
 import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
 import { useTranslation } from 'react-i18next';
-
-const handoverScenarios = scenarioTemplates.filter(
-  (scenario) =>
-    scenario.id === 'courier-ready' ||
-    scenario.id === 'redirect-pickup' ||
-    scenario.id === 'delivery-attempt' ||
-    scenario.id === 'locker-waiting',
-);
 
 const handoverActionMap = {
   READY_FOR_POSTING: ['POSTED'],
@@ -103,7 +93,7 @@ export default function AdminHandoverLab() {
           <div className="mb-3">
             <Link to="/admin/demo-lab" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
-              Wroc do demo operations lab
+              Wroc do laboratorium demo
             </Link>
           </div>
           <h2 className="mb-2 text-2xl">Symulacja przekazan kuriera i punktu</h2>
@@ -125,29 +115,6 @@ export default function AdminHandoverLab() {
       </div>
 
       {error ? <div className="mb-6 rounded-lg bg-destructive/10 p-4 text-destructive">{error}</div> : null}
-
-      <div className="mb-6 grid gap-4 xl:grid-cols-2">
-        {handoverScenarios.map((scenario) => {
-          const key = `create-${scenario.id}`;
-          return (
-            <div key={scenario.id} className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <div className="mb-2 flex items-center gap-3">
-                <PackagePlus className="h-5 w-5 text-accent" />
-                <h3 className="text-lg">{scenario.label}</h3>
-              </div>
-              <p className="mb-4 text-sm text-muted-foreground">{scenario.description}</p>
-              <button
-                type="button"
-                disabled={busyKey === key}
-                onClick={() => void runAction(key, () => createAdminParcel(buildScenarioPayload(scenario.payload)))}
-                className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
-              >
-                Dodaj scenariusz przekazania
-              </button>
-            </div>
-          );
-        })}
-      </div>
 
       <div className="mb-6 rounded-xl border border-dashed border-border bg-card p-6 shadow-sm">
         <div className="flex items-center gap-3">
@@ -260,6 +227,11 @@ export default function AdminHandoverLab() {
             </div>
           );
         })}
+        {!isLoading && handoverParcels.length === 0 ? (
+          <div className="col-span-2 rounded-xl border border-dashed border-border bg-card p-12 text-center text-muted-foreground">
+            Brak aktywnych przekazan do pokazania. Uzyj realnej przesylki z flow albo przygotuj seed w glownym laboratorium demo.
+          </div>
+        ) : null}
       </div>
     </DashboardShell>
   );

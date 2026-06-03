@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStateContext } from '../state/AppStateContext';
 import { getDashboardPath } from '../navigation';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function Home() {
   const { t } = useTranslation();
+  usePageTitle(t('home.hero.title'));
   const navigate = useNavigate();
   const [trackingNumber, setTrackingNumber] = useState('');
   const { state: { currentUser } } = useAppStateContext();

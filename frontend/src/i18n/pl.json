@@ -299,8 +299,11 @@
     "noHistory": "Ta przesyłka nie ma jeszcze żadnych zdarzeń trackingowych.",
     "delivery": "Dostawa",
     "estimatedDelivery": "Szacowana dostawa",
+    "intakeMethod": "Sposób nadania",
+    "deliveryMethod": "Sposób odbioru",
     "deliveryType": "Typ dostawy",
     "deliveryTypeCourier": "Kurier",
+    "sourcePoint": "Punkt nadania",
     "targetPoint": "Punkt docelowy",
     "payment": "Płatność",
     "paymentStatus": "Status",
@@ -642,7 +645,18 @@
     "unknown": "Nieznany",
     "paymentMethod": {
       "ONLINE": "Online (Stripe)",
-      "OFFLINE_AT_POINT": "Gotówka w punkcie"
+      "OFFLINE_AT_POINT": "Gotówka w punkcie",
+      "OFFLINE_AT_COURIER": "Płatność przy odbiorze u kuriera"
+    },
+    "intakeMethod": {
+      "POINT_DROPOFF": "Nadanie w punkcie",
+      "COURIER_PICKUP": "Odbiór przez kuriera",
+      "LOCKER_DROPOFF_DEMO": "Nadanie w paczkomacie (demo)"
+    },
+    "deliveryMethod": {
+      "COURIER_HOME": "Doręczenie do drzwi",
+      "PICKUP_POINT": "Odbiór w punkcie",
+      "LOCKER_DEMO": "Odbiór z paczkomatu (demo)"
     },
     "deliveryType": {
       "COURIER": "Kurier do drzwi",

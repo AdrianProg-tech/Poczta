@@ -294,6 +294,7 @@ export interface OpsShipmentBoardItem {
   currentNodeType: string | null;
   currentNodeCode: string | null;
   assignedCourierEmail: string | null;
+  activeTaskType: string | null;
   nextActionOwner: string;
   nextSuggestedAction: string;
   blockedReason: string | null;
@@ -593,6 +594,20 @@ export function formatPaymentStatus(status: string | null | undefined) {
 export function formatPaymentMethod(method: string | null | undefined) {
   if (!method) return i18n.t('formatters.unknown');
   const key = `formatters.paymentMethod.${method}`;
+  const translated = i18n.t(key);
+  return translated === key ? method : translated;
+}
+
+export function formatIntakeMethod(method: string | null | undefined) {
+  if (!method) return i18n.t('formatters.unknown');
+  const key = `formatters.intakeMethod.${method}`;
+  const translated = i18n.t(key);
+  return translated === key ? method : translated;
+}
+
+export function formatDeliveryMethod(method: string | null | undefined) {
+  if (!method) return i18n.t('formatters.unknown');
+  const key = `formatters.deliveryMethod.${method}`;
   const translated = i18n.t(key);
   return translated === key ? method : translated;
 }

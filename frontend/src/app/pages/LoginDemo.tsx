@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { demoRoleOptions, getDemoUsers, type DemoLoginGroup, type DemoUserOption } from '../api';
 import { getDashboardPath } from '../navigation';
 import { useAppStateContext } from '../state/AppStateContext';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 const roleIcons = {
   client: User,
@@ -17,7 +18,7 @@ const roleIcons = {
 function getRoleHint(group: DemoLoginGroup, isEnglish: boolean) {
   const hints = {
     client: isEnglish ? 'Create, pay, track, and manage complaints.' : 'Tworzenie, platnosc, tracking i reklamacje.',
-    courier: isEnglish ? 'Final-mile tasks, starts, deliveries, and failed attempts.' : 'Zadania final-mile, start trasy i proby doreczenia.',
+    courier: isEnglish ? 'Last-mile tasks, starts, deliveries, and failed attempts.' : 'Zadania kuriera, start trasy, doreczenia i nieudane proby.',
     point: isEnglish ? 'Point intake, release, and walk-in shipment handling.' : 'Przyjecie w punkcie, wydanie i obsluga walk-in.',
     admin: isEnglish ? 'Operations, payments, complaints, and demo labs.' : 'Operacje, platnosci, reklamacje i demo laby.',
     dispatcher: isEnglish ? 'Shipment board, courier assignment, and operational routing.' : 'Tablica przesylek, przydzial kurierow i routing operacyjny.',
@@ -27,7 +28,7 @@ function getRoleHint(group: DemoLoginGroup, isEnglish: boolean) {
 }
 
 export function buildDemoUserOptionLabel(user: DemoUserOption, isEnglish: boolean) {
-  const details: string[] = [];
+  const details: string[] = [user.email];
   if (user.adminScope) {
     details.push(user.adminScope);
   }
@@ -46,6 +47,7 @@ export default function LoginDemo() {
   const location = useLocation();
   const { loginAsRole } = useAppStateContext();
   const { t, i18n } = useTranslation();
+  usePageTitle(i18n.language === 'en' ? 'Demo login' : 'Logowanie demo');
   const isEnglish = i18n.language === 'en';
 
   const [selectedGroup, setSelectedGroup] = useState<DemoLoginGroup>('client');

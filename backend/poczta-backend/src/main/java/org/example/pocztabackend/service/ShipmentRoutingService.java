@@ -23,8 +23,8 @@ public class ShipmentRoutingService {
         ShipmentRouteStatus routeStatus = resolveRouteStatus(shipment, latestPayment, latestTask);
         ShipmentNodeType currentNodeType = resolveCurrentNodeType(shipment, routeStatus, latestTask);
         String currentNodeCode = resolveCurrentNodeCode(shipment, currentNodeType, latestTask);
-        String nextOwner = resolveNextOwner(routeStatus, intakeMethod, deliveryMethod);
-        List<String> availableActions = resolveAvailableActions(routeStatus, deliveryMethod);
+        String nextOwner = resolveNextOwner(routeStatus, intakeMethod, deliveryMethod, latestPayment, latestTask);
+        List<String> availableActions = resolveAvailableActions(routeStatus, intakeMethod, deliveryMethod, latestTask);
 
         return new ShipmentRoutingSnapshot(
                 intakeMethod,
@@ -113,7 +113,7 @@ public class ShipmentRoutingService {
         }
 
         return switch (routeStatus) {
-            case READY_FOR_HANDOVER -> ShipmentNodeType.CLIENT;
+            case READY_FOR_HANDOVER -> isActivePickupTask(latestTask) ? ShipmentNodeType.COURIER : ShipmentNodeType.CLIENT;
             case ACCEPTED_AT_SOURCE -> ShipmentNodeType.SOURCE_POINT;
             case IN_TRANSIT_TO_ORIGIN_HUB, AT_ORIGIN_HUB, IN_TRANSIT_TO_DESTINATION_HUB, AT_DESTINATION_HUB -> ShipmentNodeType.DESTINATION_HUB;
             case OUT_FOR_DELIVERY -> ShipmentNodeType.COURIER;
@@ -144,9 +144,23 @@ public class ShipmentRoutingService {
         };
     }
 
-    private String resolveNextOwner(ShipmentRouteStatus routeStatus, String intakeMethod, String deliveryMethod) {
+    private String resolveNextOwner(
+            ShipmentRouteStatus routeStatus,
+            String intakeMethod,
+            String deliveryMethod,
+            Payment latestPayment,
+            CourierTask latestTask
+    ) {
         return switch (routeStatus) {
-            case READY_FOR_HANDOVER -> "POINT_DROPOFF".equals(intakeMethod) ? "POINT" : "CLIENT";
+            case READY_FOR_HANDOVER -> {
+                if (latestPayment != null && latestPayment.getStatus() == PaymentStatus.PENDING) {
+                    yield "CLIENT";
+                }
+                if ("COURIER_PICKUP".equals(intakeMethod)) {
+                    yield isActivePickupTask(latestTask) ? "COURIER" : "COURIER";
+                }
+                yield "POINT";
+            }
             case ACCEPTED_AT_SOURCE -> "POINT";
             case IN_TRANSIT_TO_ORIGIN_HUB, AT_ORIGIN_HUB, IN_TRANSIT_TO_DESTINATION_HUB, AT_DESTINATION_HUB, RETURN_IN_TRANSIT -> "HUB";
             case OUT_FOR_DELIVERY, DELIVERY_ATTEMPT_FAILED -> "COURIER";
@@ -156,10 +170,19 @@ public class ShipmentRoutingService {
         };
     }
 
-    private List<String> resolveAvailableActions(ShipmentRouteStatus routeStatus, String deliveryMethod) {
+    private List<String> resolveAvailableActions(
+            ShipmentRouteStatus routeStatus,
+            String intakeMethod,
+            String deliveryMethod,
+            CourierTask latestTask
+    ) {
         List<String> actions = new ArrayList<>();
         switch (routeStatus) {
-            case READY_FOR_HANDOVER -> actions.add("ACCEPT_AT_SOURCE");
+            case READY_FOR_HANDOVER -> {
+                if ("POINT_DROPOFF".equals(intakeMethod)) {
+                    actions.add("ACCEPT_AT_SOURCE");
+                }
+            }
             case ACCEPTED_AT_SOURCE -> actions.add("POST_FROM_SOURCE");
             case IN_TRANSIT_TO_ORIGIN_HUB, IN_TRANSIT_TO_DESTINATION_HUB -> actions.add("ACCEPT_AT_DESTINATION_HUB");
             case AT_DESTINATION_HUB -> {
@@ -195,6 +218,15 @@ public class ShipmentRoutingService {
     private boolean isTaskInFlight(CourierTask latestTask) {
         String status = normalize(latestTask.getStatus());
         return "IN_PROGRESS".equals(status);
+    }
+
+    private boolean isActivePickupTask(CourierTask latestTask) {
+        if (latestTask == null) {
+            return false;
+        }
+        String type = normalize(latestTask.getTaskType());
+        String status = normalize(latestTask.getStatus());
+        return "PICKUP".equals(type) && ("ASSIGNED".equals(status) || "ACCEPTED".equals(status) || "IN_PROGRESS".equals(status));
     }
 
     private boolean isLockerDelivery(Shipment shipment) {

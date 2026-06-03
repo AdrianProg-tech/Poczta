@@ -323,6 +323,58 @@ class DispatchOperationsServiceTest {
     }
 
     @Test
+    void shouldAssignPickupCourierForCourierPickupShipmentReadyForHandover() {
+        UUID shipmentId = UUID.randomUUID();
+        UUID courierId = UUID.randomUUID();
+
+        Shipment shipment = new Shipment();
+        shipment.setId(shipmentId);
+        shipment.setTrackingNumber("PWPICKUP001PL");
+        shipment.setStatus(ShipmentStatus.PAID);
+        shipment.setDeliveryType("COURIER");
+        shipment.setDeliveryMethod("COURIER_HOME");
+        shipment.setIntakeMethod("COURIER_PICKUP");
+        shipment.setShipmentRouteStatus(ShipmentRouteStatus.READY_FOR_HANDOVER.name());
+
+        Payment payment = new Payment();
+        payment.setShipment(shipment);
+        payment.setStatus(PaymentStatus.OFFLINE_PENDING);
+        payment.setMethod("OFFLINE_AT_COURIER");
+
+        User courier = new User();
+        courier.setId(courierId);
+        courier.setEmail("courier.krakow.1@example.com");
+
+        when(shipmentRepository.findById(shipmentId)).thenReturn(Optional.of(shipment));
+        when(paymentRepository.findAllByShipment_IdOrderByCreatedAtDesc(shipmentId)).thenReturn(List.of(payment));
+        when(courierTaskRepository.findAllByShipment_IdOrderByAssignedAtDesc(shipmentId)).thenReturn(List.of());
+        when(userRepository.findById(courierId)).thenReturn(Optional.of(courier));
+        when(courierTaskRepository.save(any(CourierTask.class))).thenAnswer(invocation -> {
+            CourierTask task = invocation.getArgument(0);
+            task.setId(UUID.randomUUID());
+            return task;
+        });
+        when(shipmentRepository.save(any(Shipment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AdminAssignCourierResponse response = dispatchOperationsService.assignCourier(
+                shipmentId,
+                new AdminAssignCourierRequest(courierId, LocalDate.of(2026, 6, 3))
+        );
+
+        assertEquals(shipmentId, response.shipmentId());
+        assertEquals(courierId, response.assignedCourierId());
+        assertEquals(ShipmentNodeType.COURIER.name(), shipment.getCurrentNodeType());
+        assertEquals(courier.getEmail(), shipment.getCurrentNodeCode());
+
+        verify(courierTaskRepository).save(argThat(task ->
+                "ASSIGNED".equals(task.getStatus())
+                        && "PICKUP".equals(task.getTaskType())
+                        && task.getCourier() != null
+                        && courierId.equals(task.getCourier().getId())
+        ));
+    }
+
+    @Test
     void shouldAdvancePostedShipmentToInTransit() {
         UUID shipmentId = UUID.randomUUID();
 

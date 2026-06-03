@@ -89,7 +89,7 @@ public class OperationsConsoleQueryService {
         long awaitingCourierAssignmentShipments = shipments.stream()
                 .filter(shipment -> isCourierFlow(shipment))
                 .filter(shipment -> shipment.getStatus() == ShipmentStatus.READY_FOR_POSTING)
-                .filter(shipment -> findLatestTaskForShipment(shipment, courierTasks) == null)
+                .filter(shipment -> findLatestOpenTaskForShipment(shipment, courierTasks) == null)
                 .count();
 
         long redirectedToPickupShipments = shipments.stream()
@@ -146,29 +146,32 @@ public class OperationsConsoleQueryService {
                 .toList();
 
         List<OpsDispatchCandidateResponse> pendingAssignments = shipments.stream()
-                .filter(this::isCourierFlow)
-                .filter(shipment -> "AT_DESTINATION_HUB".equals(
-                        shipmentRoutingService.snapshot(
-                                shipment,
-                                latestPaymentByShipmentId.get(shipment.getId()),
-                                findLatestTaskForShipment(shipment, tasks)
-                        ).shipmentRouteStatus()
-                ))
-                .filter(shipment -> findLatestTaskForShipment(shipment, tasks) == null)
+                .filter(shipment -> {
+                    CourierTask latestTask = findLatestOpenTaskForShipment(shipment, tasks);
+                    if (latestTask != null) {
+                        return false;
+                    }
+                    ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(
+                            shipment,
+                            latestPaymentByShipmentId.get(shipment.getId()),
+                            null
+                    );
+                    return shouldSuggestCourierAssignment(shipment, latestPaymentByShipmentId.get(shipment.getId()), routing);
+                })
                 .map(shipment -> toDispatchCandidate(shipment, courierSummaries, null))
                 .toList();
 
         List<OpsReassignmentCandidateResponse> reassignmentCandidates = shipments.stream()
-                .filter(this::isCourierFlow)
-                .filter(shipment -> "AT_DESTINATION_HUB".equals(
-                        shipmentRoutingService.snapshot(
-                                shipment,
-                                latestPaymentByShipmentId.get(shipment.getId()),
-                                findLatestTaskForShipment(shipment, tasks)
-                        ).shipmentRouteStatus()
-                ))
-                .map(shipment -> new AbstractMap.SimpleEntry<>(shipment, findLatestTaskForShipment(shipment, tasks)))
+                .map(shipment -> new AbstractMap.SimpleEntry<>(shipment, findLatestOpenTaskForShipment(shipment, tasks)))
                 .filter(entry -> entry.getValue() != null)
+                .filter(entry -> {
+                    ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(
+                            entry.getKey(),
+                            latestPaymentByShipmentId.get(entry.getKey().getId()),
+                            entry.getValue()
+                    );
+                    return shouldSuggestCourierAssignment(entry.getKey(), latestPaymentByShipmentId.get(entry.getKey().getId()), routing);
+                })
                 .filter(entry -> isReassignmentEligible(entry.getValue()))
                 .map(entry -> toReassignmentCandidate(entry.getKey(), entry.getValue(), courierSummaries))
                 .toList();
@@ -196,7 +199,7 @@ public class OperationsConsoleQueryService {
             List<CourierTask> tasks
     ) {
         Payment latestPayment = latestPaymentByShipmentId.get(shipment.getId());
-        CourierTask latestTask = findLatestTaskForShipment(shipment, tasks);
+        CourierTask latestTask = findLatestOpenTaskForShipment(shipment, tasks);
         ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, latestPayment, latestTask);
         ShipmentBoardAdvice advice = getShipmentBoardAdvice(shipment, latestPayment, latestTask, routing);
 
@@ -216,6 +219,7 @@ public class OperationsConsoleQueryService {
                 routing.currentNodeType(),
                 routing.currentNodeCode(),
                 latestTask == null || latestTask.getCourier() == null ? null : latestTask.getCourier().getEmail(),
+                taskType(latestTask),
                 advice.nextActionOwner(),
                 advice.nextSuggestedAction(),
                 advice.blockedReason(),
@@ -260,19 +264,19 @@ public class OperationsConsoleQueryService {
             List<OpsCourierSummaryResponse> courierSummaries,
             UUID excludedCourierId
     ) {
-        String destinationCity = getDestinationCity(shipment);
-        OpsCourierSummaryResponse suggestedCourier = suggestCourier(courierSummaries, destinationCity, excludedCourierId);
+        String operationalCity = getOperationalCourierCity(shipment);
+        OpsCourierSummaryResponse suggestedCourier = suggestCourier(courierSummaries, operationalCity, excludedCourierId);
 
         String suggestionReason = suggestedCourier == null
                 ? "No courier profiles available"
-                : matchesCity(suggestedCourier.inferredServiceCity(), destinationCity)
+                : matchesCity(suggestedCourier.inferredServiceCity(), operationalCity)
                 ? "Best match by inferred city and lowest open task count"
                 : "Fallback suggestion by lowest open task count";
 
         return new OpsDispatchCandidateResponse(
                 shipment.getId(),
                 shipment.getTrackingNumber(),
-                destinationCity,
+                operationalCity,
                 shipment.getStatus() == null ? null : shipment.getStatus().name(),
                 suggestedCourier == null ? null : suggestedCourier.courierId(),
                 suggestedCourier == null ? null : suggestedCourier.courierEmail(),
@@ -339,12 +343,31 @@ public class OperationsConsoleQueryService {
         }
         if (paymentStatus == PaymentStatus.OFFLINE_PENDING
                 && isCourierOfflineCollection(latestPayment)
-                && (normalize(latestTask == null ? null : latestTask.getStatus()).equals("IN_PROGRESS")
-                || status == ShipmentStatus.OUT_FOR_DELIVERY)) {
+                && "OUT_FOR_DELIVERY".equals(routing.shipmentRouteStatus())
+                && "IN_PROGRESS".equals(normalize(latestTask == null ? null : latestTask.getStatus()))
+                && !"PICKUP".equals(taskType(latestTask))) {
             return new ShipmentBoardAdvice("COURIER", "COLLECT_PAYMENT_AND_DELIVER", "Courier must collect cash/card on delivery");
         }
-        if (paymentStatus == PaymentStatus.OFFLINE_PENDING) {
+        if (paymentStatus == PaymentStatus.OFFLINE_PENDING && !isCourierOfflineCollection(latestPayment)) {
             return new ShipmentBoardAdvice("POINT", "CONFIRM_OFFLINE_PAYMENT", "Waiting for offline payment confirmation at point");
+        }
+        if ("READY_FOR_HANDOVER".equals(routing.shipmentRouteStatus()) && "COURIER_PICKUP".equals(routing.intakeMethod())) {
+            if (!isPickupPaymentReady(latestPayment)) {
+                return new ShipmentBoardAdvice("CLIENT", "MARK_PAYMENT_PAID", "Shipment still requires payment before courier pickup can be arranged");
+            }
+            String latestTaskStatus = normalize(latestTask == null ? null : latestTask.getStatus());
+            if (latestTask == null) {
+                return new ShipmentBoardAdvice("DISPATCH", "ASSIGN_PICKUP_COURIER", "Assign a courier to pick up the parcel from the sender");
+            }
+            if ("ASSIGNED".equals(latestTaskStatus)) {
+                return new ShipmentBoardAdvice("COURIER", "ACCEPT_PICKUP_TASK", "Courier should confirm pickup assignment");
+            }
+            if ("ACCEPTED".equals(latestTaskStatus)) {
+                return new ShipmentBoardAdvice("COURIER", "START_PICKUP_ROUTE", "Courier accepted pickup task but has not started the route");
+            }
+            if ("IN_PROGRESS".equals(latestTaskStatus)) {
+                return new ShipmentBoardAdvice("COURIER", "COMPLETE_PICKUP_FROM_SENDER", "Courier is on the way to collect the parcel from the sender");
+            }
         }
         if ("READY_FOR_HANDOVER".equals(routing.shipmentRouteStatus())) {
             return new ShipmentBoardAdvice("POINT", "PREPARE_FOR_DISPATCH", "Shipment is paid and waiting for source handover");
@@ -393,6 +416,15 @@ public class OperationsConsoleQueryService {
         return "PICKUP_POINT".equals(routing.deliveryMethod()) || shipment.getTargetPoint() != null;
     }
 
+    private boolean shouldSuggestCourierAssignment(Shipment shipment, Payment latestPayment, ShipmentRoutingSnapshot routing) {
+        return ("AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())
+                && "COURIER_HOME".equals(routing.deliveryMethod())
+                && isCourierFlow(shipment))
+                || ("READY_FOR_HANDOVER".equals(routing.shipmentRouteStatus())
+                && "COURIER_PICKUP".equals(routing.intakeMethod())
+                && isPickupPaymentReady(latestPayment));
+    }
+
     private Map<UUID, Payment> getLatestPaymentByShipmentId(List<Payment> payments) {
         return payments.stream()
                 .filter(payment -> payment.getShipment() != null && payment.getShipment().getId() != null)
@@ -418,6 +450,15 @@ public class OperationsConsoleQueryService {
                 .orElse(null);
     }
 
+    private CourierTask findLatestOpenTaskForShipment(Shipment shipment, List<CourierTask> tasks) {
+        return tasks.stream()
+                .filter(task -> task.getShipment() != null && shipment.getId().equals(task.getShipment().getId()))
+                .filter(task -> isTaskOpen(task.getStatus()))
+                .sorted(Comparator.comparing(CourierTask::getAssignedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .findFirst()
+                .orElse(null);
+    }
+
     private List<User> getCourierUsers(List<CourierTask> tasks) {
         List<User> users = userRepository.findAll();
         Map<UUID, User> courierIdsFromTasks = tasks.stream()
@@ -437,6 +478,13 @@ public class OperationsConsoleQueryService {
 
     private boolean isCourierFlow(Shipment shipment) {
         return normalize(shipment.getDeliveryType()).equals("COURIER");
+    }
+
+    private String taskType(CourierTask task) {
+        if (task == null || task.getTaskType() == null || task.getTaskType().isBlank()) {
+            return null;
+        }
+        return task.getTaskType().trim().toUpperCase(Locale.ROOT);
     }
 
     private boolean isTaskOpen(String taskStatus) {
@@ -493,6 +541,14 @@ public class OperationsConsoleQueryService {
         return extractCity(shipment.getRecipientAddress());
     }
 
+    private String getOperationalCourierCity(Shipment shipment) {
+        String intakeMethod = normalize(shipment.getIntakeMethod());
+        if ("COURIER_PICKUP".equals(intakeMethod)) {
+            return extractCity(shipment.getSenderAddress());
+        }
+        return getDestinationCity(shipment);
+    }
+
     private String getPointCode(Point point) {
         return point == null ? null : point.getPointCode();
     }
@@ -531,6 +587,16 @@ public class OperationsConsoleQueryService {
 
     private boolean isCourierOfflineCollection(Payment payment) {
         return payment != null && "OFFLINE_AT_COURIER".equalsIgnoreCase(payment.getMethod());
+    }
+
+    private boolean isPickupPaymentReady(Payment payment) {
+        if (payment == null || payment.getStatus() == null) {
+            return false;
+        }
+        if (payment.getStatus() == PaymentStatus.PAID || payment.getStatus() == PaymentStatus.OFFLINE_CONFIRMED) {
+            return true;
+        }
+        return payment.getStatus() == PaymentStatus.OFFLINE_PENDING && isCourierOfflineCollection(payment);
     }
 
     private record ShipmentBoardAdvice(

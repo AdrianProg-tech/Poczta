@@ -107,15 +107,9 @@ public class DispatchOperationsService {
         Shipment shipment = shipmentRepository.findById(shipmentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
 
-        if (!"COURIER".equalsIgnoreCase(shipment.getDeliveryType())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only courier shipments can be assigned to courier dispatch");
-        }
-        ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, getLatestPayment(shipment), null);
-        if (!"AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())
-                || !"COURIER_HOME".equals(routing.deliveryMethod())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Shipment must be at destination hub in courier-home flow to assign a courier");
-        }
+        Payment latestPayment = getLatestPayment(shipment);
+        ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(shipment, latestPayment, null);
+        String taskType = resolveTaskTypeForAssignment(shipment, routing, latestPayment);
         if (hasActiveCourierTask(shipment.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Shipment already has an active courier task");
         }
@@ -127,15 +121,25 @@ public class DispatchOperationsService {
         task.setShipment(shipment);
         task.setCourier(courier);
         task.setTaskDate(request.taskDate());
+        task.setTaskType(taskType);
         task.setAssignedAt(LocalDateTime.now());
         task.setStatus("ASSIGNED");
 
         CourierTask savedTask = courierTaskRepository.save(task);
+        if ("PICKUP".equals(taskType)) {
+            shipmentRoutingService.applyRouteState(
+                    shipment,
+                    ShipmentRouteStatus.READY_FOR_HANDOVER,
+                    ShipmentNodeType.COURIER,
+                    courier.getEmail()
+            );
+            shipmentRepository.save(shipment);
+        }
         addTrackingEvent(
                 shipment,
                 shipment.getStatus(),
-                "Courier assignment",
-                "Shipment assigned to courier " + courier.getEmail(),
+                "PICKUP".equals(taskType) ? "Courier pickup assignment" : "Courier assignment",
+                "Shipment assigned to courier " + courier.getEmail() + " for " + taskType.toLowerCase(Locale.ROOT),
                 LocalDateTime.now()
         );
 
@@ -146,13 +150,6 @@ public class DispatchOperationsService {
     public AdminAssignCourierResponse reassignCourier(UUID shipmentId, AdminAssignCourierRequest request) {
         Shipment shipment = shipmentRepository.findById(shipmentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
-
-        if (!"COURIER".equalsIgnoreCase(shipment.getDeliveryType())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only courier shipments can be reassigned in courier dispatch");
-        }
-        if (shipment.getStatus() != ShipmentStatus.READY_FOR_POSTING) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Only shipments waiting before route start can be reassigned");
-        }
 
         CourierTask latestTask = courierTaskRepository.findAllByShipment_IdOrderByAssignedAtDesc(shipmentId).stream()
                 .findFirst()
@@ -177,16 +174,28 @@ public class DispatchOperationsService {
         newTask.setShipment(shipment);
         newTask.setCourier(newCourier);
         newTask.setTaskDate(request.taskDate());
+        newTask.setTaskType(normalizeStatus(latestTask.getTaskType()).isBlank() ? "DELIVERY" : normalizeStatus(latestTask.getTaskType()));
         newTask.setAssignedAt(LocalDateTime.now());
         newTask.setStatus("ASSIGNED");
         CourierTask savedTask = courierTaskRepository.save(newTask);
+
+        if ("PICKUP".equalsIgnoreCase(newTask.getTaskType())) {
+            shipmentRoutingService.applyRouteState(
+                    shipment,
+                    ShipmentRouteStatus.READY_FOR_HANDOVER,
+                    ShipmentNodeType.COURIER,
+                    newCourier.getEmail()
+            );
+            shipmentRepository.save(shipment);
+        }
 
         String previousCourierEmail = latestTask.getCourier() == null ? "unknown courier" : latestTask.getCourier().getEmail();
         addTrackingEvent(
                 shipment,
                 shipment.getStatus(),
                 "Courier reassignment",
-                "Shipment reassigned from " + previousCourierEmail + " to courier " + newCourier.getEmail(),
+                "Shipment reassigned from " + previousCourierEmail + " to courier " + newCourier.getEmail()
+                        + " for " + newTask.getTaskType().toLowerCase(Locale.ROOT),
                 LocalDateTime.now()
         );
 
@@ -263,6 +272,36 @@ public class DispatchOperationsService {
 
     private String normalizeStatus(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String resolveTaskTypeForAssignment(Shipment shipment, ShipmentRoutingSnapshot routing, Payment latestPayment) {
+        if ("COURIER_PICKUP".equals(routing.intakeMethod())
+                && "READY_FOR_HANDOVER".equals(routing.shipmentRouteStatus())
+                && isPickupPaymentReady(latestPayment)) {
+            return "PICKUP";
+        }
+        if ("COURIER".equalsIgnoreCase(shipment.getDeliveryType())
+                && "AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())
+                && "COURIER_HOME".equals(routing.deliveryMethod())) {
+            return "DELIVERY";
+        }
+
+        throw new ResponseStatusException(
+                HttpStatus.CONFLICT,
+                "Shipment is not in a state that can be assigned to a courier"
+        );
+    }
+
+    private boolean isPickupPaymentReady(Payment payment) {
+        if (payment == null || payment.getStatus() == null) {
+            return false;
+        }
+        if (payment.getStatus() == PaymentStatus.PAID || payment.getStatus() == PaymentStatus.OFFLINE_CONFIRMED) {
+            return true;
+        }
+        return payment.getStatus() == PaymentStatus.OFFLINE_PENDING
+                && payment.getMethod() != null
+                && "OFFLINE_AT_COURIER".equalsIgnoreCase(payment.getMethod());
     }
 
     private Payment getLatestPayment(Shipment shipment) {

@@ -3,9 +3,11 @@ import { Link } from 'react-router';
 import { Clock, MapPin, Package, Phone, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatPointType, getPublicPoints, type PublicPoint } from '../api';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 export default function Points() {
   const { t } = useTranslation();
+  usePageTitle(t('publicNav.points'));
   const [points, setPoints] = useState<PublicPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

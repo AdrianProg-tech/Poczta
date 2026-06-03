@@ -1,6 +1,7 @@
 import { Building2, Package, ShieldCheck, Truck, User } from 'lucide-react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { usePageTitle } from '../hooks/usePageTitle';
 
 interface ScenarioCard {
   title: string;
@@ -99,7 +100,7 @@ export function getDemoHelpContent(isEnglish: boolean): {
       {
         title: isEnglish ? 'Courier failed attempt -> redirect to pickup point' : 'Nieudana proba kuriera -> przekierowanie do punktu',
         startingRole: isEnglish ? 'Start as Courier' : 'Start jako Kurier',
-        accountHint: isEnglish ? 'Use a courier account with an active final-mile task.' : 'Uzyj konta kuriera z aktywnym zadaniem final-mile.',
+        accountHint: isEnglish ? 'Use a courier account with an active delivery task.' : 'Uzyj konta kuriera z aktywnym zadaniem doreczenia.',
         nextScreen: '/courier/tasks -> /admin/shipments -> /point/accept -> /point/release',
         statuses: ['OUT_FOR_DELIVERY', 'RETURN_IN_TRANSIT', 'IN_TRANSIT_TO_TARGET_POINT', 'AWAITING_PICKUP', 'DELIVERED'],
         nextOwner: isEnglish ? 'Next owner after failed attempt: Admin / hub, then target point' : 'Nastepny owner po nieudanej probie: Admin / hub, potem punkt odbioru',
@@ -158,6 +159,7 @@ export function getDemoHelpContent(isEnglish: boolean): {
 
 export default function DemoHelp() {
   const { i18n } = useTranslation();
+  usePageTitle(i18n.language === 'en' ? 'Demo help' : 'Pomoc do demo');
   const isEnglish = i18n.language === 'en';
   const content = getDemoHelpContent(isEnglish);
 

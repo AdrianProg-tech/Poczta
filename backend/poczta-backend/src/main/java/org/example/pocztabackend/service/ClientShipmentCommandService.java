@@ -191,10 +191,24 @@ public class ClientShipmentCommandService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Shipment not found"));
 
         ShipmentStatus status = shipment.getStatus();
-        if (status != ShipmentStatus.CREATED && status != ShipmentStatus.PAID && status != ShipmentStatus.READY_FOR_POSTING) {
+        ShipmentRoutingSnapshot routing = shipmentRoutingService.snapshot(
+                shipment,
+                null,
+                null
+        );
+        boolean cancellableByLegacyStatus =
+                status == ShipmentStatus.CREATED
+                        || status == ShipmentStatus.PAID
+                        || status == ShipmentStatus.READY_FOR_POSTING;
+        boolean cancellableByRouteStatus =
+                (ShipmentRouteStatus.READY_FOR_HANDOVER.name().equals(routing.shipmentRouteStatus())
+                        && !"COURIER".equalsIgnoreCase(routing.currentNodeType()))
+                        || ShipmentRouteStatus.ACCEPTED_AT_SOURCE.name().equals(routing.shipmentRouteStatus());
+
+        if (!cancellableByLegacyStatus && !cancellableByRouteStatus) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Shipment cannot be cancelled in status " + status
+                    "Shipment cannot be cancelled in route status " + routing.shipmentRouteStatus()
             );
         }
 
