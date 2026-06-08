@@ -268,10 +268,10 @@ public class OperationsConsoleQueryService {
         OpsCourierSummaryResponse suggestedCourier = suggestCourier(courierSummaries, operationalCity, excludedCourierId);
 
         String suggestionReason = suggestedCourier == null
-                ? "No courier profiles available"
+                ? "Brak dostępnych profili kurierów"
                 : matchesCity(suggestedCourier.inferredServiceCity(), operationalCity)
-                ? "Best match by inferred city and lowest open task count"
-                : "Fallback suggestion by lowest open task count";
+                ? "Najlepsze dopasowanie według miasta i najmniejszej liczby otwartych zadań"
+                : "Zapasowa sugestia według najmniejszej liczby otwartych zadań";
 
         return new OpsDispatchCandidateResponse(
                 shipment.getId(),
@@ -336,78 +336,78 @@ public class OperationsConsoleQueryService {
         PaymentStatus paymentStatus = latestPayment == null ? null : latestPayment.getStatus();
 
         if (paymentStatus == PaymentStatus.PENDING) {
-            return new ShipmentBoardAdvice("ADMIN", "MARK_PAYMENT_PAID", "Awaiting online payment confirmation");
+            return new ShipmentBoardAdvice("ADMIN", "MARK_PAYMENT_PAID", "Oczekiwanie na potwierdzenie płatności online");
         }
         if (paymentStatus == PaymentStatus.FAILED) {
-            return new ShipmentBoardAdvice("CLIENT", "RESTART_PAYMENT", "Latest payment failed");
+            return new ShipmentBoardAdvice("CLIENT", "RESTART_PAYMENT", "Ostatnia płatność zakończyła się niepowodzeniem");
         }
         if (paymentStatus == PaymentStatus.OFFLINE_PENDING
                 && isCourierOfflineCollection(latestPayment)
                 && "OUT_FOR_DELIVERY".equals(routing.shipmentRouteStatus())
                 && "IN_PROGRESS".equals(normalize(latestTask == null ? null : latestTask.getStatus()))
                 && !"PICKUP".equals(taskType(latestTask))) {
-            return new ShipmentBoardAdvice("COURIER", "COLLECT_PAYMENT_AND_DELIVER", "Courier must collect cash/card on delivery");
+            return new ShipmentBoardAdvice("COURIER", "COLLECT_PAYMENT_AND_DELIVER", "Kurier musi pobrać gotówkę lub kartę przy doręczeniu");
         }
         if (paymentStatus == PaymentStatus.OFFLINE_PENDING && !isCourierOfflineCollection(latestPayment)) {
-            return new ShipmentBoardAdvice("POINT", "CONFIRM_OFFLINE_PAYMENT", "Waiting for offline payment confirmation at point");
+            return new ShipmentBoardAdvice("POINT", "CONFIRM_OFFLINE_PAYMENT", "Oczekiwanie na potwierdzenie płatności offline w punkcie");
         }
         if ("READY_FOR_HANDOVER".equals(routing.shipmentRouteStatus()) && "COURIER_PICKUP".equals(routing.intakeMethod())) {
             if (!isPickupPaymentReady(latestPayment)) {
-                return new ShipmentBoardAdvice("CLIENT", "MARK_PAYMENT_PAID", "Shipment still requires payment before courier pickup can be arranged");
+                return new ShipmentBoardAdvice("CLIENT", "MARK_PAYMENT_PAID", "Przesyłka wciąż wymaga płatności przed zorganizowaniem odbioru przez kuriera");
             }
             String latestTaskStatus = normalize(latestTask == null ? null : latestTask.getStatus());
             if (latestTask == null) {
-                return new ShipmentBoardAdvice("DISPATCH", "ASSIGN_PICKUP_COURIER", "Assign a courier to pick up the parcel from the sender");
+                return new ShipmentBoardAdvice("DISPATCH", "ASSIGN_PICKUP_COURIER", "Trzeba przypisać kuriera do odbioru przesyłki od nadawcy");
             }
             if ("ASSIGNED".equals(latestTaskStatus)) {
-                return new ShipmentBoardAdvice("COURIER", "ACCEPT_PICKUP_TASK", "Courier should confirm pickup assignment");
+                return new ShipmentBoardAdvice("COURIER", "ACCEPT_PICKUP_TASK", "Kurier powinien potwierdzić odbiór zadania pick-up");
             }
             if ("ACCEPTED".equals(latestTaskStatus)) {
-                return new ShipmentBoardAdvice("COURIER", "START_PICKUP_ROUTE", "Courier accepted pickup task but has not started the route");
+                return new ShipmentBoardAdvice("COURIER", "START_PICKUP_ROUTE", "Kurier przyjął zadanie pick-up, ale jeszcze nie rozpoczął trasy");
             }
             if ("IN_PROGRESS".equals(latestTaskStatus)) {
-                return new ShipmentBoardAdvice("COURIER", "COMPLETE_PICKUP_FROM_SENDER", "Courier is on the way to collect the parcel from the sender");
+                return new ShipmentBoardAdvice("COURIER", "COMPLETE_PICKUP_FROM_SENDER", "Kurier jest w trasie po odbiór przesyłki od nadawcy");
             }
         }
         if ("READY_FOR_HANDOVER".equals(routing.shipmentRouteStatus())) {
-            return new ShipmentBoardAdvice("POINT", "PREPARE_FOR_DISPATCH", "Shipment is paid and waiting for source handover");
+            return new ShipmentBoardAdvice("POINT", "PREPARE_FOR_DISPATCH", "Przesyłka jest opłacona i czeka na przekazanie w punkcie nadania");
         }
         if ("ACCEPTED_AT_SOURCE".equals(routing.shipmentRouteStatus())) {
-            return new ShipmentBoardAdvice("POINT", "POST_FROM_SOURCE", "Point accepted the parcel and should hand it over to the network");
+            return new ShipmentBoardAdvice("POINT", "POST_FROM_SOURCE", "Punkt przyjął przesyłkę i powinien nadać ją dalej do sieci");
         }
         if ("AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())
                 && "COURIER_HOME".equals(routing.deliveryMethod())
                 && latestTask == null) {
-            return new ShipmentBoardAdvice("DISPATCH", "ASSIGN_COURIER", "Courier not assigned yet");
+            return new ShipmentBoardAdvice("DISPATCH", "ASSIGN_COURIER", "Kurier nie został jeszcze przypisany");
         }
         if ("AT_DESTINATION_HUB".equals(routing.shipmentRouteStatus())
                 && routesIntoPickupPoint(shipment, routing)) {
-            return new ShipmentBoardAdvice("HUB", "ROUTE_TO_PICKUP_POINT", "Destination hub should route this parcel to the target point");
+            return new ShipmentBoardAdvice("HUB", "ROUTE_TO_PICKUP_POINT", "Hub docelowy powinien skierować tę przesyłkę do punktu odbioru");
         }
         if ("RETURN_IN_TRANSIT".equals(routing.shipmentRouteStatus())
                 && routesIntoPickupPoint(shipment, routing)) {
-            return new ShipmentBoardAdvice("HUB", "ROUTE_TO_PICKUP_POINT", "Redirected parcel returned to hub and must be sent to the pickup point");
+            return new ShipmentBoardAdvice("HUB", "ROUTE_TO_PICKUP_POINT", "Przekierowana przesyłka wróciła do hubu i musi zostać wysłana do punktu odbioru");
         }
         if (normalize(latestTask == null ? null : latestTask.getStatus()).equals("ASSIGNED")) {
-            return new ShipmentBoardAdvice("COURIER", "ACCEPT_TASK", "Courier task is waiting for acceptance");
+            return new ShipmentBoardAdvice("COURIER", "ACCEPT_TASK", "Zadanie kuriera czeka na przyjęcie");
         }
         if (normalize(latestTask == null ? null : latestTask.getStatus()).equals("ACCEPTED")) {
-            return new ShipmentBoardAdvice("COURIER", "START_ROUTE", "Courier accepted task but has not started route");
+            return new ShipmentBoardAdvice("COURIER", "START_ROUTE", "Kurier przyjął zadanie, ale jeszcze nie rozpoczął trasy");
         }
         if (normalize(latestTask == null ? null : latestTask.getStatus()).equals("IN_PROGRESS")) {
-            return new ShipmentBoardAdvice("COURIER", "COMPLETE_OR_RECORD_ATTEMPT", "Courier is handling the shipment");
+            return new ShipmentBoardAdvice("COURIER", "COMPLETE_OR_RECORD_ATTEMPT", "Kurier jest w trakcie obsługi przesyłki");
         }
         if ("IN_TRANSIT_TO_TARGET_POINT".equals(routing.shipmentRouteStatus())) {
-            return new ShipmentBoardAdvice("POINT", "ACCEPT_REDIRECTED_SHIPMENT", "Redirected parcel must physically arrive at target point");
+            return new ShipmentBoardAdvice("POINT", "ACCEPT_REDIRECTED_SHIPMENT", "Przekierowana przesyłka musi fizycznie dotrzeć do punktu odbioru");
         }
         if ("AWAITING_PICKUP".equals(routing.shipmentRouteStatus())) {
-            return new ShipmentBoardAdvice("CLIENT", "PICKUP_AT_POINT", "Shipment is ready for recipient pickup");
+            return new ShipmentBoardAdvice("CLIENT", "PICKUP_AT_POINT", "Przesyłka jest gotowa do odbioru przez klienta");
         }
         if ("DELIVERED".equals(routing.shipmentRouteStatus())) {
             return new ShipmentBoardAdvice("SYSTEM", "NONE", null);
         }
         if ("CANCELED".equals(routing.shipmentRouteStatus()) || "RETURNED".equals(routing.shipmentRouteStatus())) {
-            return new ShipmentBoardAdvice("ADMIN", "REVIEW_EXCEPTION", "Shipment flow finished with exception state");
+            return new ShipmentBoardAdvice("ADMIN", "REVIEW_EXCEPTION", "Obsługa przesyłki zakończyła się stanem wyjątkowym");
         }
         return new ShipmentBoardAdvice("SYSTEM", "NONE", null);
     }

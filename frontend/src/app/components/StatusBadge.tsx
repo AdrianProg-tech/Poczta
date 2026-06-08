@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 interface StatusBadgeProps {
   status: string | null | undefined;
-  type?: 'shipment' | 'payment' | 'complaint';
+  type?: 'shipment' | 'payment' | 'complaint' | 'task';
 }
 
 function getStatusColor(type: StatusBadgeProps['type'], status: string | null | undefined) {
@@ -16,6 +16,23 @@ function getStatusColor(type: StatusBadgeProps['type'], status: string | null | 
         return 'bg-warning/10 text-warning border-warning/20';
       case 'FAILED':
       case 'CANCELED':
+        return 'bg-destructive/10 text-destructive border-destructive/20';
+      default:
+        return 'bg-muted text-muted-foreground border-border';
+    }
+  }
+
+  if (type === 'task') {
+    switch (status) {
+      case 'ASSIGNED':
+        return 'bg-muted text-muted-foreground border-border';
+      case 'ACCEPTED':
+        return 'bg-accent/10 text-accent border-accent/20';
+      case 'IN_PROGRESS':
+        return 'bg-info/10 text-info border-info/20';
+      case 'COMPLETED':
+        return 'bg-success/10 text-success border-success/20';
+      case 'FAILED':
         return 'bg-destructive/10 text-destructive border-destructive/20';
       default:
         return 'bg-muted text-muted-foreground border-border';

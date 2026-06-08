@@ -109,7 +109,7 @@ describe('point queue selection helpers', () => {
 
     expect(csv).toContain('trackingNumber,recipientName,queueType,shipmentStatus,paymentStatus,paymentId,createdAt,expiresAt');
     expect(csv).toContain('"PW-123","Jan Kowalski","Do wydania","AWAITING_PICKUP","PAID","","",""');
-    expect(csv).toContain('"PW-456","Anna Nowak","Offline payment","CREATED","OFFLINE_PENDING","pay-222","",""');
+    expect(csv).toContain('"PW-456","Anna Nowak","Płatność offline","CREATED","OFFLINE_PENDING","pay-222","",""');
   });
 });
 

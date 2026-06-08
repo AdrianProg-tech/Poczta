@@ -14,11 +14,11 @@ export interface PointQueueStat {
 
 export function formatPointQueueType(type: string) {
   const labels: Record<string, string> = {
-    ACCEPT: 'Do przyjecia',
-    ACCEPT_REDIRECT: 'Redirect do przyjecia',
+    ACCEPT: 'Do przyjęcia',
+    ACCEPT_REDIRECT: 'Redirect do przyjęcia',
     POST_FROM_SOURCE: 'Gotowe do nadania dalej',
     PICKUP: 'Do wydania',
-    OFFLINE_PAYMENT: 'Offline payment',
+    OFFLINE_PAYMENT: 'Płatność offline',
   };
   return labels[type] ?? type;
 }
@@ -27,22 +27,22 @@ export function getPointQueueStats(queue: PointQueueResponse | null): PointQueue
   return [
     {
       key: 'accept',
-      label: 'Przyjecie',
-      description: 'Skany przyjecia, redirecty i nadanie dalej.',
+      label: 'Przyjęcie',
+      description: 'Skany przyjęcia, redirecty i nadanie dalej.',
       path: '/point/accept',
       value: queue?.acceptQueue.length ?? 0,
     },
     {
       key: 'pickup',
       label: 'Wydanie',
-      description: 'Obsluga odbioru paczki przez klienta.',
+      description: 'Obsługa odbioru paczki przez klienta.',
       path: '/point/release',
       value: queue?.pickupQueue.length ?? 0,
     },
     {
       key: 'offline',
-      label: 'Platnosci offline',
-      description: 'Potwierdzanie gotowki i szybkie checkouty.',
+      label: 'Płatności offline',
+      description: 'Potwierdzanie gotówki i szybkie checkouty.',
       path: '/point/payment-verification',
       value: queue?.offlinePaymentQueue.length ?? 0,
     },
@@ -206,7 +206,7 @@ export function printPointQueueDigest({
           <div class="metaValue">${pointCode ?? '-'}</div>
         </div>
         <div class="metaCard">
-          <div class="metaLabel">Liczba rekordow</div>
+          <div class="metaLabel">Liczba rekordów</div>
           <div class="metaValue">${items.length}</div>
         </div>
         <div class="metaCard">

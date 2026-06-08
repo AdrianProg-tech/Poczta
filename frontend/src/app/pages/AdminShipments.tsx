@@ -19,97 +19,47 @@ import { StatusBadge } from '../components/StatusBadge';
 import { useAppStateContext } from '../state/AppStateContext';
 import { useTranslation } from 'react-i18next';
 
-function formatOwner(owner: string) {
-  const labels: Record<string, string> = {
-    CLIENT: 'Klient',
-    ADMIN: 'Admin',
-    POINT: 'Punkt',
-    DISPATCH: 'Dispatcher',
-    OPS: 'Operacje',
-    COURIER: 'Kurier',
-    SYSTEM: 'System',
-  };
-  return labels[owner] ?? owner;
+function formatOwner(owner: string, t: (key: string) => string) {
+  return t(`adminShipments.owner.${owner}`) !== `adminShipments.owner.${owner}` ? t(`adminShipments.owner.${owner}`) : owner;
 }
 
-function formatAction(action: string) {
-  const labels: Record<string, string> = {
-    MARK_PAYMENT_PAID: 'Potwierdz platnosc',
-    RESTART_PAYMENT: 'Ponow platnosc klienta',
-    CONFIRM_OFFLINE_PAYMENT: 'Potwierdz platnosc offline',
-    PREPARE_FOR_DISPATCH: 'Przygotuj do wysylki',
-    ASSIGN_PICKUP_COURIER: 'Przypisz kuriera po odbior',
-    ACCEPT_PICKUP_TASK: 'Kurier ma przyjac odbior',
-    START_PICKUP_ROUTE: 'Kurier ma ruszyc po odbior',
-    COMPLETE_PICKUP_FROM_SENDER: 'Kurier ma odebrac od nadawcy',
-    POST_FROM_SOURCE: 'Nadaj dalej z punktu',
-    ASSIGN_COURIER: 'Przypisz kuriera',
-    HAND_OVER_TO_COURIER: 'Przekaz kurierowi',
-    ROUTE_TO_PICKUP_POINT: 'Skieruj do punktu odbioru',
-    ACCEPT_TASK: 'Kurier ma przyjac task',
-    START_ROUTE: 'Kurier ma ruszyc w trase',
-    COMPLETE_OR_RECORD_ATTEMPT: 'Dorecz albo zapisz probe',
-    COLLECT_PAYMENT_AND_DELIVER: 'Pobierz platnosc i dorecz',
-    ACCEPT_REDIRECTED_SHIPMENT: 'Przyjmij w punkcie',
-    PICKUP_AT_POINT: 'Odbior przez klienta',
-    REVIEW_EXCEPTION: 'Sprawdz wyjatek',
-    NONE: 'Brak',
-  };
-  return labels[action] ?? action;
+function formatAction(action: string, t: (key: string) => string) {
+  return t(`adminShipments.action.${action}`) !== `adminShipments.action.${action}` ? t(`adminShipments.action.${action}`) : action;
 }
 
-function explainAction(action: string) {
-  const explanations: Record<string, string> = {
-    PREPARE_FOR_DISPATCH: 'Zespol operacyjny powinien przepchnac przesylke z platnosci do pierwszego przekazania.',
-    ASSIGN_PICKUP_COURIER: 'Dispatcher powinien wskazac kuriera, ktory odbierze paczke od nadawcy.',
-    ACCEPT_PICKUP_TASK: 'Kurier ma juz przydzielony odbior, ale nie potwierdzil jeszcze przejecia zadania.',
-    START_PICKUP_ROUTE: 'Kurier potwierdzil zadanie odbioru, ale jeszcze nie ruszyl po paczke.',
-    COMPLETE_PICKUP_FROM_SENDER: 'Kurier powinien potwierdzic odbior paczki od nadawcy i wprowadzenie jej do sieci.',
-    POST_FROM_SOURCE: 'Punkt przyjal juz przesylke i musi tylko potwierdzic wysylke dalej do sieci.',
-    ASSIGN_COURIER: 'Dispatcher powinien wskazac kuriera, aby przesylka zeszla z kolejki oczekiwania.',
-    HAND_OVER_TO_COURIER: 'Kolejny ruch jest po stronie kuriera albo punktu, ktory przekazuje przesylke do doreczenia.',
-    ROUTE_TO_PICKUP_POINT: 'Hub powinien wyslac przesylke do docelowego punktu, zeby punkt mogl ja potem przyjac i wydac.',
-    ACCEPT_TASK: 'Task istnieje, ale kurier nie potwierdzil jeszcze przyjecia.',
-    START_ROUTE: 'Task jest przyjety, ale kurier nie ruszyl jeszcze w trase.',
-    COMPLETE_OR_RECORD_ATTEMPT: 'Przesylka jest juz w dostawie i wymaga finalnego wyniku po stronie kuriera.',
-    COLLECT_PAYMENT_AND_DELIVER: 'Kurier musi domknac platnosc przy odbiorze, a dopiero potem oznaczyc przesylke jako doreczona.',
-    ACCEPT_REDIRECTED_SHIPMENT: 'Punkt powinien przyjac redirect, aby przesylka trafila do odbioru klienta.',
-    PICKUP_AT_POINT: 'Klient moze odebrac przesylke, a punkt powinien pilnowac release flow.',
-    REVIEW_EXCEPTION: 'Przesylka utknela w stanie wymagajacym recznej analizy albo decyzji operacyjnej.',
-    NONE: 'Na tym etapie nie ma sugerowanej szybkiej akcji.',
-  };
-  return explanations[action] ?? 'Sprawdz szczegoly przesylki i zdecyduj o kolejnym ruchu operacyjnym.';
+function explainAction(action: string, t: (key: string) => string) {
+  const key = `adminShipments.explain.${action}`;
+  const translated = t(key);
+  return translated !== key ? translated : t('adminShipments.explainDefault');
 }
 
-function formatTaskType(taskType: string | null | undefined) {
-  if (taskType === 'PICKUP') {
-    return 'Odbior od nadawcy';
-  }
-  if (taskType === 'DELIVERY') {
-    return 'Doreczenie do odbiorcy';
-  }
+function formatTaskType(taskType: string | null | undefined, t: (key: string) => string) {
+  if (taskType === 'PICKUP') return t('adminShipments.taskTypePickup');
+  if (taskType === 'DELIVERY') return t('adminShipments.taskTypeDelivery');
   return null;
 }
 
-function describeResponsibleActor(shipment: OpsShipmentBoardItem) {
+function describeResponsibleActor(shipment: OpsShipmentBoardItem, t: (key: string, opts?: object) => string) {
   if (shipment.activeTaskType === 'PICKUP') {
     return shipment.assignedCourierEmail
-      ? `Kurier odbioru: ${shipment.assignedCourierEmail}`
-      : `Miasto odbioru: ${shipment.sourceCity ?? 'brak danych'}`;
+      ? t('adminShipments.actorPickupCourier', { email: shipment.assignedCourierEmail })
+      : t('adminShipments.actorPickupCity', { city: shipment.sourceCity ?? t('common.noData') });
   }
   if (shipment.nextActionOwner === 'POINT') {
     const pointCode =
       shipment.nextSuggestedAction === 'ACCEPT_REDIRECTED_SHIPMENT' || shipment.nextSuggestedAction === 'PICKUP_AT_POINT'
         ? shipment.targetPointCode
         : shipment.sourcePointCode ?? shipment.targetPointCode;
-    return pointCode ? `Punkt: ${pointCode}` : 'Punkt operacyjny';
+    return pointCode ? t('adminShipments.actorPoint', { code: pointCode }) : t('adminShipments.actorPointGeneric');
   }
   if (shipment.nextActionOwner === 'HUB') {
-    return `Hub: ${shipment.destinationCity ?? shipment.sourceCity ?? 'brak miasta'}`;
+    return t('adminShipments.actorHub', { city: shipment.destinationCity ?? shipment.sourceCity ?? t('common.noData') });
   }
   if (shipment.assignedCourierEmail) {
-    const taskType = formatTaskType(shipment.activeTaskType);
-    return taskType ? `${taskType}: ${shipment.assignedCourierEmail}` : `Kurier: ${shipment.assignedCourierEmail}`;
+    const taskType = formatTaskType(shipment.activeTaskType, t);
+    return taskType
+      ? `${taskType}: ${shipment.assignedCourierEmail}`
+      : t('adminShipments.actorCourier', { email: shipment.assignedCourierEmail });
   }
   return null;
 }
@@ -163,7 +113,7 @@ export default function AdminShipments() {
       setAdminUsers(adminUsersData);
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac boardu przesylek.');
+      setError(requestError instanceof Error ? requestError.message : t('adminShipments.errorLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -180,7 +130,7 @@ export default function AdminShipments() {
       await action();
       await loadBoard();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Operacja dla przesylki nie powiodla sie.');
+      setError(requestError instanceof Error ? requestError.message : t('adminShipments.errorAction'));
     } finally {
       setBusyShipmentId(null);
     }
@@ -227,13 +177,11 @@ export default function AdminShipments() {
   const actionOptions = Array.from(new Set(shipments.map((shipment) => shipment.nextSuggestedAction)));
 
   return (
-    <DashboardShell role="admin" title="Tablica przesylek">
+    <DashboardShell role="admin" title={t('adminShipments.pageTitle')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="text-xl">Tablica przesylek</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Lista przesylek z podpowiedziami, kto powinien wykonac nastepny ruch i jaka akcja jest teraz najwazniejsza.
-          </p>
+          <h2 className="text-xl">{t('adminShipments.heading')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('adminShipments.desc')}</p>
         </div>
 
         <button
@@ -255,7 +203,7 @@ export default function AdminShipments() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Szukaj po trackingu, miescie albo kurierze"
+            placeholder={t('adminShipments.searchPlaceholder')}
             className="w-full bg-transparent outline-none"
           />
         </label>
@@ -265,10 +213,10 @@ export default function AdminShipments() {
           onChange={(event) => setOwnerFilter(event.target.value)}
           className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm outline-none"
         >
-          <option value="ALL">Wszyscy ownerzy</option>
+          <option value="ALL">{t('common.filter')}</option>
           {ownerOptions.map((owner) => (
             <option key={owner} value={owner}>
-              {formatOwner(owner)}
+              {formatOwner(owner, t)}
             </option>
           ))}
         </select>
@@ -278,16 +226,16 @@ export default function AdminShipments() {
           onChange={(event) => setActionFilter(event.target.value)}
           className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm outline-none"
         >
-          <option value="ALL">Wszystkie akcje</option>
+          <option value="ALL">{t('common.filter')}</option>
           {actionOptions.map((action) => (
             <option key={action} value={action}>
-              {formatAction(action)}
+              {formatAction(action, t)}
             </option>
           ))}
         </select>
 
         <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
-          <div className="text-sm text-muted-foreground">Po filtrach</div>
+          <div className="text-sm text-muted-foreground">{t('adminShipments.afterFilters')}</div>
           <div className="mt-1 text-2xl">{isLoading ? '...' : filteredShipments.length}</div>
         </div>
       </div>
@@ -298,18 +246,18 @@ export default function AdminShipments() {
           onClick={() => setActionFilter('PREPARE_FOR_DISPATCH')}
           className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
         >
-          <div className="text-sm text-muted-foreground">Kolejka przygotowania</div>
+          <div className="text-sm text-muted-foreground">{t('adminShipments.statPrepareTitle')}</div>
           <div className="mt-2 text-2xl">{boardSummary.prepare}</div>
-          <div className="mt-2 text-sm text-muted-foreground">Platnosc potwierdzona, ale przesylka jeszcze nie weszla do sieci albo czeka na pierwszy handoff.</div>
+          <div className="mt-2 text-sm text-muted-foreground">{t('adminShipments.statPrepareDesc')}</div>
         </button>
         <button
           type="button"
           onClick={() => setActionFilter('ASSIGN_COURIER')}
           className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
         >
-          <div className="text-sm text-muted-foreground">Do przydzialu kuriera</div>
+          <div className="text-sm text-muted-foreground">{t('adminShipments.statAssignTitle')}</div>
           <div className="mt-2 text-2xl">{boardSummary.assign}</div>
-          <div className="mt-2 text-sm text-muted-foreground">Dispatcher ma tu najwiekszy wplyw na plynne zejscie kolejki.</div>
+          <div className="mt-2 text-sm text-muted-foreground">{t('adminShipments.statAssignDesc')}</div>
         </button>
         <button
           type="button"
@@ -318,23 +266,21 @@ export default function AdminShipments() {
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm text-muted-foreground">Platnosc u kuriera</div>
+              <div className="text-sm text-muted-foreground">{t('adminShipments.statCourierCheckoutTitle')}</div>
               <div className="mt-2 text-2xl">{boardSummary.courierCheckout}</div>
             </div>
             <CreditCard className="h-5 w-5 text-warning" />
           </div>
-          <div className="mt-2 text-sm text-muted-foreground">
-            Oplacenie przy drzwiach, ktore musi zamknac kurier przed finalnym `DELIVERED`.
-          </div>
+          <div className="mt-2 text-sm text-muted-foreground">{t('adminShipments.statCourierCheckoutDesc')}</div>
         </button>
         <button
           type="button"
           onClick={() => setOwnerFilter('POINT')}
           className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
         >
-          <div className="text-sm text-muted-foreground">Punktowe handoffy</div>
+          <div className="text-sm text-muted-foreground">{t('adminShipments.statPointTitle')}</div>
           <div className="mt-2 text-2xl">{boardSummary.point}</div>
-          <div className="mt-2 text-sm text-muted-foreground">Redirecty i pickupy, ktore wymagaja reakcji punktu odbioru.</div>
+          <div className="mt-2 text-sm text-muted-foreground">{t('adminShipments.statPointDesc')}</div>
         </button>
         <button
           type="button"
@@ -344,9 +290,9 @@ export default function AdminShipments() {
           }}
           className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
         >
-          <div className="text-sm text-muted-foreground">Zablokowane / do analizy</div>
+          <div className="text-sm text-muted-foreground">{t('adminShipments.statBlockedTitle')}</div>
           <div className="mt-2 text-2xl">{boardSummary.blocked}</div>
-          <div className="mt-2 text-sm text-muted-foreground">Shipmenty z `blockedReason`, ktore zwykle wymagaja recznego spojrzenia.</div>
+          <div className="mt-2 text-sm text-muted-foreground">{t('adminShipments.statBlockedDesc')}</div>
         </button>
       </div>
 
@@ -358,28 +304,28 @@ export default function AdminShipments() {
             onClick={() => setActionFilter(action)}
             className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
           >
-            <div className="text-sm text-muted-foreground">{formatAction(action)}</div>
+            <div className="text-sm text-muted-foreground">{formatAction(action, t)}</div>
             <div className="mt-2 text-2xl">{count}</div>
-            <div className="mt-2 text-sm text-muted-foreground">{explainAction(action)}</div>
+            <div className="mt-2 text-sm text-muted-foreground">{explainAction(action, t)}</div>
           </button>
         ))}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        {isLoading ? <div className="p-6">Ladowanie boardu...</div> : null}
+        {isLoading ? <div className="p-6">{t('adminShipments.loading')}</div> : null}
 
         {!isLoading ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Tracking</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Status</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Cel</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Owner</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Sugestia</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Kurier</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Akcja</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminShipments.colTracking')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminShipments.colStatus')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminShipments.colDestination')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminShipments.colOwner')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminShipments.colSuggestion')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminShipments.colCourier')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminShipments.colAction')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -402,7 +348,7 @@ export default function AdminShipments() {
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
                           <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-warning/10 px-3 py-1 text-xs text-warning">
                             <CreditCard className="h-3.5 w-3.5" />
-                            Platnosc gotowka lub karta u kuriera
+                            {t('adminShipments.courierCollectionBadge')}
                           </div>
                         ) : null}
                       </td>
@@ -413,48 +359,46 @@ export default function AdminShipments() {
                         <StatusBadge status={shipment.paymentStatus} type="payment" />
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
-                        <div>{shipment.destinationCity ?? 'Brak miasta'}</div>
-                        <div>{shipment.targetPointCode ? `Punkt: ${shipment.targetPointCode}` : 'Dostawa do drzwi'}</div>
+                        <div>{shipment.destinationCity ?? t('adminShipments.noCity')}</div>
+                        <div>{shipment.targetPointCode ? t('adminShipments.actorPoint', { code: shipment.targetPointCode }) : t('adminShipments.doorDelivery')}</div>
                         {shipment.activeTaskType === 'PICKUP' ? (
-                          <div className="mt-1">Odbior od nadawcy: {shipment.sourceCity ?? 'brak miasta'}</div>
+                          <div className="mt-1">{t('adminShipments.pickupFromSenderNote', { city: shipment.sourceCity ?? t('adminShipments.noCity').toLowerCase() })}</div>
                         ) : null}
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
-                          <div className="mt-1 text-warning">Platnosc pobraniowa po stronie kuriera.</div>
+                          <div className="mt-1 text-warning">{t('adminShipments.collectionPaymentNote')}</div>
                         ) : null}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <div>{formatOwner(shipment.nextActionOwner)}</div>
-                        {describeResponsibleActor(shipment) ? (
-                          <div className="mt-1 text-xs text-muted-foreground">{describeResponsibleActor(shipment)}</div>
+                        <div>{formatOwner(shipment.nextActionOwner, t)}</div>
+                        {describeResponsibleActor(shipment, t) ? (
+                          <div className="mt-1 text-xs text-muted-foreground">{describeResponsibleActor(shipment, t)}</div>
                         ) : null}
                         {pointWorkerEmail && shipment.nextActionOwner === 'POINT' ? (
-                          <div className="mt-1 text-xs text-muted-foreground">Operator: {pointWorkerEmail}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">{t('adminShipments.operatorLabel', { email: pointWorkerEmail })}</div>
                         ) : null}
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
-                        <div>{formatAction(shipment.nextSuggestedAction)}</div>
+                        <div>{formatAction(shipment.nextSuggestedAction, t)}</div>
                         {shipment.blockedReason ? <div className="mt-1">{shipment.blockedReason}</div> : null}
                         {suggestion?.suggestionReason ? <div className="mt-1">{suggestion.suggestionReason}</div> : null}
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
-                          <div className="mt-1">
-                            Kurier musi pobrac gotowke albo karte przed zamknieciem zadania dostawy.
-                          </div>
+                          <div className="mt-1">{t('adminShipments.courierMonitorDetail')}</div>
                         ) : null}
-                        <div className="mt-2 rounded-lg bg-secondary p-3 text-sm">{explainAction(shipment.nextSuggestedAction)}</div>
+                        <div className="mt-2 rounded-lg bg-secondary p-3 text-sm">{explainAction(shipment.nextSuggestedAction, t)}</div>
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
-                        <div>{shipment.assignedCourierEmail ?? suggestion?.suggestedCourierEmail ?? 'Brak'}</div>
-                        {formatTaskType(shipment.activeTaskType) ? (
-                          <div className="mt-1">{formatTaskType(shipment.activeTaskType)}</div>
+                        <div>{shipment.assignedCourierEmail ?? suggestion?.suggestedCourierEmail ?? t('adminShipments.noCourier')}</div>
+                        {formatTaskType(shipment.activeTaskType, t) ? (
+                          <div className="mt-1">{formatTaskType(shipment.activeTaskType, t)}</div>
                         ) : null}
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
-                          <div className="mt-1 text-warning">Zespol operacyjny powinien monitorowac rozliczenie po stronie kuriera.</div>
+                          <div className="mt-1 text-warning">{t('adminShipments.courierMonitorNote')}</div>
                         ) : null}
                       </td>
                       <td className="px-6 py-4">
                         {shipment.nextSuggestedAction === 'PREPARE_FOR_DISPATCH' ? (
                           <div className="rounded-lg bg-secondary px-3 py-2 text-xs text-muted-foreground">
-                            Punkt przyjmuje przesylke
+                            {t('adminShipments.pointAcceptsShipment')}
                           </div>
                         ) : null}
 
@@ -469,7 +413,7 @@ export default function AdminShipments() {
                                 }
                                 className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none"
                               >
-                                <option value="">— wybierz kuriera —</option>
+                                <option value="">{t('adminShipments.chooseCourier')}</option>
                                 {(dispatch?.couriers ?? []).map((courier) => (
                                   <option key={courier.courierId} value={courier.courierId}>
                                     {courier.courierEmail}
@@ -491,10 +435,10 @@ export default function AdminShipments() {
                                 className="w-full rounded-lg bg-success px-3 py-2 text-sm text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                               >
                                 {isBusy
-                                  ? 'Przypisywanie...'
+                                  ? t('adminShipments.assigning')
                                   : shipment.nextSuggestedAction === 'ASSIGN_PICKUP_COURIER'
-                                    ? 'Przypisz kuriera po odbior'
-                                    : 'Przypisz kuriera'}
+                                    ? t('adminShipments.assignPickupCourier')
+                                    : t('adminShipments.assignCourier')}
                               </button>
                             </div>
                           );
@@ -512,12 +456,11 @@ export default function AdminShipments() {
                               }
                               className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
                             >
-                              Przyjmij w punkcie
+                              {t('adminShipments.acceptAtPoint')}
                             </button>
                           ) : (
                             <div className="text-sm text-muted-foreground">
-                              Szybka akcja wymaga przypisanego operatora punktu
-                              {!isFullAdmin ? ' i scope ADMIN.' : '.'}
+                              {t('adminShipments.pointActionNote')}{!isFullAdmin ? ' i scope ADMIN.' : '.'}
                             </div>
                           )
                         ) : null}
@@ -534,7 +477,7 @@ export default function AdminShipments() {
                             }
                             className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
                           >
-                            Skieruj do punktu
+                            {t('adminShipments.routeToPoint')}
                           </button>
                         ) : null}
 
@@ -550,12 +493,11 @@ export default function AdminShipments() {
                               }
                               className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                             >
-                              Pobierz + wydaj
+                              {t('adminShipments.collectAndRelease')}
                             </button>
                           ) : (
                             <div className="text-sm text-muted-foreground">
-                              Szybka akcja wymaga przypisanego operatora punktu
-                              {!isFullAdmin ? ' i scope ADMIN.' : '.'}
+                              {t('adminShipments.pointActionNote')}{!isFullAdmin ? ' i scope ADMIN.' : '.'}
                             </div>
                           )
                         ) : null}
@@ -573,7 +515,7 @@ export default function AdminShipments() {
                                 }
                                 className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                               >
-                                Pobierz + wydaj
+                                {t('adminShipments.collectAndRelease')}
                               </button>
                             ) : (
                               <button
@@ -586,29 +528,28 @@ export default function AdminShipments() {
                                 }
                                 className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                               >
-                                Wydaj w punkcie
+                                {t('adminShipments.releaseAtPoint')}
                               </button>
                             )
                           ) : (
                             <div className="text-sm text-muted-foreground">
-                              Szybka akcja wymaga przypisanego operatora punktu
-                              {!isFullAdmin ? ' i scope ADMIN.' : '.'}
+                              {t('adminShipments.pointActionNote')}{!isFullAdmin ? ' i scope ADMIN.' : '.'}
                             </div>
                           )
                         ) : null}
 
                         {shipment.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER' ? (
                           <div className="space-y-2 text-sm text-muted-foreground">
-                            <div>Ta szybka akcja zostaje po stronie kuriera.</div>
+                            <div>{t('adminShipments.courierMonitorNote')}</div>
                             <div className="rounded-lg bg-secondary px-3 py-2">
-                              Monitoruj szczegoly zadania i potwierdz, ze rozliczenie zamknie sie przed `DELIVERED`.
+                              {t('adminShipments.courierMonitorDetail')}
                             </div>
                           </div>
                         ) : null}
 
                         {['ACCEPT_PICKUP_TASK', 'START_PICKUP_ROUTE', 'COMPLETE_PICKUP_FROM_SENDER'].includes(shipment.nextSuggestedAction) ? (
                           <div className="text-sm text-muted-foreground">
-                            To jest kolejny krok po stronie kuriera odbierajacego paczke od nadawcy.
+                            {t('adminShipments.pickupCourierNote')}
                           </div>
                         ) : null}
 
@@ -626,7 +567,7 @@ export default function AdminShipments() {
                           'START_PICKUP_ROUTE',
                           'COMPLETE_PICKUP_FROM_SENDER',
                         ].includes(shipment.nextSuggestedAction) ? (
-                          <div className="text-sm text-muted-foreground">Brak szybkiej akcji</div>
+                          <div className="text-sm text-muted-foreground">{t('adminShipments.noQuickAction')}</div>
                         ) : null}
                       </td>
                     </tr>

@@ -109,7 +109,7 @@ public class PointOperationContractService {
             shipmentRoutingService.applyRouteState(shipment, ShipmentRouteStatus.ACCEPTED_AT_SOURCE, ShipmentNodeType.SOURCE_POINT, point.getPointCode());
             shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.READY_FOR_POSTING);
             shipmentRepository.save(shipment);
-            addTrackingEvent(shipment, ShipmentStatus.READY_FOR_POSTING, point.getName(), "Shipment accepted at point");
+            addTrackingEvent(shipment, ShipmentStatus.READY_FOR_POSTING, point.getName(), "Przesyłka została przyjęta w punkcie");
             return new ShipmentStateChangeResponse(shipment.getTrackingNumber(), shipment.getStatus().name());
         }
 
@@ -118,7 +118,7 @@ public class PointOperationContractService {
             shipmentRoutingService.applyRouteState(shipment, ShipmentRouteStatus.AWAITING_PICKUP, ShipmentNodeType.TARGET_POINT, point.getPointCode());
             shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.AWAITING_PICKUP);
             shipmentRepository.save(shipment);
-            addTrackingEvent(shipment, ShipmentStatus.AWAITING_PICKUP, point.getName(), "Redirected shipment accepted into pickup queue");
+            addTrackingEvent(shipment, ShipmentStatus.AWAITING_PICKUP, point.getName(), "Przekierowana przesyłka została przyjęta do kolejki odbioru");
             return new ShipmentStateChangeResponse(shipment.getTrackingNumber(), shipment.getStatus().name());
         }
 
@@ -138,7 +138,7 @@ public class PointOperationContractService {
         shipmentRoutingService.applyRouteState(shipment, ShipmentRouteStatus.IN_TRANSIT_TO_DESTINATION_HUB, ShipmentNodeType.DESTINATION_HUB, resolveHubCode(shipment));
         shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.POSTED);
         shipmentRepository.save(shipment);
-        addTrackingEvent(shipment, ShipmentStatus.POSTED, point.getName(), "Shipment posted from point");
+        addTrackingEvent(shipment, ShipmentStatus.POSTED, point.getName(), "Przesyłka została nadana dalej z punktu");
 
         return new ShipmentStateChangeResponse(shipment.getTrackingNumber(), shipment.getStatus().name());
     }
@@ -155,7 +155,7 @@ public class PointOperationContractService {
         shipmentRoutingService.applyRouteState(shipment, ShipmentRouteStatus.DELIVERED, ShipmentNodeType.UNKNOWN, null);
         shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.DELIVERED);
         shipmentRepository.save(shipment);
-        addTrackingEvent(shipment, ShipmentStatus.DELIVERED, point.getName(), "Shipment released to recipient at point");
+        addTrackingEvent(shipment, ShipmentStatus.DELIVERED, point.getName(), "Przesyłka została wydana odbiorcy w punkcie");
 
         return new ShipmentStateChangeResponse(shipment.getTrackingNumber(), shipment.getStatus().name());
     }
@@ -216,7 +216,7 @@ public class PointOperationContractService {
                     shipment,
                     ShipmentStatus.AWAITING_PICKUP,
                     point.getName(),
-                    "Offline payment collected at point; shipment is ready for recipient release"
+                    "Płatność offline została pobrana w punkcie; przesyłka jest gotowa do wydania odbiorcy"
             );
         }
 
@@ -234,7 +234,7 @@ public class PointOperationContractService {
                 shipment,
                 ShipmentStatus.DELIVERED,
                 point.getName(),
-                "Offline payment collected and shipment released to recipient at point"
+                "Płatność offline została pobrana, a przesyłka wydana odbiorcy w punkcie"
         );
 
         return new PointCheckoutResponse(
@@ -306,7 +306,7 @@ public class PointOperationContractService {
         shipmentRoutingService.applyRouteState(saved, ShipmentRouteStatus.ACCEPTED_AT_SOURCE, ShipmentNodeType.SOURCE_POINT, point.getPointCode());
         shipmentRepository.save(saved);
 
-        addTrackingEvent(saved, ShipmentStatus.READY_FOR_POSTING, point.getName(), "Walk-in shipment accepted and paid at point");
+        addTrackingEvent(saved, ShipmentStatus.READY_FOR_POSTING, point.getName(), "Przesyłka walk-in została przyjęta i opłacona w punkcie");
 
         return new WalkInShipmentResponse(
                 saved.getTrackingNumber(),

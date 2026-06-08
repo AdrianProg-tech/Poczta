@@ -112,19 +112,17 @@ export default function PointAccept() {
   };
 
   return (
-    <DashboardShell role="point" title="Przyjecie w punkcie">
+    <DashboardShell role="point" title={t('pointAccept.pageTitle')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-3">
             <Link to="/point/shipments" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
-              Wroc do overview kolejek
+              {t('pointAccept.backToQueues')}
             </Link>
           </div>
-          <h2 className="mb-2 text-2xl">Przyjecie i nadanie dalej</h2>
-          <p className="text-muted-foreground">
-            Najpierw przyjmij paczke fizycznie do punktu {pointCode ?? '-'}, a dopiero potem potwierdz jej wysylke dalej do sieci.
-          </p>
+          <h2 className="mb-2 text-2xl">{t('pointAccept.heading')}</h2>
+          <p className="text-muted-foreground">{t('pointAccept.desc', { code: pointCode ?? '-' })}</p>
         </div>
 
         <button
@@ -139,31 +137,25 @@ export default function PointAccept() {
       </div>
 
       {error ? <div className="mb-6 rounded-lg bg-destructive/10 p-4 text-destructive">{error}</div> : null}
-      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">Ladowanie kolejki...</div> : null}
+      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">{t('pointAccept.loading')}</div> : null}
 
       {!isLoading ? (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="text-sm text-muted-foreground">Nowe przyjecia</div>
+              <div className="text-sm text-muted-foreground">{t('pointAccept.statFreshTitle')}</div>
               <div className="mt-2 text-3xl">{acceptSummary.freshIncoming}</div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                Zwykle paczki oplacone, ktore punkt dopiero przejmuje do obslugi.
-              </div>
+              <div className="mt-2 text-sm text-muted-foreground">{t('pointAccept.statFreshDesc')}</div>
             </div>
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="text-sm text-muted-foreground">Redirecty do przyjecia</div>
+              <div className="text-sm text-muted-foreground">{t('pointAccept.statRedirectsTitle')}</div>
               <div className="mt-2 text-3xl">{acceptSummary.redirectedIncoming}</div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                Po przyjeciu trafiaja juz do flow odbioru klienta, a nie do dalszego nadania.
-              </div>
+              <div className="mt-2 text-sm text-muted-foreground">{t('pointAccept.statRedirectsDesc')}</div>
             </div>
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="text-sm text-muted-foreground">Gotowe do nadania dalej</div>
+              <div className="text-sm text-muted-foreground">{t('pointAccept.statReadyToPostTitle')}</div>
               <div className="mt-2 text-3xl">{acceptSummary.readyToPost}</div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                To drugi handoff: przesylka zostala juz przyjeta i czeka na przekazanie dalej.
-              </div>
+              <div className="mt-2 text-sm text-muted-foreground">{t('pointAccept.statReadyToPostDesc')}</div>
             </div>
           </div>
 
@@ -173,35 +165,33 @@ export default function PointAccept() {
             <div className="flex items-center gap-3">
               <Inbox className="h-5 w-5 text-accent" />
               <div>
-                <div className="font-medium text-accent">KROK 1 — Przyjęcie do punktu</div>
-                <div className="text-sm text-muted-foreground">
-                  Skanuj lub wybierz przesyłkę i naciśnij „Przyjmij". Po przyjęciu opłacone paczki trafią do sekcji nadania, a redirecty — do wydania klientowi.
-                </div>
+                <div className="font-medium text-accent">{t('pointAccept.step1Title')}</div>
+                <div className="text-sm text-muted-foreground">{t('pointAccept.step1Desc')}</div>
               </div>
             </div>
           </div>
 
           <PointQueueSection
-            title="Do przyjecia do punktu"
-            description="Tu trafia nowa paczka do przyjecia oraz redirect, ktory trzeba przeniesc do kolejki odbioru."
+            title={t('pointAccept.section1Title')}
+            description={t('pointAccept.section1Desc')}
             headerAction={
               <div className="flex flex-wrap gap-2">
                 <PointUtilityButton
                   icon="print"
-                  label="Drukuj widoczna kolejke"
+                  label={t('pointAccept.printVisible')}
                   disabled={incomingItems.length === 0}
                   onClick={() =>
                     printPointQueueDigest({
                       items: incomingItems,
                       pointCode,
-                      title: 'Przyjecie w punkcie - widoczna kolejka',
-                      subtitle: 'Aktualnie widoczne rekordy do przyjecia po zastosowaniu filtra operatora.',
+                      title: t('pointAccept.digestAcceptTitleVisible'),
+                      subtitle: t('pointAccept.digestAcceptSubtitleVisible'),
                     })
                   }
                 />
                 <PointUtilityButton
                   icon="download"
-                  label="Eksport CSV"
+                  label={t('pointAccept.exportCsv')}
                   disabled={incomingItems.length === 0}
                   onClick={() =>
                     downloadPointQueueCsv({
@@ -221,17 +211,17 @@ export default function PointAccept() {
                 onClearSelection={() => setSelectedIncomingKeys(new Set())}
                 actions={[
                   {
-                    label: 'Drukuj zaznaczone',
+                    label: t('pointAccept.printSelected'),
                     onClick: () =>
                       printPointQueueDigest({
                         items: selectedIncomingItems,
                         pointCode,
-                        title: 'Przyjecie w punkcie - wydruk zbiorczy',
-                        subtitle: 'Zbiorczy raport dla przesylek zaznaczonych do przyjecia w punkcie.',
+                        title: t('pointAccept.digestAcceptTitleSelected'),
+                        subtitle: t('pointAccept.digestAcceptSubtitleSelected'),
                       }),
                   },
                   {
-                    label: 'Eksport CSV',
+                    label: t('pointAccept.exportCsv'),
                     onClick: () =>
                       downloadPointQueueCsv({
                         items: selectedIncomingItems,
@@ -239,7 +229,7 @@ export default function PointAccept() {
                       }),
                   },
                   {
-                    label: 'Przyjmij zaznaczone',
+                    label: t('pointAccept.batchAccept'),
                     tone: 'primary',
                     onClick: () => {
                       if (!pointUserEmail || selectedIncomingItems.length === 0) {
@@ -261,17 +251,17 @@ export default function PointAccept() {
               />
             }
             items={incomingItems}
-            emptyText="Brak przesylek do przyjecia."
+            emptyText={t('pointAccept.empty1')}
             selectedKeys={selectedIncomingKeys}
             onToggleItem={(item) => toggleIncomingItem(getPointQueueItemKey(item))}
             renderAction={(item) => {
               const actionKey = `accept-${item.trackingNumber}`;
               const actionLabel =
-                item.shipmentStatus === 'IN_TRANSIT_TO_TARGET_POINT' ? 'Przyjmij do odbioru' : 'Przyjmij do punktu';
+                item.shipmentStatus === 'IN_TRANSIT_TO_TARGET_POINT' ? t('pointAccept.actionLabelRedirect') : t('pointAccept.actionLabelNormal');
               const followUpText =
                 item.shipmentStatus === 'IN_TRANSIT_TO_TARGET_POINT'
-                  ? 'Po tym kroku przesylka przejdzie do kolejki `Wydaj`, bo klient ma ja odebrac w punkcie.'
-                  : 'Po tym kroku przesylka trafi do sekcji `Przyjete, gotowe do nadania`, czyli do kolejnego handoffu.';
+                  ? t('pointAccept.followUpRedirect')
+                  : t('pointAccept.followUpNormal');
 
               return (
                 <div className="space-y-3">
@@ -280,8 +270,8 @@ export default function PointAccept() {
                     <PointPrintButton
                       item={item}
                       pointCode={pointCode}
-                      title="Etykieta przyjecia w punkcie"
-                      subtitle="Pomocniczy wydruk operacyjny dla obslugi punktu przy przyjeciu przesylki."
+                      title={t('pointAccept.printAcceptTitle')}
+                      subtitle={t('pointAccept.printAcceptSubtitle')}
                       primaryLabel={actionLabel}
                     />
                     <button
@@ -305,35 +295,33 @@ export default function PointAccept() {
             <div className="flex items-center gap-3">
               <ArrowUpFromLine className="h-5 w-5 text-success" />
               <div>
-                <div className="font-medium text-success">KROK 2 — Nadanie dalej do sieci</div>
-                <div className="text-sm text-muted-foreground">
-                  Te paczki są już przyjęte. Naciśnij „Nadaj dalej" żeby potwierdzić przekazanie do logistyki. To inny przycisk niż w kroku 1 — nie pomyl!
-                </div>
+                <div className="font-medium text-success">{t('pointAccept.step2Title')}</div>
+                <div className="text-sm text-muted-foreground">{t('pointAccept.step2Desc')}</div>
               </div>
             </div>
           </div>
 
           <PointQueueSection
-            title="Przyjete, gotowe do nadania"
-            description="To jest osobny operacyjny etap. Przesylka zostala juz przyjeta i czeka na potwierdzenie nadania dalej."
+            title={t('pointAccept.section2Title')}
+            description={t('pointAccept.section2Desc')}
             headerAction={
               <div className="flex flex-wrap gap-2">
                 <PointUtilityButton
                   icon="print"
-                  label="Drukuj widoczna kolejke"
+                  label={t('pointAccept.printVisible')}
                   disabled={readyToPostItems.length === 0}
                   onClick={() =>
                     printPointQueueDigest({
                       items: readyToPostItems,
                       pointCode,
-                      title: 'Nadanie dalej - widoczna kolejka',
-                      subtitle: 'Aktualnie widoczne rekordy gotowe do nadania dalej.',
+                      title: t('pointAccept.digestPostTitleVisible'),
+                      subtitle: t('pointAccept.digestPostSubtitleVisible'),
                     })
                   }
                 />
                 <PointUtilityButton
                   icon="download"
-                  label="Eksport CSV"
+                  label={t('pointAccept.exportCsv')}
                   disabled={readyToPostItems.length === 0}
                   onClick={() =>
                     downloadPointQueueCsv({
@@ -353,17 +341,17 @@ export default function PointAccept() {
                 onClearSelection={() => setSelectedReadyToPostKeys(new Set())}
                 actions={[
                   {
-                    label: 'Drukuj zaznaczone',
+                    label: t('pointAccept.printSelected'),
                     onClick: () =>
                       printPointQueueDigest({
                         items: selectedReadyToPostItems,
                         pointCode,
-                        title: 'Nadanie dalej - wydruk zbiorczy',
-                        subtitle: 'Zbiorczy raport dla przesylek zaznaczonych do przekazania dalej.',
+                        title: t('pointAccept.digestPostTitleSelected'),
+                        subtitle: t('pointAccept.digestPostSubtitleSelected'),
                       }),
                   },
                   {
-                    label: 'Eksport CSV',
+                    label: t('pointAccept.exportCsv'),
                     onClick: () =>
                       downloadPointQueueCsv({
                         items: selectedReadyToPostItems,
@@ -371,7 +359,7 @@ export default function PointAccept() {
                       }),
                   },
                   {
-                    label: 'Nadaj zaznaczone dalej',
+                    label: t('pointAccept.batchPost'),
                     onClick: () => {
                       if (!pointUserEmail || selectedReadyToPostItems.length === 0) {
                         return;
@@ -392,7 +380,7 @@ export default function PointAccept() {
               />
             }
             items={readyToPostItems}
-            emptyText="Brak przesylek gotowych do nadania dalej."
+            emptyText={t('pointAccept.empty2')}
             selectedKeys={selectedReadyToPostKeys}
             onToggleItem={(item) => toggleReadyToPostItem(getPointQueueItemKey(item))}
             renderAction={(item) => {
@@ -400,15 +388,15 @@ export default function PointAccept() {
               return (
                 <div className="space-y-3">
                   <div className="rounded-lg bg-secondary p-3 text-sm text-muted-foreground">
-                    To jest drugi ruch operatora: punkt potwierdza, ze przesylka opuszcza lokalny intake i wraca do dalszej logistyki.
+                    {t('pointAccept.notePostOnwards')}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <PointPrintButton
                       item={item}
                       pointCode={pointCode}
-                      title="Etykieta nadania dalej"
-                      subtitle="Wydruk pomocniczy dla przesylki juz przyjetej i gotowej do dalszego przekazania."
-                      primaryLabel="Nadaj dalej"
+                      title={t('pointAccept.printPostTitle')}
+                      subtitle={t('pointAccept.printPostSubtitle')}
+                      primaryLabel={t('pointAccept.printPostPrimaryLabel')}
                     />
                     <button
                       type="button"
@@ -419,7 +407,7 @@ export default function PointAccept() {
                       }
                       className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                     >
-                      Nadaj dalej
+                      {t('pointAccept.postOnwards')}
                     </button>
                   </div>
                 </div>

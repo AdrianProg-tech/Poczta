@@ -91,7 +91,7 @@ export default function AdminReports() {
       setPoints(pointData);
       setGeneratedAt(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nie udało się załadować danych raportu.');
+      setError(err instanceof Error ? err.message : t('adminReports.errorLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -135,25 +135,25 @@ export default function AdminReports() {
 
   const kpiCards = useMemo(
     () => [
-      { label: 'Wszystkie przesyłki', value: summary?.totalShipments ?? shipments.length, accent: false },
-      { label: 'Oczekują na płatność', value: summary?.pendingPaymentShipments ?? 0, accent: false },
-      { label: 'Błędne płatności', value: summary?.paymentFailedShipments ?? 0, accent: true },
-      { label: 'Gotowe do dyspozycji', value: summary?.readyForDispatchShipments ?? 0, accent: false },
-      { label: 'Czekają na kuriera', value: summary?.awaitingCourierAssignmentShipments ?? 0, accent: false },
-      { label: 'Redirecty do punktu', value: summary?.redirectedToPickupShipments ?? 0, accent: false },
-      { label: 'Czekają na odbiór', value: summary?.awaitingPickupShipments ?? 0, accent: false },
-      { label: 'Aktywne taski kurierów', value: summary?.activeCourierTasks ?? 0, accent: false },
-      { label: 'Reklamacje w analizie', value: summary?.complaintsInReview ?? 0, accent: true },
-      { label: 'Łączny przychód (PLN)', value: formatCurrency(totalRevenue), accent: false },
-      { label: 'Oczekujące wpływy (PLN)', value: formatCurrency(pendingRevenue), accent: false },
-      { label: 'Punkty odbioru', value: points.length, accent: false },
+      { label: t('adminReports.kpiAllShipments'), value: summary?.totalShipments ?? shipments.length, accent: false },
+      { label: t('adminReports.kpiPendingPayment'), value: summary?.pendingPaymentShipments ?? 0, accent: false },
+      { label: t('adminReports.kpiFailedPayments'), value: summary?.paymentFailedShipments ?? 0, accent: true },
+      { label: t('adminReports.kpiReadyForDispatch'), value: summary?.readyForDispatchShipments ?? 0, accent: false },
+      { label: t('adminReports.kpiAwaitingCourier'), value: summary?.awaitingCourierAssignmentShipments ?? 0, accent: false },
+      { label: t('adminReports.kpiRedirected'), value: summary?.redirectedToPickupShipments ?? 0, accent: false },
+      { label: t('adminReports.kpiAwaitingPickup'), value: summary?.awaitingPickupShipments ?? 0, accent: false },
+      { label: t('adminReports.kpiActiveCourierTasks'), value: summary?.activeCourierTasks ?? 0, accent: false },
+      { label: t('adminReports.kpiComplaintsInReview'), value: summary?.complaintsInReview ?? 0, accent: true },
+      { label: t('adminReports.kpiTotalRevenue'), value: formatCurrency(totalRevenue), accent: false },
+      { label: t('adminReports.kpiPendingRevenue'), value: formatCurrency(pendingRevenue), accent: false },
+      { label: t('adminReports.kpiPickupPoints'), value: points.length, accent: false },
     ],
-    [summary, shipments.length, totalRevenue, pendingRevenue, points.length],
+    [summary, shipments.length, totalRevenue, pendingRevenue, points.length, t],
   );
 
   function exportPaymentsCsv() {
     const rows = [
-      ['Tracking', 'Metoda', 'Status', 'Kwota (PLN)', 'Klient', 'Data'],
+      [t('adminReports.csvPaymentsTracking'), t('adminReports.csvPaymentsMethod'), t('adminReports.csvPaymentsStatus'), t('adminReports.csvPaymentsAmount'), t('adminReports.csvPaymentsClient'), t('adminReports.csvPaymentsDate')],
       ...payments.map((p) => [
         p.trackingNumber,
         formatPaymentMethod(p.method),
@@ -168,7 +168,7 @@ export default function AdminReports() {
 
   function exportComplaintsCsv() {
     const rows = [
-      ['Nr reklamacji', 'Tracking', 'Typ', 'Status', 'Klient', 'Data'],
+      [t('adminReports.csvComplaintsNr'), t('adminReports.csvComplaintsTracking'), t('adminReports.csvComplaintsType'), t('adminReports.csvComplaintsStatus'), t('adminReports.csvComplaintsClient'), t('adminReports.csvComplaintsDate')],
       ...complaints.map((c) => [
         c.complaintNumber,
         c.trackingNumber,
@@ -183,7 +183,7 @@ export default function AdminReports() {
 
   function exportShipmentsCsv() {
     const rows = [
-      ['Tracking', 'Status', 'Typ dostawy', 'Miasto źródłowe', 'Miasto docelowe', 'Punkt docelowy', 'Kurier'],
+      [t('adminReports.csvShipmentsTracking'), t('adminReports.csvShipmentsStatus'), t('adminReports.csvShipmentsDeliveryType'), t('adminReports.csvShipmentsSourceCity'), t('adminReports.csvShipmentsDestCity'), t('adminReports.csvShipmentsTargetPoint'), t('adminReports.csvShipmentsCourier')],
       ...shipments.map((s) => [
         s.trackingNumber,
         s.shipmentStatus,
@@ -198,15 +198,15 @@ export default function AdminReports() {
   }
 
   return (
-    <DashboardShell role="admin" title="Raporty">
+    <DashboardShell role="admin" title={t('adminReports.pageTitle')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="mb-2 text-2xl">Raporty operacyjne</h2>
+          <h2 className="mb-2 text-2xl">{t('adminReports.heading')}</h2>
           <p className="text-muted-foreground">
-            Zestawienie danych z bieżącej działalności systemu.
+            {t('adminReports.desc')}
             {generatedAt ? (
               <span className="ml-2 text-xs">
-                Wygenerowano: {generatedAt.toLocaleTimeString('pl-PL')}
+                {t('adminReports.generatedAt')}: {generatedAt.toLocaleTimeString()}
               </span>
             ) : null}
           </p>
@@ -223,14 +223,14 @@ export default function AdminReports() {
       </div>
 
       {error ? <div className="mb-6 rounded-lg bg-destructive/10 p-4 text-destructive">{error}</div> : null}
-      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">Ładowanie danych raportu...</div> : null}
+      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">{t('adminReports.loading')}</div> : null}
 
       {!isLoading ? (
         <div className="space-y-8">
 
           {/* KPI Cards */}
           <section>
-            <h3 className="mb-4 text-lg">Kluczowe wskaźniki</h3>
+            <h3 className="mb-4 text-lg">{t('adminReports.kpiTitle')}</h3>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
               {kpiCards.map((card) => (
                 <div
@@ -249,24 +249,24 @@ export default function AdminReports() {
           {/* Shipment Status Distribution */}
           <section>
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg">Rozkład statusów przesyłek</h3>
+              <h3 className="text-lg">{t('adminReports.shipmentsSection')}</h3>
               <button
                 type="button"
                 onClick={exportShipmentsCsv}
                 className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm transition-colors hover:bg-muted"
               >
                 <Download className="h-4 w-4" />
-                Eksport CSV
+                {t('adminReports.exportCsv')}
               </button>
             </div>
             <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
               <table className="w-full">
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Status</th>
-                    <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">Liczba</th>
-                    <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">Udział</th>
-                    <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Wykres</th>
+                    <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colStatus')}</th>
+                    <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colCount')}</th>
+                    <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colShare')}</th>
+                    <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colChart')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -290,7 +290,7 @@ export default function AdminReports() {
                 </tbody>
                 <tfoot className="border-t border-border bg-muted/30">
                   <tr>
-                    <td className="px-6 py-3 font-medium">Razem</td>
+                    <td className="px-6 py-3 font-medium">{t('adminReports.total')}</td>
                     <td className="px-6 py-3 text-right font-mono font-medium">{shipments.length}</td>
                     <td className="px-6 py-3 text-right">100%</td>
                     <td />
@@ -299,7 +299,7 @@ export default function AdminReports() {
               </table>
               {shipmentsByDeliveryType.length > 0 ? (
                 <div className="border-t border-border p-6">
-                  <div className="mb-3 text-sm font-medium text-muted-foreground">Według typu dostawy</div>
+                  <div className="mb-3 text-sm font-medium text-muted-foreground">{t('adminReports.byDeliveryType')}</div>
                   <div className="flex flex-wrap gap-3">
                     {shipmentsByDeliveryType.map(({ label, count }) => (
                       <div key={label} className="rounded-lg bg-secondary px-4 py-2 text-sm">
@@ -316,27 +316,27 @@ export default function AdminReports() {
           {/* Payment Report */}
           <section>
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg">Raport płatności</h3>
+              <h3 className="text-lg">{t('adminReports.paymentsSection')}</h3>
               <button
                 type="button"
                 onClick={exportPaymentsCsv}
                 className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm transition-colors hover:bg-muted"
               >
                 <Download className="h-4 w-4" />
-                Eksport CSV
+                {t('adminReports.exportCsv')}
               </button>
             </div>
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 <div className="border-b border-border px-6 py-4">
-                  <div className="font-medium">Według metody płatności</div>
+                  <div className="font-medium">{t('adminReports.byPaymentMethod')}</div>
                 </div>
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Metoda</th>
-                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">Szt.</th>
-                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">Kwota (PLN)</th>
+                      <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colMethod')}</th>
+                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colQty')}</th>
+                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colAmount')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -350,7 +350,7 @@ export default function AdminReports() {
                   </tbody>
                   <tfoot className="border-t border-border bg-muted/30">
                     <tr>
-                      <td className="px-6 py-3 text-sm font-medium">Razem</td>
+                      <td className="px-6 py-3 text-sm font-medium">{t('adminReports.total')}</td>
                       <td className="px-6 py-3 text-right font-mono text-sm font-medium">{payments.length}</td>
                       <td className="px-6 py-3 text-right font-mono text-sm font-medium">
                         {formatCurrency(sumBy(payments, (p) => p.amount))}
@@ -362,14 +362,14 @@ export default function AdminReports() {
 
               <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 <div className="border-b border-border px-6 py-4">
-                  <div className="font-medium">Według statusu płatności</div>
+                  <div className="font-medium">{t('adminReports.byPaymentStatus')}</div>
                 </div>
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Status</th>
-                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">Szt.</th>
-                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">Udział</th>
+                      <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colStatus')}</th>
+                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colQty')}</th>
+                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colShare')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -386,11 +386,11 @@ export default function AdminReports() {
                 </table>
                 <div className="border-t border-border bg-success/5 p-4">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Zaksięgowany przychód</span>
+                    <span className="text-muted-foreground">{t('adminReports.bookedRevenue')}</span>
                     <span className="font-mono font-medium text-success">{formatCurrency(totalRevenue)}</span>
                   </div>
                   <div className="mt-1 flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Oczekujące wpływy</span>
+                    <span className="text-muted-foreground">{t('adminReports.pendingRevenue')}</span>
                     <span className="font-mono text-warning">{formatCurrency(pendingRevenue)}</span>
                   </div>
                 </div>
@@ -401,25 +401,25 @@ export default function AdminReports() {
           {/* Complaints Report */}
           <section>
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg">Raport reklamacji</h3>
+              <h3 className="text-lg">{t('adminReports.complaintsSection')}</h3>
               <button
                 type="button"
                 onClick={exportComplaintsCsv}
                 className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm transition-colors hover:bg-muted"
               >
                 <Download className="h-4 w-4" />
-                Eksport CSV
+                {t('adminReports.exportCsv')}
               </button>
             </div>
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-                <div className="border-b border-border px-6 py-4 font-medium">Według statusu</div>
+                <div className="border-b border-border px-6 py-4 font-medium">{t('adminReports.byStatus')}</div>
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Status</th>
-                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">Szt.</th>
-                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">Udział</th>
+                      <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colStatus')}</th>
+                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colQty')}</th>
+                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colShare')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -435,7 +435,7 @@ export default function AdminReports() {
                   </tbody>
                   <tfoot className="border-t border-border bg-muted/30">
                     <tr>
-                      <td className="px-6 py-3 text-sm font-medium">Razem</td>
+                      <td className="px-6 py-3 text-sm font-medium">{t('adminReports.total')}</td>
                       <td className="px-6 py-3 text-right font-mono text-sm font-medium">{complaints.length}</td>
                       <td className="px-6 py-3 text-right text-sm">100%</td>
                     </tr>
@@ -444,13 +444,13 @@ export default function AdminReports() {
               </div>
 
               <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-                <div className="border-b border-border px-6 py-4 font-medium">Według typu</div>
+                <div className="border-b border-border px-6 py-4 font-medium">{t('adminReports.byType')}</div>
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Typ</th>
-                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">Szt.</th>
-                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">Udział</th>
+                      <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colType')}</th>
+                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colQty')}</th>
+                      <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colShare')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -470,15 +470,15 @@ export default function AdminReports() {
           {/* Points Overview */}
           {points.length > 0 ? (
             <section>
-              <h3 className="mb-4 text-lg">Sieć punktów odbioru</h3>
+              <h3 className="mb-4 text-lg">{t('adminReports.pointsSection')}</h3>
               <div className="grid gap-6 lg:grid-cols-2">
                 <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-                  <div className="border-b border-border px-6 py-4 font-medium">Według typu</div>
+                  <div className="border-b border-border px-6 py-4 font-medium">{t('adminReports.byType')}</div>
                   <table className="w-full">
                     <thead className="bg-muted/50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Typ</th>
-                        <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">Szt.</th>
+                        <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colType')}</th>
+                        <th className="px-6 py-3 text-right text-xs uppercase tracking-wider text-muted-foreground">{t('adminReports.colQty')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -491,14 +491,14 @@ export default function AdminReports() {
                     </tbody>
                     <tfoot className="border-t border-border bg-muted/30">
                       <tr>
-                        <td className="px-6 py-3 text-sm font-medium">Razem</td>
+                        <td className="px-6 py-3 text-sm font-medium">{t('adminReports.total')}</td>
                         <td className="px-6 py-3 text-right font-mono text-sm font-medium">{points.length}</td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
                 <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-                  <div className="mb-3 font-medium">Pokrycie geograficzne</div>
+                  <div className="mb-3 font-medium">{t('adminReports.geoCoverage')}</div>
                   <div className="flex flex-wrap gap-2">
                     {Array.from(new Set(points.map((p) => p.city))).sort().map((city) => (
                       <div key={city} className="rounded-lg bg-secondary px-3 py-1.5 text-sm">

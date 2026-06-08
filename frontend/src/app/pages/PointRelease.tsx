@@ -65,20 +65,17 @@ export default function PointRelease() {
   };
 
   return (
-    <DashboardShell role="point" title="Wydanie w punkcie">
+    <DashboardShell role="point" title={t('pointRelease.pageTitle')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-3">
             <Link to="/point/shipments" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
-              Wroc do overview kolejek
+              {t('pointRelease.backToQueues')}
             </Link>
           </div>
-          <h2 className="mb-2 text-2xl">Wydanie paczki klientowi</h2>
-          <p className="text-muted-foreground">
-            Tu pracujesz juz tylko na paczkach gotowych do odbioru w punkcie {pointCode ?? '-'}. Jesli klient stoi przy okienku,
-            znajdz jego przesylke i potwierdz wydanie.
-          </p>
+          <h2 className="mb-2 text-2xl">{t('pointRelease.heading')}</h2>
+          <p className="text-muted-foreground">{t('pointRelease.desc', { code: pointCode ?? '-' })}</p>
         </div>
 
         <button
@@ -93,50 +90,46 @@ export default function PointRelease() {
       </div>
 
       {error ? <div className="mb-6 rounded-lg bg-destructive/10 p-4 text-destructive">{error}</div> : null}
-      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">Ladowanie kolejki...</div> : null}
+      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">{t('pointRelease.loading')}</div> : null}
 
       {!isLoading ? (
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="text-sm text-muted-foreground">Gotowe do natychmiastowego wydania</div>
+              <div className="text-sm text-muted-foreground">{t('pointRelease.statReadyTitle')}</div>
               <div className="mt-2 text-3xl">{pickupSummary.readyToRelease}</div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                Te przesylki mozesz wydac od razu. Platnosc nie blokuje juz ruchu operatora.
-              </div>
+              <div className="mt-2 text-sm text-muted-foreground">{t('pointRelease.statReadyDesc')}</div>
             </div>
             <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-              <div className="text-sm text-muted-foreground">Wymagaja kroku finansowego</div>
+              <div className="text-sm text-muted-foreground">{t('pointRelease.statFinanceTitle')}</div>
               <div className="mt-2 text-3xl">{pickupSummary.needsFinance}</div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                Te przesylki zatrzymaj najpierw na kroku finansowym, a dopiero potem wracaj do wydania klientowi.
-              </div>
+              <div className="mt-2 text-sm text-muted-foreground">{t('pointRelease.statFinanceDesc')}</div>
             </div>
           </div>
 
-          <PointQueueSearch query={query} onQueryChange={setQuery} label="Numer przesylki / kod odbioru / odbiorca" />
+          <PointQueueSearch query={query} onQueryChange={setQuery} label={t('pointRelease.searchLabel')} />
 
           <PointQueueSection
-            title="Gotowe do wydania"
-            description="To jest finalny krok punktu. Wybierz paczke, potwierdz odbior klienta i zamknij wydanie."
+            title={t('pointRelease.sectionTitle')}
+            description={t('pointRelease.sectionDesc')}
             headerAction={
               <div className="flex flex-wrap gap-2">
                 <PointUtilityButton
                   icon="print"
-                  label="Drukuj widoczna kolejke"
+                  label={t('pointRelease.printVisible')}
                   disabled={pickupItems.length === 0}
                   onClick={() =>
                     printPointQueueDigest({
                       items: pickupItems,
                       pointCode,
-                      title: 'Wydanie w punkcie - widoczna kolejka',
-                      subtitle: 'Aktualnie widoczne rekordy w kolejce wydania po zastosowaniu filtra operatora.',
+                      title: t('pointRelease.digestTitleVisible'),
+                      subtitle: t('pointRelease.digestSubtitleVisible'),
                     })
                   }
                 />
                 <PointUtilityButton
                   icon="download"
-                  label="Eksport CSV"
+                  label={t('pointRelease.exportCsv')}
                   disabled={pickupItems.length === 0}
                   onClick={() =>
                     downloadPointQueueCsv({
@@ -156,17 +149,17 @@ export default function PointRelease() {
                 onClearSelection={() => setSelectedReleaseKeys(new Set())}
                 actions={[
                   {
-                    label: 'Drukuj zaznaczone',
+                    label: t('pointRelease.printSelected'),
                     onClick: () =>
                       printPointQueueDigest({
                         items: selectedReleaseItems,
                         pointCode,
-                        title: 'Wydanie w punkcie - wydruk zbiorczy',
-                        subtitle: 'Zbiorczy raport dla przesylek zaznaczonych do wydania klientowi.',
+                        title: t('pointRelease.digestTitleSelected'),
+                        subtitle: t('pointRelease.digestSubtitleSelected'),
                       }),
                   },
                   {
-                    label: 'Eksport CSV',
+                    label: t('pointRelease.exportCsv'),
                     onClick: () =>
                       downloadPointQueueCsv({
                         items: selectedReleaseItems,
@@ -174,7 +167,7 @@ export default function PointRelease() {
                       }),
                   },
                   {
-                    label: 'Wydaj zaznaczone',
+                    label: t('pointRelease.releaseSelected'),
                     tone: 'success',
                     onClick: () => {
                       if (!pointUserEmail || selectedReleaseItems.length === 0) {
@@ -196,7 +189,7 @@ export default function PointRelease() {
               />
             }
             items={pickupItems}
-            emptyText="Brak przesylek gotowych do odbioru."
+            emptyText={t('pointRelease.empty')}
             selectedKeys={selectedReleaseKeys}
             onToggleItem={(item) => toggleReleaseItem(getPointQueueItemKey(item))}
             canSelectItem={(item) => item.paymentStatus !== 'OFFLINE_PENDING'}
@@ -208,23 +201,23 @@ export default function PointRelease() {
                 <div className="space-y-3">
                   <div className="rounded-lg bg-secondary p-3 text-sm text-muted-foreground">
                     {requiresOfflinePayment
-                      ? 'Ta paczka nadal czeka na rozliczenie offline. Bezpieczniej przepuscic ja najpierw przez ekran platnosci.'
-                      : 'Finanse nie blokuja wydania. Operator moze zamknac odbior od razu.'}
+                      ? t('pointRelease.noteOfflinePayment')
+                      : t('pointRelease.notePaymentOk')}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <PointPrintButton
                       item={item}
                       pointCode={pointCode}
-                      title="Potwierdzenie wydania przesylki"
-                      subtitle="Wydruk pomocniczy do obslugi odbioru paczki w punkcie."
-                      primaryLabel="Wydanie klientowi"
+                      title={t('pointRelease.printTitle')}
+                      subtitle={t('pointRelease.printSubtitle')}
+                      primaryLabel={t('pointRelease.printPrimaryLabel')}
                     />
                     {requiresOfflinePayment ? (
                       <Link
                         to="/point/payment-verification"
                         className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
                       >
-                        Przejdz do platnosci offline
+                        {t('pointRelease.goToPayment')}
                       </Link>
                     ) : (
                       <button
@@ -236,7 +229,7 @@ export default function PointRelease() {
                         }
                         className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                       >
-                        Wydaj przesylke
+                        {t('pointRelease.releaseShipment')}
                       </button>
                     )}
                   </div>

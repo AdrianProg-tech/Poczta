@@ -18,27 +18,27 @@ import { useTranslation } from 'react-i18next';
 
 type PaymentOwnerBucket = 'FINANCE' | 'POINT' | 'COURIER' | 'ARCHIVE';
 
-function formatAdminPaymentMethod(method: string | null | undefined) {
+function formatAdminPaymentMethod(method: string | null | undefined, t: (key: string) => string) {
   switch (method) {
     case 'ONLINE':
-      return 'Online';
+      return t('adminPayments.methodOnline');
     case 'OFFLINE_AT_POINT':
-      return 'Platnosc w punkcie';
+      return t('adminPayments.methodAtPoint');
     case 'OFFLINE_AT_COURIER':
-      return 'Platnosc u kuriera';
+      return t('adminPayments.methodAtCourier');
     default:
-      return method ?? 'Nieznana';
+      return method ?? t('adminPayments.methodUnknown');
   }
 }
 
-function formatCollectionMethod(method: string | null | undefined) {
+function formatCollectionMethod(method: string | null | undefined, t: (key: string) => string) {
   switch (method) {
     case 'CASH':
-      return 'Gotowka';
+      return t('adminPayments.collectionCash');
     case 'CARD':
-      return 'Karta';
+      return t('adminPayments.collectionCard');
     default:
-      return 'Do wyboru';
+      return t('adminPayments.collectionChoose');
   }
 }
 
@@ -58,28 +58,28 @@ export function getPaymentOpsOwner(payment: AdminPaymentSummary): PaymentOwnerBu
   return 'ARCHIVE';
 }
 
-export function getPaymentOpsHint(payment: AdminPaymentSummary) {
+export function getPaymentOpsHint(payment: AdminPaymentSummary, t: (key: string) => string) {
   if (payment.status === 'PENDING') {
-    return 'Czeka na finalne potwierdzenie online albo reczna decyzje zespolu finansowego.';
+    return t('adminPayments.hintPending');
   }
 
   if (payment.status === 'FAILED') {
-    return 'Platnosc nie przeszla i wymaga decyzji: ponowienia po stronie klienta albo anulowania.';
+    return t('adminPayments.hintFailed');
   }
 
   if (payment.status === 'OFFLINE_PENDING' && payment.method === 'OFFLINE_AT_POINT') {
-    return 'Punkt powinien domknac platnosc przy wydaniu albo w osobnym kroku finansowym.';
+    return t('adminPayments.hintOfflinePoint');
   }
 
   if (payment.status === 'OFFLINE_PENDING' && payment.method === 'OFFLINE_AT_COURIER') {
-    return 'Kurier musi pobrac gotowke albo karte i dopiero potem zamknac zadanie doreczenia.';
+    return t('adminPayments.hintOfflineCourier');
   }
 
   if (payment.status === 'OFFLINE_CONFIRMED') {
-    return 'Platnosc offline jest zamknieta. Warto tylko sprawdzic sposob pobrania i finalny status przesylki.';
+    return t('adminPayments.hintOfflineConfirmed');
   }
 
-  return 'Platnosc nie wymaga teraz aktywnej interwencji operacyjnej.';
+  return t('adminPayments.hintDefault');
 }
 
 export function canMarkPaymentPaid(payment: AdminPaymentSummary) {
@@ -94,16 +94,16 @@ export function canCancelPayment(payment: AdminPaymentSummary) {
   return payment.status === 'PENDING' || payment.status === 'OFFLINE_PENDING';
 }
 
-function formatOwnerLabel(owner: PaymentOwnerBucket) {
+function formatOwnerLabel(owner: PaymentOwnerBucket, t: (key: string) => string) {
   switch (owner) {
     case 'FINANCE':
-      return 'Finanse';
+      return t('adminPayments.ownerFinance');
     case 'POINT':
-      return 'Punkt';
+      return t('adminPayments.ownerPoint');
     case 'COURIER':
-      return 'Kurier';
+      return t('adminPayments.ownerCourier');
     default:
-      return 'Archiwum';
+      return t('adminPayments.ownerArchive');
   }
 }
 
@@ -133,7 +133,7 @@ export default function AdminPayments() {
       setPayments(await getAdminPayments(currentUser.email));
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac platnosci.');
+      setError(requestError instanceof Error ? requestError.message : t('adminPayments.errorLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -150,7 +150,7 @@ export default function AdminPayments() {
       await action();
       await loadPayments();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Operacja na platnosci nie powiodla sie.');
+      setError(requestError instanceof Error ? requestError.message : t('adminPayments.errorAction'));
     } finally {
       setBusyPaymentId(null);
     }
@@ -191,14 +191,11 @@ export default function AdminPayments() {
   const archiveQueue = filteredPayments.filter((payment) => getPaymentOpsOwner(payment) === 'ARCHIVE');
 
   return (
-    <DashboardShell role="admin" title="Platnosci">
+    <DashboardShell role="admin" title={t('adminPayments.pageTitle')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="text-xl">Finanse i platnosci offline</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Widok rozdziela platnosci online, rozliczenia w punkcie i rozliczenia u kuriera, zeby od razu bylo widac,
-            kto ma domknac dany etap.
-          </p>
+          <h2 className="text-xl">{t('adminPayments.heading')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('adminPayments.desc')}</p>
         </div>
 
         <button
@@ -216,7 +213,7 @@ export default function AdminPayments() {
 
       <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="text-sm text-muted-foreground">Wszystkie platnosci</div>
+          <div className="text-sm text-muted-foreground">{t('adminPayments.statAll')}</div>
           <div className="mt-2 text-2xl">{summary.total}</div>
         </div>
         <button
@@ -224,9 +221,9 @@ export default function AdminPayments() {
           onClick={() => setOwnerFilter('FINANCE')}
           className="rounded-xl border border-border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted"
         >
-          <div className="text-sm text-muted-foreground">Kolejka finansowa</div>
+          <div className="text-sm text-muted-foreground">{t('adminPayments.statFinanceTitle')}</div>
           <div className="mt-2 text-2xl">{summary.finance}</div>
-          <div className="mt-2 text-sm text-muted-foreground">Platnosci online oczekujace albo nieudane do recznej decyzji.</div>
+          <div className="mt-2 text-sm text-muted-foreground">{t('adminPayments.statFinanceDesc')}</div>
         </button>
         <button
           type="button"
@@ -235,12 +232,12 @@ export default function AdminPayments() {
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm text-muted-foreground">Platnosc w punkcie</div>
+              <div className="text-sm text-muted-foreground">{t('adminPayments.statPointTitle')}</div>
               <div className="mt-2 text-2xl">{summary.point}</div>
             </div>
             <MapPin className="h-5 w-5 text-info" />
           </div>
-          <div className="mt-2 text-sm text-muted-foreground">Platnosci offline oczekujace, ktore powinny zejsc przez punkt.</div>
+          <div className="mt-2 text-sm text-muted-foreground">{t('adminPayments.statPointDesc')}</div>
         </button>
         <button
           type="button"
@@ -249,12 +246,12 @@ export default function AdminPayments() {
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm text-muted-foreground">Platnosc u kuriera</div>
+              <div className="text-sm text-muted-foreground">{t('adminPayments.statCourierTitle')}</div>
               <div className="mt-2 text-2xl">{summary.courier}</div>
             </div>
             <Truck className="h-5 w-5 text-warning" />
           </div>
-          <div className="mt-2 text-sm text-muted-foreground">Cash/card collection do domkniecia przy doreczeniu.</div>
+          <div className="mt-2 text-sm text-muted-foreground">{t('adminPayments.statCourierDesc')}</div>
         </button>
         <button
           type="button"
@@ -263,12 +260,12 @@ export default function AdminPayments() {
         >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <div className="text-sm text-muted-foreground">Offline potwierdzone</div>
+              <div className="text-sm text-muted-foreground">{t('adminPayments.statConfirmedTitle')}</div>
               <div className="mt-2 text-2xl">{summary.confirmedOffline}</div>
             </div>
             <CreditCard className="h-5 w-5 text-success" />
           </div>
-          <div className="mt-2 text-sm text-muted-foreground">Zamkniete rozliczenia ze sposobem pobrania do audytu.</div>
+          <div className="mt-2 text-sm text-muted-foreground">{t('adminPayments.statConfirmedDesc')}</div>
         </button>
       </div>
 
@@ -278,7 +275,7 @@ export default function AdminPayments() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Szukaj po trackingu, kliencie albo referencji"
+            placeholder={t('adminPayments.searchPlaceholder')}
             className="w-full bg-transparent outline-none"
           />
         </label>
@@ -288,10 +285,10 @@ export default function AdminPayments() {
           onChange={(event) => setOwnerFilter(event.target.value as 'ALL' | PaymentOwnerBucket)}
           className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm outline-none"
         >
-          <option value="ALL">Wszyscy ownerzy</option>
+          <option value="ALL">{t('adminPayments.filterAllOwners')}</option>
           {ownerOptions.map((owner) => (
             <option key={owner} value={owner}>
-              {formatOwnerLabel(owner)}
+              {formatOwnerLabel(owner, t)}
             </option>
           ))}
         </select>
@@ -301,7 +298,7 @@ export default function AdminPayments() {
           onChange={(event) => setStatusFilter(event.target.value)}
           className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm outline-none"
         >
-          <option value="ALL">Wszystkie statusy</option>
+          <option value="ALL">{t('adminPayments.filterAllStatuses')}</option>
           {statusOptions.map((status) => (
             <option key={status} value={status}>
               {formatPaymentStatus(status)}
@@ -310,7 +307,7 @@ export default function AdminPayments() {
         </select>
 
         <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
-          <div className="text-sm text-muted-foreground">Po filtrach</div>
+          <div className="text-sm text-muted-foreground">{t('adminPayments.afterFilters')}</div>
           <div className="mt-1 text-2xl">{isLoading ? '...' : filteredPayments.length}</div>
         </div>
       </div>
@@ -318,10 +315,8 @@ export default function AdminPayments() {
       <div className="space-y-6">
         <section className="rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border p-6">
-              <h3 className="text-lg">Kolejka finansowa</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Platnosci online, ktore wymagaja recznej decyzji po stronie finansow albo admina.
-            </p>
+              <h3 className="text-lg">{t('adminPayments.financeQueueTitle')}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{t('adminPayments.financeQueueDesc')}</p>
           </div>
           <div className="space-y-4 p-6">
             {financeQueue.length ? (
@@ -333,7 +328,7 @@ export default function AdminPayments() {
                       <div>
                         <div>{payment.trackingNumber}</div>
                         <div className="text-sm text-muted-foreground">
-                          {payment.clientEmail ?? 'brak klienta'} | {formatDateTime(payment.createdAt)}
+                          {payment.clientEmail ?? t('adminPayments.noClient')} | {formatDateTime(payment.createdAt)}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -342,9 +337,9 @@ export default function AdminPayments() {
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {formatAdminPaymentMethod(payment.method)} | Przesylka: {formatShipmentStatus(payment.shipmentStatus)}
+                      {formatAdminPaymentMethod(payment.method, t)} | {t('adminPayments.shipmentLabel')}: {formatShipmentStatus(payment.shipmentStatus)}
                     </div>
-                    <div className="mt-1 text-sm text-muted-foreground">{getPaymentOpsHint(payment)}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">{getPaymentOpsHint(payment, t)}</div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {canMarkPaymentPaid(payment) ? (
                         <button
@@ -356,7 +351,7 @@ export default function AdminPayments() {
                           }
                           className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                         >
-                          Oznacz jako oplacona
+                          {t('adminPayments.markPaid')}
                         </button>
                       ) : null}
                       {canFailPayment(payment) ? (
@@ -369,7 +364,7 @@ export default function AdminPayments() {
                           }
                           className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                         >
-                          Oznacz jako nieudana
+                          {t('adminPayments.markFailed')}
                         </button>
                       ) : null}
                       {canCancelPayment(payment) ? (
@@ -382,7 +377,7 @@ export default function AdminPayments() {
                           }
                           className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                         >
-                          Anuluj
+                          {t('adminPayments.cancel')}
                         </button>
                       ) : null}
                     </div>
@@ -390,7 +385,7 @@ export default function AdminPayments() {
                 );
               })
             ) : (
-              <div className="text-muted-foreground">Brak wyjatkow platniczych po filtrach.</div>
+              <div className="text-muted-foreground">{t('adminPayments.emptyFinance')}</div>
             )}
           </div>
         </section>
@@ -398,10 +393,8 @@ export default function AdminPayments() {
         <div className="grid gap-6 xl:grid-cols-2">
           <section className="rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6">
-              <h3 className="text-lg">Kolejka platnosci w punkcie</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Przypadki `OFFLINE_PENDING`, ktore powinny domknac sie przy wydaniu w punkcie.
-              </p>
+              <h3 className="text-lg">{t('adminPayments.pointQueueTitle')}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t('adminPayments.pointQueueDesc')}</p>
             </div>
             <div className="space-y-4 p-6">
               {pointQueue.length ? (
@@ -412,11 +405,11 @@ export default function AdminPayments() {
                       <StatusBadge status={payment.status} type="payment" />
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {formatCurrency(payment.amount)} | Przesylka: {formatShipmentStatus(payment.shipmentStatus)}
+                      {formatCurrency(payment.amount)} | {t('adminPayments.shipmentLabel')}: {formatShipmentStatus(payment.shipmentStatus)}
                     </div>
-                    <div className="mt-1 text-sm text-muted-foreground">{getPaymentOpsHint(payment)}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">{getPaymentOpsHint(payment, t)}</div>
                     <div className="mt-3 rounded-lg bg-card px-3 py-2 text-sm text-muted-foreground">
-                      Tylko do monitoringu: szybka akcja pozostaje w `point/payment-verification` albo `admin/shipments`.
+                      {t('adminPayments.monitoringOnlyPoint')}
                     </div>
                     {canCancelPayment(payment) ? (
                       <div className="mt-3">
@@ -429,24 +422,22 @@ export default function AdminPayments() {
                           }
                           className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                         >
-                          Anuluj
+                          {t('adminPayments.cancel')}
                         </button>
                       </div>
                     ) : null}
                   </div>
                 ))
               ) : (
-                <div className="text-muted-foreground">Brak przypadkow platnosci w punkcie po filtrach.</div>
+                <div className="text-muted-foreground">{t('adminPayments.emptyPoint')}</div>
               )}
             </div>
           </section>
 
           <section className="rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6">
-              <h3 className="text-lg">Kolejka platnosci u kuriera</h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Oczekujace platnosci gotowka lub karta, ktore musza zejsc po stronie kuriera przed `DELIVERED`.
-              </p>
+              <h3 className="text-lg">{t('adminPayments.courierQueueTitle')}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{t('adminPayments.courierQueueDesc')}</p>
             </div>
             <div className="space-y-4 p-6">
               {courierQueue.length ? (
@@ -459,9 +450,9 @@ export default function AdminPayments() {
                     <div className="text-sm text-muted-foreground">
                       {formatCurrency(payment.amount)} | Przesylka: {formatShipmentStatus(payment.shipmentStatus)}
                     </div>
-                    <div className="mt-1 text-sm text-muted-foreground">{getPaymentOpsHint(payment)}</div>
+                    <div className="mt-1 text-sm text-muted-foreground">{getPaymentOpsHint(payment, t)}</div>
                     <div className="mt-3 rounded-lg bg-card px-3 py-2 text-sm text-muted-foreground">
-                      Tylko do monitoringu: sposob pobrania pojawi sie dopiero po poprawnym zamknieciu platnosci u kuriera.
+                      {t('adminPayments.monitoringOnlyCourier')}
                     </div>
                     {canCancelPayment(payment) ? (
                       <div className="mt-3">
@@ -474,14 +465,14 @@ export default function AdminPayments() {
                           }
                           className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                         >
-                          Anuluj
+                          {t('adminPayments.cancel')}
                         </button>
                       </div>
                     ) : null}
                   </div>
                 ))
               ) : (
-                <div className="text-muted-foreground">Brak przypadkow platnosci u kuriera po filtrach.</div>
+                <div className="text-muted-foreground">{t('adminPayments.emptyCourier')}</div>
               )}
             </div>
           </section>
@@ -489,11 +480,8 @@ export default function AdminPayments() {
 
         <section className="rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border p-6">
-            <h3 className="text-lg">Zamkniete i zarchiwizowane</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Potwierdzone offline, oplacone albo anulowane przypadki do szybkiego audytu sposobu pobrania i finalnego
-              statusu przesylki.
-            </p>
+            <h3 className="text-lg">{t('adminPayments.archiveTitle')}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{t('adminPayments.archiveDesc')}</p>
           </div>
           <div className="space-y-4 p-6">
             {archiveQueue.length ? (
@@ -503,7 +491,7 @@ export default function AdminPayments() {
                     <div>
                       <div>{payment.trackingNumber}</div>
                       <div className="text-sm text-muted-foreground">
-                        {payment.clientEmail ?? 'brak klienta'} | {formatDateTime(payment.createdAt)}
+                        {payment.clientEmail ?? t('adminPayments.noClient')} | {formatDateTime(payment.createdAt)}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -512,16 +500,16 @@ export default function AdminPayments() {
                     </div>
                   </div>
                   <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-2 xl:grid-cols-4">
-                    <div>Metoda: {formatAdminPaymentMethod(payment.method)}</div>
-                    <div>Sposob pobrania: {formatCollectionMethod(payment.collectionMethod)}</div>
-                    <div>Przesylka: {formatShipmentStatus(payment.shipmentStatus)}</div>
-                    <div>Referencja: {payment.externalReference ?? 'brak'}</div>
+                    <div>{t('adminPayments.methodLabel')}: {formatAdminPaymentMethod(payment.method, t)}</div>
+                    <div>{t('adminPayments.collectionLabel')}: {formatCollectionMethod(payment.collectionMethod, t)}</div>
+                    <div>{t('adminPayments.shipmentLabel')}: {formatShipmentStatus(payment.shipmentStatus)}</div>
+                    <div>{t('adminPayments.referenceLabel')}: {payment.externalReference ?? t('adminPayments.noReference')}</div>
                   </div>
-                  <div className="mt-2 text-sm text-muted-foreground">{getPaymentOpsHint(payment)}</div>
+                  <div className="mt-2 text-sm text-muted-foreground">{getPaymentOpsHint(payment, t)}</div>
                 </div>
               ))
             ) : (
-              <div className="text-muted-foreground">Brak archived payments po filtrach.</div>
+              <div className="text-muted-foreground">{t('adminPayments.emptyArchive')}</div>
             )}
           </div>
         </section>

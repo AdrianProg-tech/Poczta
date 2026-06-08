@@ -81,50 +81,24 @@ function pickRedirectPoint(
   return findPickupPointByCity(points, extractCityFromAddress(address)) ?? findPickupPointByCity(points, preferredCity);
 }
 
-function getCourierTaskNextStep(taskStatus: string, requiresPaymentCollection: boolean) {
-  if (taskStatus === 'ASSIGNED') {
-    return 'Przyjmij zadanie, aby potwierdzić gotowość do realizacji trasy.';
-  }
-  if (taskStatus === 'ACCEPTED') {
-    return 'Rozpocznij trase, gdy wyjazd jest faktycznie gotowy.';
-  }
-  if (taskStatus === 'IN_PROGRESS') {
-    if (requiresPaymentCollection) {
-      return 'Przed domknieciem dostawy kurier musi pobrac platnosc gotowka albo karta.';
-    }
-    return 'Domknij dostawe sukcesem albo zapisz nieudana probe z redirectem.';
-  }
-  if (taskStatus === 'FAILED') {
-    return 'Zadanie jest po nieudanej probie. Dalsze przekazanie przejmuje punkt lub operacje.';
-  }
-  return 'Zadanie jest zakonczone i nie wymaga juz akcji kuriera.';
-}
-
 function isPickupTask(taskType: string | null | undefined) {
   return taskType?.toUpperCase() === 'PICKUP';
 }
 
-function formatTaskType(taskType: string | null | undefined) {
-  return isPickupTask(taskType) ? 'Odbior od nadawcy' : 'Doreczenie do odbiorcy';
-}
-
-function getCourierTaskNextStepForTask(task: CourierTaskListItem) {
+function getCourierTaskNextStepKey(task: CourierTaskListItem): string {
   if (isPickupTask(task.taskType)) {
-    if (task.taskStatus === 'ASSIGNED') {
-      return 'Przyjmij zadanie, aby potwierdzic gotowosc do odbioru paczki od nadawcy.';
-    }
-    if (task.taskStatus === 'ACCEPTED') {
-      return 'Rozpocznij trase, gdy jestes gotowy do odbioru od nadawcy.';
-    }
-    if (task.taskStatus === 'IN_PROGRESS') {
-      return 'Potwierdz odbior paczki od nadawcy, aby przekazac ja dalej do sieci.';
-    }
-    if (task.taskStatus === 'FAILED') {
-      return 'Odbior nie zostal zakonczony. Potrzebna jest decyzja operacyjna lub ponowny przydzial.';
-    }
+    if (task.taskStatus === 'ASSIGNED') return 'courierTasks.nextStepPickupAssigned';
+    if (task.taskStatus === 'ACCEPTED') return 'courierTasks.nextStepPickupAccepted';
+    if (task.taskStatus === 'IN_PROGRESS') return 'courierTasks.nextStepPickupInProgress';
+    if (task.taskStatus === 'FAILED') return 'courierTasks.nextStepPickupFailed';
   }
-
-  return getCourierTaskNextStep(task.taskStatus, task.requiresPaymentCollection);
+  if (task.taskStatus === 'ASSIGNED') return 'courierTasks.nextStepAssigned';
+  if (task.taskStatus === 'ACCEPTED') return 'courierTasks.nextStepAccepted';
+  if (task.taskStatus === 'IN_PROGRESS') {
+    return task.requiresPaymentCollection ? 'courierTasks.nextStepInProgressPayment' : 'courierTasks.nextStepInProgress';
+  }
+  if (task.taskStatus === 'FAILED') return 'courierTasks.nextStepFailed';
+  return 'courierTasks.nextStepDone';
 }
 
 export default function CourierTasks() {
@@ -186,7 +160,7 @@ export default function CourierTasks() {
         return next;
       });
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac zadan kuriera.');
+      setError(requestError instanceof Error ? requestError.message : t('courierTasks.loadError'));
     } finally {
       setIsLoading(false);
     }
@@ -203,7 +177,7 @@ export default function CourierTasks() {
       await action();
       await loadTasks();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Operacja nie powiodla sie.');
+      setError(requestError instanceof Error ? requestError.message : t('courierTasks.actionError'));
     } finally {
       setBusyTaskId(null);
     }
@@ -223,7 +197,7 @@ export default function CourierTasks() {
       await loadTasks();
       return true;
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Operacja masowa nie powiodla sie.');
+      setError(requestError instanceof Error ? requestError.message : t('courierTasks.batchActionError'));
       return false;
     } finally {
       setBusyTaskId(null);
@@ -253,12 +227,12 @@ export default function CourierTasks() {
   }, [filter, query, tasks]);
   const summary = useMemo(
     () => [
-      { label: 'Przypisane', value: tasks.filter((task) => task.taskStatus === 'ASSIGNED').length },
-      { label: 'Przyjete', value: tasks.filter((task) => task.taskStatus === 'ACCEPTED').length },
-      { label: 'W trasie', value: tasks.filter((task) => task.taskStatus === 'IN_PROGRESS').length },
-      { label: 'Zamkniete', value: tasks.filter((task) => ['FAILED', 'COMPLETED'].includes(task.taskStatus)).length },
+      { label: t('courierTasks.statAssigned'), value: tasks.filter((task) => task.taskStatus === 'ASSIGNED').length },
+      { label: t('courierTasks.statAccepted'), value: tasks.filter((task) => task.taskStatus === 'ACCEPTED').length },
+      { label: t('courierTasks.statInProgress'), value: tasks.filter((task) => task.taskStatus === 'IN_PROGRESS').length },
+      { label: t('courierTasks.statClosed'), value: tasks.filter((task) => ['FAILED', 'COMPLETED'].includes(task.taskStatus)).length },
     ],
-    [tasks],
+    [tasks, t],
   );
   const selectedTasks = useMemo(() => filteredTasks.filter((task) => selectedTaskIds.has(task.taskId)), [filteredTasks, selectedTaskIds]);
   const selectableTasks = useMemo(
@@ -318,13 +292,11 @@ export default function CourierTasks() {
   };
 
   return (
-    <DashboardShell role="courier" title="Zadania kuriera">
+    <DashboardShell role="courier" title={t('courierTasks.title')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="mb-2 text-2xl">Aktywne zadania</h2>
-          <p className="text-muted-foreground">
-            Zarządzaj zadaniami — akceptuj trasy, potwierdzaj dostawy i zapisuj próby doręczenia.
-          </p>
+          <h2 className="mb-2 text-2xl">{t('courierTasks.activeTasks')}</h2>
+          <p className="text-muted-foreground">{t('courierTasks.activeTasksDesc')}</p>
         </div>
 
         <button
@@ -357,7 +329,7 @@ export default function CourierTasks() {
               filter === value ? 'border-accent bg-accent text-white' : 'border-border bg-card hover:bg-muted'
             }`}
           >
-            {value}
+            {value === 'ALL' ? t('common.filter') : t(`status.task.${value}`, { defaultValue: value })}
           </button>
         ))}
       </div>
@@ -365,12 +337,12 @@ export default function CourierTasks() {
       <div className="mb-6 rounded-xl border border-border bg-card p-5 shadow-sm">
         <label className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
           <ScanSearch className="h-4 w-4" />
-          Numer / odbiorca / telefon / adres
+          {t('courierTasks.searchLabel')}
         </label>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Wpisz tracking, nazwisko odbiorcy albo fragment adresu"
+          placeholder={t('courierTasks.searchPlaceholder')}
           className="w-full rounded-lg border border-border bg-input-background px-4 py-3 outline-none transition-colors focus:border-accent"
         />
       </div>
@@ -379,20 +351,17 @@ export default function CourierTasks() {
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <div className="text-sm">
-              Wybrano <span className="font-medium">{selectedTasks.length}</span> z{' '}
-              <span className="font-medium">{selectableTasks.length}</span> aktywnych taskow w aktualnym widoku.
+              {t('courierTasks.batchSelected', { selected: selectedTasks.length, total: selectableTasks.length })}
             </div>
-            <div className="mt-1 text-sm text-muted-foreground">
-              Batch mode dziala na aktualnym filtrze i pomija taski zamkniete (`FAILED`, `COMPLETED`).
-            </div>
+            <div className="mt-1 text-sm text-muted-foreground">{t('courierTasks.batchNote')}</div>
             <div className="mt-2 flex flex-wrap gap-4 text-sm text-muted-foreground">
-              <div>Widoczne do przyjecia: {visibleAcceptableTasks.length}</div>
-              <div>Widoczne do startu: {visibleStartableTasks.length}</div>
-              <div>Widoczne do domkniecia: {visibleCompletableTasks.length}</div>
+              <div>{t('courierTasks.visibleAcceptable', { count: visibleAcceptableTasks.length })}</div>
+              <div>{t('courierTasks.visibleStartable', { count: visibleStartableTasks.length })}</div>
+              <div>{t('courierTasks.visibleCompletable', { count: visibleCompletableTasks.length })}</div>
             </div>
             {selectedTasksNeedingPaymentCollection.length > 0 ? (
               <div className="mt-2 text-sm text-warning">
-                {selectedTasksNeedingPaymentCollection.length} zaznaczonych zadan wymaga pobrania gotowki lub karty w szczegolach zadania.
+                {t('courierTasks.paymentWarning', { count: selectedTasksNeedingPaymentCollection.length })}
               </div>
             ) : null}
           </div>
@@ -404,7 +373,7 @@ export default function CourierTasks() {
               disabled={selectableTasks.length === 0 || busyTaskId !== null}
               className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted disabled:opacity-70"
             >
-              {selectedTaskIds.size === selectableTasks.length ? 'Odznacz widoczne' : `Zaznacz widoczne (${selectableTasks.length})`}
+              {selectedTaskIds.size === selectableTasks.length ? t('courierTasks.deselectVisible') : t('courierTasks.selectVisible', { count: selectableTasks.length })}
             </button>
             <button
               type="button"
@@ -412,7 +381,7 @@ export default function CourierTasks() {
               disabled={selectedTasks.length === 0 || busyTaskId !== null}
               className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted disabled:opacity-70"
             >
-              Wyczysc wybor
+              {t('courierTasks.clearSelection')}
             </button>
             <button
               type="button"
@@ -434,7 +403,7 @@ export default function CourierTasks() {
               }}
               className="rounded-lg bg-accent px-4 py-2 text-sm text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
             >
-              Przyjmij zaznaczone
+              {t('courierTasks.batchAccept')}
             </button>
             <button
               type="button"
@@ -456,7 +425,7 @@ export default function CourierTasks() {
               }}
               className="rounded-lg border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-muted disabled:opacity-70"
             >
-              Rozpocznij zaznaczone
+              {t('courierTasks.batchStart')}
             </button>
             <button
               type="button"
@@ -482,13 +451,13 @@ export default function CourierTasks() {
               }}
               className="rounded-lg bg-success px-4 py-2 text-sm text-white transition-colors hover:bg-success/90 disabled:opacity-70"
             >
-              Dorecz zaznaczone
+              {t('courierTasks.batchDeliver')}
             </button>
           </div>
         </div>
 
         <div className="mt-4 flex flex-col gap-2 lg:flex-row lg:items-center">
-          <label className="text-sm text-muted-foreground">Pickup point dla batch redirectu</label>
+          <label className="text-sm text-muted-foreground">{t('courierTasks.batchRedirectLabel')}</label>
           <select
             value={batchRedirectPointCode}
             onChange={(event) => setBatchRedirectPointCode(event.target.value)}
@@ -527,7 +496,7 @@ export default function CourierTasks() {
             }}
             className="rounded-lg border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-muted disabled:opacity-70"
           >
-            Zapisz probe + redirect dla zaznaczonych
+            {t('courierTasks.batchSaveAttempt')}
           </button>
         </div>
       </div>
@@ -536,7 +505,7 @@ export default function CourierTasks() {
         <div className="mb-6 rounded-xl border border-accent/30 bg-accent/5 p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-3">
             <PackageSearch className="h-5 w-5 text-accent" />
-            <h3 className="text-lg">Przesyłki do podjecia ({availableShipments.length})</h3>
+            <h3 className="text-lg">{t('courierTasks.availableTitle', { count: availableShipments.length })}</h3>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {availableShipments.map((shipment) => (
@@ -556,12 +525,12 @@ export default function CourierTasks() {
                     setError(null);
                     claimShipment(currentUser.email, shipment.shipmentId)
                       .then(() => loadTasks())
-                      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Operacja nie powiodla sie.'))
+                      .catch((err: unknown) => setError(err instanceof Error ? err.message : t('courierTasks.actionError')))
                       .finally(() => setBusyTaskId(null));
                   }}
                   className="w-full rounded-lg bg-accent px-3 py-2 text-sm text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
                 >
-                  {busyTaskId === shipment.shipmentId ? 'Przetwarzanie...' : 'Podejmij przesylke'}
+                  {busyTaskId === shipment.shipmentId ? t('courierTasks.claiming') : t('courierTasks.claimShipment')}
                 </button>
               </div>
             ))}
@@ -571,21 +540,19 @@ export default function CourierTasks() {
 
       {error ? <div className="mb-6 rounded-lg bg-destructive/10 p-4 text-destructive">{error}</div> : null}
 
-      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">Ladowanie zadan...</div> : null}
+      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">{t('courierTasks.loading')}</div> : null}
 
       {!isLoading && tasks.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-8 shadow-sm text-center">
           <Truck className="mx-auto mb-4 h-10 w-10 text-muted-foreground/40" />
-          <div className="mb-2 text-lg">Brak przypisanych zadań</div>
-          <p className="text-sm text-muted-foreground">
-            Nie masz aktualnie żadnych zadań dostawczych. Jeśli spodziewasz się pracy — skontaktuj się z dyspozytorem.
-          </p>
+          <div className="mb-2 text-lg">{t('courierTasks.empty')}</div>
+          <p className="text-sm text-muted-foreground">{t('courierTasks.emptyDesc')}</p>
         </div>
       ) : null}
 
       {!isLoading && tasks.length > 0 && filteredTasks.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm text-muted-foreground">
-          Brak zadań pasujących do wybranego filtra lub frazy. Zmień filtr lub wyczyść wyszukiwanie.
+          {t('courierTasks.noMatch')}
         </div>
       ) : null}
 
@@ -608,52 +575,52 @@ export default function CourierTasks() {
                       disabled={!['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'].includes(task.taskStatus)}
                       onChange={() => toggleTaskSelection(task.taskId)}
                       className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
-                      aria-label={`Zaznacz task ${task.trackingNumber}`}
+                      aria-label={t('courierTasks.ariaSelectTask', { number: task.trackingNumber })}
                     />
                     <div className="text-lg">{task.trackingNumber}</div>
                     <StatusBadge status={task.shipmentStatus ?? task.taskStatus} />
-                    <StatusBadge status={task.taskStatus} />
+                    <StatusBadge status={task.taskStatus} type="task" />
                   </div>
                   <div className="mb-3">
                     <Link
                       to={`/courier/tasks/${task.taskId}`}
                       className="text-sm text-accent transition-colors hover:text-accent/80"
                     >
-                      Otworz szczegoly zadania
+                      {t('courierTasks.openDetails')}
                     </Link>
                   </div>
                   <div className="grid gap-4 text-sm sm:grid-cols-2">
                     <div>
-                      <div className="mb-1 text-muted-foreground">{isPickupTask(task.taskType) ? 'Nadawca' : 'Odbiorca'}</div>
+                      <div className="mb-1 text-muted-foreground">{isPickupTask(task.taskType) ? t('courierTasks.sender') : t('courierTasks.recipient')}</div>
                       <div>{task.recipientName}</div>
                       <div className="text-muted-foreground">{task.recipientPhone}</div>
                     </div>
                     <div>
-                      <div className="mb-1 text-muted-foreground">{isPickupTask(task.taskType) ? 'Adres odbioru' : 'Adres docelowy'}</div>
+                      <div className="mb-1 text-muted-foreground">{isPickupTask(task.taskType) ? t('courierTasks.pickupAddress') : t('courierTasks.targetAddress')}</div>
                       <div>{task.targetAddress}</div>
                     </div>
                     <div>
-                      <div className="mb-1 text-muted-foreground">Typ zadania</div>
-                      <div>{formatTaskType(task.taskType)}</div>
+                      <div className="mb-1 text-muted-foreground">{t('courierTasks.taskType')}</div>
+                      <div>{isPickupTask(task.taskType) ? t('courierTasks.taskTypePickup') : t('courierTasks.taskTypeDelivery')}</div>
                     </div>
                     <div>
-                      <div className="mb-1 text-muted-foreground">Planowana data</div>
+                      <div className="mb-1 text-muted-foreground">{t('courierTasks.plannedDate')}</div>
                       <div>{formatDate(task.plannedDate)}</div>
                     </div>
                     <div>
-                      <div className="mb-1 text-muted-foreground">Platnosc</div>
+                      <div className="mb-1 text-muted-foreground">{t('courierTasks.payment')}</div>
                       <div>
-                        {task.paymentMethod ?? 'Brak'} {task.paymentStatus ? `| ${task.paymentStatus}` : ''}
+                        {task.paymentMethod ?? t('common.noData')} {task.paymentStatus ? `| ${task.paymentStatus}` : ''}
                       </div>
                     </div>
                     <div>
-                      <div className="mb-1 text-muted-foreground">Pobranie</div>
+                      <div className="mb-1 text-muted-foreground">{t('courierTaskDetails.collectionOnDelivery')}</div>
                       <div>
                         {isPickupTask(task.taskType)
-                          ? 'Na etapie odbioru od nadawcy kurier nie pobiera jeszcze platnosci.'
+                          ? t('courierTasks.collectionPickup')
                           : task.requiresPaymentCollection
-                            ? 'Kuriera czeka pobranie platnosci przy odbiorze.'
-                            : 'Brak platnosci przy doreczeniu.'}
+                            ? t('courierTasks.collectionRequired')
+                            : t('courierTasks.collectionNone')}
                       </div>
                     </div>
                   </div>
@@ -662,15 +629,15 @@ export default function CourierTasks() {
                       to={`/courier/tasks/${task.taskId}`}
                       className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
                     >
-                      Szczegoly zadania
+                      {t('courierTasks.taskDetails')}
                     </Link>
                   </div>
                 </div>
 
                 <div className="space-y-3 lg:w-72">
                   <div className="rounded-lg bg-secondary p-4 text-sm text-muted-foreground">
-                    <div className="mb-2 text-foreground">Nastepny krok</div>
-                    <div>{getCourierTaskNextStepForTask(task)}</div>
+                    <div className="mb-2 text-foreground">{t('courierTasks.nextStep')}</div>
+                    <div>{t(getCourierTaskNextStepKey(task))}</div>
                   </div>
 
                   {task.taskStatus === 'ASSIGNED' ? (
@@ -682,7 +649,7 @@ export default function CourierTasks() {
                       }
                       className="w-full rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
                     >
-                      Przyjmij zadanie
+                      {t('courierTasks.acceptTask')}
                     </button>
                   ) : null}
 
@@ -696,7 +663,7 @@ export default function CourierTasks() {
                     className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                   >
                       <Truck className="h-4 w-4" />
-                      {isPickupTask(task.taskType) ? 'Rozpocznij odbior' : 'Rozpocznij trase'}
+                      {isPickupTask(task.taskType) ? t('courierTasks.startPickup') : t('courierTasks.startRoute')}
                     </button>
                   ) : null}
 
@@ -717,7 +684,7 @@ export default function CourierTasks() {
                           className="flex w-full items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                         >
                           <CheckSquare className="h-4 w-4" />
-                          Potwierdz odbior od nadawcy
+                          {t('courierTasks.confirmPickupFromSender')}
                         </button>
                       ) : task.requiresPaymentCollection ? (
                         <Link
@@ -725,7 +692,7 @@ export default function CourierTasks() {
                           className="flex w-full items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90"
                         >
                           <CheckSquare className="h-4 w-4" />
-                          Pobierz platnosc i dorecz
+                          {t('courierTasks.collectAndDeliver')}
                         </Link>
                       ) : (
                         <button
@@ -742,13 +709,13 @@ export default function CourierTasks() {
                           className="flex w-full items-center justify-center gap-2 rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                         >
                           <CheckSquare className="h-4 w-4" />
-                          Oznacz jako doreczona
+                          {t('courierTasks.markDelivered')}
                         </button>
                       )}
 
                       {!isPickupTask(task.taskType) ? (
                         <div className="space-y-2 rounded-lg border border-border p-3">
-                          <div className="text-sm text-muted-foreground">Redirect po nieudanej probie</div>
+                          <div className="text-sm text-muted-foreground">{t('courierTasks.redirectLabel')}</div>
                           <select
                             value={redirectPoint ?? ''}
                             onChange={(event) =>
@@ -783,12 +750,12 @@ export default function CourierTasks() {
                             className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                           >
                             <RotateCcw className="h-4 w-4" />
-                            Zapisz nieudana probe
+                            {t('courierTasks.saveAttempt')}
                           </button>
                         </div>
                       ) : (
                         <div className="rounded-lg border border-border p-3 text-sm text-muted-foreground">
-                          Po potwierdzeniu odbioru paczka trafi od razu do sieci i dalej do centrum sortowania.
+                          {t('courierTasks.pickupNetworkNote')}
                         </div>
                       )}
                     </>

@@ -23,17 +23,29 @@ interface PointOperationsRow {
   queue: PointQueueResponse | null;
 }
 
-export function getPointReadinessLabel(row: PointOperationsRow) {
-  if (!row.point.active) {
-    return 'Nieaktywny';
+export type PointReadiness = 'inactive' | 'noOperator' | 'noQueue' | 'ready';
+
+const pointReadinessFallbackLabels: Record<PointReadiness, string> = {
+  inactive: 'Nieaktywny',
+  noOperator: 'Brak operatora',
+  noQueue: 'Operator bez live kolejki',
+  ready: 'Gotowy operacyjnie',
+};
+
+export function getPointReadinessStatus(row: PointOperationsRow): PointReadiness {
+  if (!row.point.active) return 'inactive';
+  if (row.operators.length === 0) return 'noOperator';
+  if (!row.queue) return 'noQueue';
+  return 'ready';
+}
+
+export function getPointReadinessLabel(row: PointOperationsRow, t?: (key: string) => string) {
+  const status = getPointReadinessStatus(row);
+  if (!t) {
+    return pointReadinessFallbackLabels[status];
   }
-  if (row.operators.length === 0) {
-    return 'Brak operatora';
-  }
-  if (!row.queue) {
-    return 'Operator bez live kolejki';
-  }
-  return 'Gotowy operacyjnie';
+
+  return t(`adminPoints.readiness_${status}`);
 }
 
 export function getPointQueueLoad(row: PointOperationsRow) {
@@ -101,7 +113,7 @@ export default function AdminPoints() {
       );
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac punktow operacyjnych.');
+      setError(requestError instanceof Error ? requestError.message : t('adminPoints.errorLoad'));
       setRows([]);
     } finally {
       setIsLoading(false);
@@ -140,12 +152,12 @@ export default function AdminPoints() {
 
   const stats = useMemo(
     () => [
-      { label: 'Wszystkie punkty', value: rows.length },
-      { label: 'Punkty odbioru', value: rows.filter((row) => row.point.type === 'PICKUP_POINT').length },
-      { label: 'Paczkomaty', value: rows.filter((row) => row.point.type === 'PARCEL_LOCKER').length },
-      { label: 'Bez operatora', value: rows.filter((row) => row.operators.length === 0).length },
+      { label: t('adminPoints.statAll'), value: rows.length },
+      { label: t('adminPoints.statPickup'), value: rows.filter((row) => row.point.type === 'PICKUP_POINT').length },
+      { label: t('adminPoints.statLocker'), value: rows.filter((row) => row.point.type === 'PARCEL_LOCKER').length },
+      { label: t('adminPoints.statNoOperator'), value: rows.filter((row) => row.operators.length === 0).length },
     ],
-    [rows],
+    [rows, t],
   );
 
   async function handleTogglePointActive(pointCode: string) {
@@ -160,7 +172,7 @@ export default function AdminPoints() {
       );
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udało się zmienić stanu aktywności punktu.');
+      setError(requestError instanceof Error ? requestError.message : t('adminPoints.errorToggle'));
     } finally {
       setBusyPointCode(null);
     }
@@ -197,19 +209,19 @@ export default function AdminPoints() {
       );
       handleCloseEditPoint();
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Nie udało się zapisać zmian punktu.');
+      setEditError(err instanceof Error ? err.message : t('adminPoints.errorSave'));
     } finally {
       setEditSaving(false);
     }
   }
 
   return (
-    <DashboardShell role="admin" title="Punkty odbioru">
+    <DashboardShell role="admin" title={t('adminPoints.pageTitle')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="text-xl">Widok operacyjny punktow</h2>
+          <h2 className="text-xl">{t('adminPoints.heading')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Read-model laczy katalog punktow, przypisanych operatorow i live queue load dla szybkiej oceny readiness.
+            {t('adminPoints.desc')}
           </p>
         </div>
 
@@ -241,7 +253,7 @@ export default function AdminPoints() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Szukaj po nazwie, pointCode, miescie lub operatorze"
+            placeholder={t('adminPoints.searchPlaceholder')}
             className="w-full bg-transparent outline-none"
           />
         </label>
@@ -251,22 +263,23 @@ export default function AdminPoints() {
           onChange={(event) => setTypeFilter(event.target.value as 'ALL' | PublicPoint['type'])}
           className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm outline-none"
         >
-          <option value="ALL">Wszystkie typy</option>
-          <option value="PICKUP_POINT">Punkt odbioru</option>
-          <option value="PARCEL_LOCKER">Paczkomat</option>
+          <option value="ALL">{t('adminPoints.filterAll')}</option>
+          <option value="PICKUP_POINT">{t('adminPoints.filterPickup')}</option>
+          <option value="PARCEL_LOCKER">{t('adminPoints.filterLocker')}</option>
         </select>
 
         <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
-          <div className="text-sm text-muted-foreground">Po filtrach</div>
+          <div className="text-sm text-muted-foreground">{t('adminPoints.afterFilters')}</div>
           <div className="mt-1 text-2xl">{isLoading ? '...' : filteredRows.length}</div>
         </div>
       </div>
 
       <div className="grid gap-4">
-        {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">Ladowanie punktow...</div> : null}
+        {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">{t('adminPoints.loading')}</div> : null}
 
         {!isLoading && filteredRows.map((row) => {
-          const readinessLabel = getPointReadinessLabel(row);
+          const readinessStatus = getPointReadinessStatus(row);
+          const readinessLabel = getPointReadinessLabel(row, t);
           const queueLoad = getPointQueueLoad(row);
 
           return (
@@ -283,9 +296,9 @@ export default function AdminPoints() {
                     </span>
                     <span
                       className={`rounded-full px-3 py-1 text-xs ${
-                        readinessLabel === 'Gotowy operacyjnie'
+                        readinessStatus === 'ready'
                           ? 'bg-success/10 text-success'
-                          : readinessLabel === 'Nieaktywny'
+                          : readinessStatus === 'inactive'
                             ? 'bg-muted text-muted-foreground'
                             : 'bg-warning/10 text-warning'
                       }`}
@@ -296,17 +309,17 @@ export default function AdminPoints() {
                       type="button"
                       disabled={busyPointCode === row.point.pointCode}
                       onClick={() => void handleTogglePointActive(row.point.pointCode)}
-                      title={row.point.active ? 'Kliknij, aby dezaktywować punkt' : 'Kliknij, aby aktywować punkt'}
+                      title={row.point.active ? t('adminPoints.deactivateTitle') : t('adminPoints.activateTitle')}
                       className={`rounded-full px-3 py-1 text-xs transition-opacity hover:opacity-75 disabled:opacity-50 ${
                         row.point.active ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
                       }`}
                     >
-                      {busyPointCode === row.point.pointCode ? '…' : row.point.active ? 'Aktywny' : 'Nieaktywny'}
+                      {busyPointCode === row.point.pointCode ? '…' : row.point.active ? t('adminPoints.active') : t('adminPoints.inactive')}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleOpenEditPoint(row.point)}
-                      title="Edytuj dane punktu"
+                      title={t('adminPoints.editTitle')}
                       className="rounded-full border border-border bg-card px-3 py-1 text-xs transition-colors hover:bg-muted"
                     >
                       <Pencil className="h-3 w-3" />
@@ -315,19 +328,19 @@ export default function AdminPoints() {
 
                   <div className="mb-4 grid gap-4 text-sm md:grid-cols-2 xl:grid-cols-4">
                     <div>
-                      <div className="mb-1 text-muted-foreground">Lokalizacja</div>
+                      <div className="mb-1 text-muted-foreground">{t('adminPoints.colLocation')}</div>
                       <div>{row.point.city}, {row.point.address}</div>
                     </div>
                     <div>
-                      <div className="mb-1 text-muted-foreground">Godziny</div>
+                      <div className="mb-1 text-muted-foreground">{t('adminPoints.colHours')}</div>
                       <div>{row.point.openingHours}</div>
                     </div>
                     <div>
-                      <div className="mb-1 text-muted-foreground">Operatorzy punktu</div>
+                      <div className="mb-1 text-muted-foreground">{t('adminPoints.colOperators')}</div>
                       <div>{row.operators.length}</div>
                     </div>
                     <div>
-                      <div className="mb-1 text-muted-foreground">Laczna kolejka</div>
+                      <div className="mb-1 text-muted-foreground">{t('adminPoints.colQueue')}</div>
                       <div>{queueLoad}</div>
                     </div>
                   </div>
@@ -336,23 +349,23 @@ export default function AdminPoints() {
                     <div className="rounded-lg bg-secondary p-4">
                       <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                         <Package className="h-4 w-4" />
-                        Obciazenie kolejki
+                        {t('adminPoints.queueLoad')}
                       </div>
                       <div className="text-sm">
-                        Przyjecie: {row.queue?.acceptQueue.length ?? 0}
+                        {t('adminPoints.queueAccept')}: {row.queue?.acceptQueue.length ?? 0}
                       </div>
                       <div className="text-sm">
-                        Wydanie: {row.queue?.pickupQueue.length ?? 0}
+                        {t('adminPoints.queueRelease')}: {row.queue?.pickupQueue.length ?? 0}
                       </div>
                       <div className="text-sm">
-                        Offline: {row.queue?.offlinePaymentQueue.length ?? 0}
+                        {t('adminPoints.queueOffline')}: {row.queue?.offlinePaymentQueue.length ?? 0}
                       </div>
                     </div>
 
                     <div className="rounded-lg bg-secondary p-4">
                       <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                         <Users className="h-4 w-4" />
-                        Gotowosc operatorow
+                        {t('adminPoints.operatorsReady')}
                       </div>
                       {row.operators.length ? (
                         <div className="space-y-1 text-sm">
@@ -363,14 +376,14 @@ export default function AdminPoints() {
                           ))}
                         </div>
                       ) : (
-                        <div className="text-sm text-muted-foreground">Brak przypisanego operatora point-role.</div>
+                        <div className="text-sm text-muted-foreground">{t('adminPoints.noOperator')}</div>
                       )}
                     </div>
 
                     <div className="rounded-lg bg-secondary p-4">
                       <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                         <MapPin className="h-4 w-4" />
-                        Szybkie przejscia operacyjne
+                        {t('adminPoints.quickLinks')}
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {row.point.type === 'PARCEL_LOCKER' ? (
@@ -378,7 +391,7 @@ export default function AdminPoints() {
                             to="/admin/demo/locker"
                             className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
                           >
-                            Laboratorium skrytek
+                            {t('adminPoints.labLocker')}
                           </Link>
                         ) : (
                           <>
@@ -386,13 +399,13 @@ export default function AdminPoints() {
                               to="/admin/demo/handover"
                               className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
                             >
-                              Laboratorium przekazan
+                              {t('adminPoints.labHandover')}
                             </Link>
                             <Link
                               to="/admin/shipments"
                               className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
                             >
-                              Tablica przesylek
+                              {t('adminPoints.shipmentsBoard')}
                             </Link>
                           </>
                         )}
@@ -407,7 +420,7 @@ export default function AdminPoints() {
 
         {!isLoading && filteredRows.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm text-muted-foreground">
-            Brak punktow dla aktualnego filtra.
+            {t('adminPoints.empty')}
           </div>
         ) : null}
       </div>
@@ -417,7 +430,7 @@ export default function AdminPoints() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <h3 className="text-lg">Edytuj punkt — {editPointCode}</h3>
+              <h3 className="text-lg">{t('adminPoints.editModalTitle', { code: editPointCode })}</h3>
               <button type="button" onClick={handleCloseEditPoint} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
@@ -427,7 +440,7 @@ export default function AdminPoints() {
               {editError ? <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{editError}</div> : null}
 
               <label className="space-y-1">
-                <div className="text-sm text-muted-foreground">Nazwa punktu</div>
+                <div className="text-sm text-muted-foreground">{t('adminPoints.fieldName')}</div>
                 <input
                   value={editForm.name ?? ''}
                   onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
@@ -437,7 +450,7 @@ export default function AdminPoints() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Miasto</div>
+                  <div className="text-sm text-muted-foreground">{t('adminPoints.fieldCity')}</div>
                   <input
                     value={editForm.city ?? ''}
                     onChange={(e) => setEditForm((p) => ({ ...p, city: e.target.value }))}
@@ -445,7 +458,7 @@ export default function AdminPoints() {
                   />
                 </label>
                 <label className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Kod pocztowy</div>
+                  <div className="text-sm text-muted-foreground">{t('adminPoints.fieldPostal')}</div>
                   <input
                     value={editForm.postalCode ?? ''}
                     onChange={(e) => setEditForm((p) => ({ ...p, postalCode: e.target.value }))}
@@ -456,7 +469,7 @@ export default function AdminPoints() {
               </div>
 
               <label className="space-y-1">
-                <div className="text-sm text-muted-foreground">Adres</div>
+                <div className="text-sm text-muted-foreground">{t('adminPoints.fieldAddress')}</div>
                 <input
                   value={editForm.address ?? ''}
                   onChange={(e) => setEditForm((p) => ({ ...p, address: e.target.value }))}
@@ -466,7 +479,7 @@ export default function AdminPoints() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Telefon</div>
+                  <div className="text-sm text-muted-foreground">{t('adminPoints.fieldPhone')}</div>
                   <input
                     value={editForm.phone ?? ''}
                     onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))}
@@ -475,7 +488,7 @@ export default function AdminPoints() {
                   />
                 </label>
                 <label className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Godziny otwarcia</div>
+                  <div className="text-sm text-muted-foreground">{t('adminPoints.fieldHours')}</div>
                   <input
                     value={editForm.openingHours ?? ''}
                     onChange={(e) => setEditForm((p) => ({ ...p, openingHours: e.target.value }))}

@@ -105,18 +105,18 @@ export default function PointPaymentVerification() {
   };
 
   return (
-    <DashboardShell role="point" title="Platnosci offline">
+    <DashboardShell role="point" title={t('pointPaymentVerification.pageTitle')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-3">
             <Link to="/point/shipments" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
-              Wroc do overview kolejek
+              {t('pointPaymentVerification.backToQueues')}
             </Link>
           </div>
-          <h2 className="mb-2 text-2xl">Potwierdzenie platnosci offline</h2>
+          <h2 className="mb-2 text-2xl">{t('pointPaymentVerification.heading')}</h2>
           <p className="text-muted-foreground">
-            Ekran dla punktu {pointCode ?? '-'} oddziela krok finansowy od samego wydania, ale zostawia tez szybki checkout pod demo.
+            {t('pointPaymentVerification.desc', { code: pointCode ?? '-' })}
           </p>
         </div>
 
@@ -132,56 +132,56 @@ export default function PointPaymentVerification() {
       </div>
 
       <div className="mb-6 rounded-xl border border-border bg-card p-5 shadow-sm">
-        <h3 className="mb-2 text-lg">Dwa tryby pracy</h3>
+        <h3 className="mb-2 text-lg">{t('pointPaymentVerification.modesTitle')}</h3>
         <p className="text-sm text-muted-foreground">
-          `Potwierdz platnosc` domyka krok finansowy. `Pobierz platnosc i wydaj` zostawia szybki flow do demo i prostych checkoutow w punkcie.
+          {t('pointPaymentVerification.modesDesc')}
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <div className="rounded-lg bg-secondary p-4">
-            <div className="text-sm text-muted-foreground">Tylko krok finansowy</div>
+            <div className="text-sm text-muted-foreground">{t('pointPaymentVerification.financeOnlyLabel')}</div>
             <div className="mt-2 text-2xl">{checkoutSummary.financeOnly}</div>
             <div className="mt-1 text-sm text-muted-foreground">
-              Uzyj, gdy przesylka jeszcze nie jest gotowa do natychmiastowego wydania klientowi.
+              {t('pointPaymentVerification.financeOnlyHint')}
             </div>
           </div>
           <div className="rounded-lg bg-secondary p-4">
-            <div className="text-sm text-muted-foreground">Szybki checkout i wydanie</div>
+            <div className="text-sm text-muted-foreground">{t('pointPaymentVerification.checkoutLabel')}</div>
             <div className="mt-2 text-2xl">{checkoutSummary.releaseReady}</div>
             <div className="mt-1 text-sm text-muted-foreground">
-              Tu mieszcza sie rekordy, ktore po oplacie mozna od razu domknac na okienku.
+              {t('pointPaymentVerification.checkoutHint')}
             </div>
           </div>
         </div>
       </div>
 
       {error ? <div className="mb-6 rounded-lg bg-destructive/10 p-4 text-destructive">{error}</div> : null}
-      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">Ladowanie kolejki...</div> : null}
+      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">{t('pointPaymentVerification.loading')}</div> : null}
 
       {!isLoading ? (
         <div className="space-y-6">
-          <PointQueueSearch query={query} onQueryChange={setQuery} label="Numer przesylki / payment ID / odbiorca" />
+          <PointQueueSearch query={query} onQueryChange={setQuery} label={t('pointPaymentVerification.searchLabel')} />
 
           <PointQueueSection
-            title="Tylko krok finansowy"
-            description="Tu trafiaja rekordy, ktore trzeba rozliczyc, ale nie sa jeszcze gotowe do natychmiastowego wydania klientowi."
+            title={t('pointPaymentVerification.financeOnlyLabel')}
+            description={t('pointPaymentVerification.financeSectionDesc')}
             headerAction={
               <div className="flex flex-wrap gap-2">
                 <PointUtilityButton
                   icon="print"
-                  label="Drukuj widoczna kolejke"
+                  label={t('pointPaymentVerification.printVisible')}
                   disabled={financeOnlyItems.length === 0}
                   onClick={() =>
                     printPointQueueDigest({
                       items: financeOnlyItems,
                       pointCode,
-                      title: 'Platnosci offline - tylko krok finansowy',
-                      subtitle: 'Aktualnie widoczne rekordy wymagajace tylko potwierdzenia platnosci offline.',
+                      title: t('pointPaymentVerification.financePrintTitle'),
+                      subtitle: t('pointPaymentVerification.financePrintSubtitle'),
                     })
                   }
                 />
                 <PointUtilityButton
                   icon="download"
-                  label="Eksport CSV"
+                  label={t('pointPaymentVerification.exportCsv')}
                   disabled={financeOnlyItems.length === 0}
                   onClick={() =>
                     downloadPointQueueCsv({
@@ -201,17 +201,17 @@ export default function PointPaymentVerification() {
                 onClearSelection={() => setSelectedFinanceKeys(new Set())}
                 actions={[
                   {
-                    label: 'Drukuj zaznaczone',
+                    label: t('pointPaymentVerification.printSelected'),
                     onClick: () =>
                       printPointQueueDigest({
                         items: selectedFinanceItems,
                         pointCode,
-                        title: 'Platnosci offline - wydruk zbiorczy',
-                        subtitle: 'Zbiorczy raport dla rekordow zaznaczonych do samego potwierdzenia platnosci.',
+                        title: t('pointPaymentVerification.financeBatchPrintTitle'),
+                        subtitle: t('pointPaymentVerification.financeBatchPrintSubtitle'),
                       }),
                   },
                   {
-                    label: 'Eksport CSV',
+                    label: t('pointPaymentVerification.exportCsv'),
                     onClick: () =>
                       downloadPointQueueCsv({
                         items: selectedFinanceItems,
@@ -219,7 +219,7 @@ export default function PointPaymentVerification() {
                       }),
                   },
                   {
-                    label: 'Potwierdz zaznaczone platnosci',
+                    label: t('pointPaymentVerification.batchConfirm'),
                     onClick: () => {
                       if (!pointUserEmail || selectedFinanceItems.length === 0 || financeSelectionHasMissingPaymentId) {
                         return;
@@ -241,7 +241,7 @@ export default function PointPaymentVerification() {
               />
             }
             items={financeOnlyItems}
-            emptyText="Brak platnosci offline tylko do potwierdzenia."
+            emptyText={t('pointPaymentVerification.financeEmpty')}
             selectedKeys={selectedFinanceKeys}
             onToggleItem={(item) => toggleFinanceItem(getPointQueueItemKey(item))}
             renderAction={(item) => {
@@ -250,15 +250,15 @@ export default function PointPaymentVerification() {
               return (
                 <div className="space-y-3">
                   <div className="rounded-lg bg-secondary p-3 text-sm text-muted-foreground">
-                    Tu bezpieczniej najpierw domknac sam krok finansowy, a wydanie wykonac osobno po dalszym handoffie.
+                    {t('pointPaymentVerification.financeNote')}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <PointPrintButton
                       item={item}
                       pointCode={pointCode}
-                      title="Dokument platnosci offline"
-                      subtitle="Wydruk pomocniczy do potwierdzenia rozliczenia w punkcie i obslugi checkoutu."
-                      primaryLabel="Platnosc offline"
+                      title={t('pointPaymentVerification.printDocTitle')}
+                      subtitle={t('pointPaymentVerification.printDocSubtitle')}
+                      primaryLabel={t('pointPaymentVerification.printDocLabel')}
                     />
                     <button
                       type="button"
@@ -270,7 +270,7 @@ export default function PointPaymentVerification() {
                       }
                       className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                     >
-                      Potwierdz platnosc
+                      {t('pointPaymentVerification.confirmPayment')}
                     </button>
                   </div>
                 </div>
@@ -279,26 +279,26 @@ export default function PointPaymentVerification() {
           />
 
           <PointQueueSection
-            title="Szybki checkout i wydanie"
-            description="Tu punkt moze hurtowo potwierdzac platnosc albo od razu domykac checkout na okienku."
+            title={t('pointPaymentVerification.checkoutLabel')}
+            description={t('pointPaymentVerification.checkoutSectionDesc')}
             headerAction={
               <div className="flex flex-wrap gap-2">
                 <PointUtilityButton
                   icon="print"
-                  label="Drukuj widoczna kolejke"
+                  label={t('pointPaymentVerification.printVisible')}
                   disabled={releaseReadyItems.length === 0}
                   onClick={() =>
                     printPointQueueDigest({
                       items: releaseReadyItems,
                       pointCode,
-                      title: 'Platnosci offline - szybki checkout',
-                      subtitle: 'Aktualnie widoczne rekordy gotowe do szybkiego checkoutu i wydania.',
+                      title: t('pointPaymentVerification.checkoutPrintTitle'),
+                      subtitle: t('pointPaymentVerification.checkoutPrintSubtitle'),
                     })
                   }
                 />
                 <PointUtilityButton
                   icon="download"
-                  label="Eksport CSV"
+                  label={t('pointPaymentVerification.exportCsv')}
                   disabled={releaseReadyItems.length === 0}
                   onClick={() =>
                     downloadPointQueueCsv({
@@ -318,17 +318,17 @@ export default function PointPaymentVerification() {
                 onClearSelection={() => setSelectedCheckoutKeys(new Set())}
                 actions={[
                   {
-                    label: 'Drukuj zaznaczone',
+                    label: t('pointPaymentVerification.printSelected'),
                     onClick: () =>
                       printPointQueueDigest({
                         items: selectedCheckoutItems,
                         pointCode,
-                        title: 'Platnosci offline - checkout zbiorczy',
-                        subtitle: 'Zbiorczy raport dla rekordow zaznaczonych do szybkiego checkoutu i wydania.',
+                        title: t('pointPaymentVerification.checkoutBatchPrintTitle'),
+                        subtitle: t('pointPaymentVerification.checkoutBatchPrintSubtitle'),
                       }),
                   },
                   {
-                    label: 'Eksport CSV',
+                    label: t('pointPaymentVerification.exportCsv'),
                     onClick: () =>
                       downloadPointQueueCsv({
                         items: selectedCheckoutItems,
@@ -336,7 +336,7 @@ export default function PointPaymentVerification() {
                       }),
                   },
                   {
-                    label: 'Potwierdz same platnosci',
+                    label: t('pointPaymentVerification.batchConfirmPayments'),
                     onClick: () => {
                       if (!pointUserEmail || selectedCheckoutItems.length === 0 || checkoutSelectionHasMissingPaymentId) {
                         return;
@@ -355,7 +355,7 @@ export default function PointPaymentVerification() {
                     disabled: checkoutSelectionHasMissingPaymentId,
                   },
                   {
-                    label: 'Pobierz + wydaj zaznaczone',
+                    label: t('pointPaymentVerification.batchCollectRelease'),
                     tone: 'success',
                     onClick: () => {
                       if (!pointUserEmail || selectedCheckoutItems.length === 0) {
@@ -379,7 +379,7 @@ export default function PointPaymentVerification() {
               />
             }
             items={releaseReadyItems}
-            emptyText="Brak rekordow do szybkiego checkoutu."
+            emptyText={t('pointPaymentVerification.checkoutEmpty')}
             selectedKeys={selectedCheckoutKeys}
             onToggleItem={(item) => toggleCheckoutItem(getPointQueueItemKey(item))}
             renderAction={(item) => {
@@ -389,15 +389,15 @@ export default function PointPaymentVerification() {
               return (
                 <div className="space-y-3">
                   <div className="rounded-lg bg-secondary p-3 text-sm text-muted-foreground">
-                    Ten rekord wyglada na gotowy do szybkiego checkoutu przy okienku.
+                    {t('pointPaymentVerification.checkoutNote')}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <PointPrintButton
                       item={item}
                       pointCode={pointCode}
-                      title="Dokument platnosci offline"
-                      subtitle="Wydruk pomocniczy do potwierdzenia rozliczenia w punkcie i obslugi checkoutu."
-                      primaryLabel="Platnosc offline"
+                      title={t('pointPaymentVerification.printDocTitle')}
+                      subtitle={t('pointPaymentVerification.printDocSubtitle')}
+                      primaryLabel={t('pointPaymentVerification.printDocLabel')}
                     />
                     <button
                       type="button"
@@ -409,7 +409,7 @@ export default function PointPaymentVerification() {
                       }
                       className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                     >
-                      Potwierdz platnosc
+                      {t('pointPaymentVerification.confirmPayment')}
                     </button>
 
                     <button
@@ -423,7 +423,7 @@ export default function PointPaymentVerification() {
                       }
                       className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                     >
-                      Pobierz platnosc i wydaj
+                      {t('pointPaymentVerification.collectAndRelease')}
                     </button>
                   </div>
                 </div>

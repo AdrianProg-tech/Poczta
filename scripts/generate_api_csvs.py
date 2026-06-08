@@ -280,6 +280,8 @@ def build_walk_in_shipments(users: list[dict[str, object]]) -> list[dict[str, ob
         rows.append(
             {
                 "pointWorkerEmail": worker["email"],
+                "customerMode": "NEW",
+                "customerEmail": f"walkin.{city_key.lower()}.{i + 1:02d}@example.com",
                 "senderName": "Klient walk-in",
                 "senderPhone": f"+4860000{i:04d}",
                 "senderAddress": SENDER_ADDRESSES[i % len(SENDER_ADDRESSES)],
@@ -325,6 +327,10 @@ def build_dataset(
             courier_emails_by_city,
         )
         pickup_code = pickup_points_by_city[city_code][0]
+        sender_city_code = str(client.get("serviceCity") or city_code).strip().upper()
+        if sender_city_code not in pickup_points_by_city:
+            sender_city_code = city_code
+        sender_point_code = pickup_points_by_city[sender_city_code][0]
         sender_address = SENDER_ADDRESSES[index % len(SENDER_ADDRESSES)]
         recipient_name, recipient_phone = RECIPIENT_POOL[index % len(RECIPIENT_POOL)]
         recipient_address = CITY_ADDRESSES[city_code][index % len(CITY_ADDRESSES[city_code])]
@@ -332,6 +338,9 @@ def build_dataset(
         task_date = f"2026-05-{9 + (index % 12):02d}"
 
         delivery_type = "COURIER"
+        intake_method = "POINT_DROPOFF"
+        delivery_method = "COURIER_HOME"
+        source_point_code = sender_point_code
         target_point_code = ""
         payment_method = "ONLINE"
         payment_action = "NONE"
@@ -341,6 +350,7 @@ def build_dataset(
             "OFFLINE_PAYMENT_PENDING", "OFFLINE_PAYMENT_CONFIRMED"
         }:
             delivery_type = "PICKUP_POINT"
+            delivery_method = "PICKUP_POINT"
             target_point_code = pickup_code
             payment_method = "OFFLINE_AT_POINT"
         elif "REDIRECT" in scenario_name:
@@ -384,6 +394,9 @@ def build_dataset(
                 "recipientAddress": recipient_address,
                 "recipientCity": city_code,
                 "deliveryType": delivery_type,
+                "intakeMethod": intake_method,
+                "deliveryMethod": delivery_method,
+                "sourcePointCode": source_point_code,
                 "targetPointCode": target_point_code,
                 "weight": f"{0.7 + (index % 5) * 0.55:.2f}",
                 "sizeCategory": ["S", "M", "L"][index % 3],
@@ -597,6 +610,9 @@ def main() -> None:
             "recipientAddress",
             "recipientCity",
             "deliveryType",
+            "intakeMethod",
+            "deliveryMethod",
+            "sourcePointCode",
             "targetPointCode",
             "weight",
             "sizeCategory",
@@ -613,6 +629,8 @@ def main() -> None:
         "cancel_actions.csv": ["shipmentKey"],
         "walk_in_shipments.csv": [
             "pointWorkerEmail",
+            "customerMode",
+            "customerEmail",
             "senderName",
             "senderPhone",
             "senderAddress",

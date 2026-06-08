@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AlertCircle, Ban, Calendar, CheckCircle, CreditCard, MapPin, Printer, RotateCcw, User, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { type TFunction } from 'i18next';
 import {
+  ApiError,
   cancelClientShipment,
   formatCurrency,
   formatDate,
@@ -33,7 +35,7 @@ function buildCustomerGuidance(
   shipment: ClientShipmentDetails,
   routeStatus: string,
   canCancel: boolean,
-  isEnglish: boolean,
+  t: TFunction,
 ): CustomerGuidance {
   const targetPoint = shipment.delivery.targetPointCode;
   const sourcePoint = shipment.delivery.sourcePointCode;
@@ -41,190 +43,130 @@ function buildCustomerGuidance(
   const deliveryMethod = shipment.delivery.deliveryMethod;
   const paymentMethod = shipment.payment.method;
   const paymentStatus = shipment.payment.status;
+  const pointLabel = sourcePoint ?? t('shipmentDetails.noReference');
 
   if (paymentStatus === 'PENDING' && paymentMethod === 'ONLINE') {
     return {
-      current: isEnglish
-        ? 'Your shipment has been created and is waiting for online payment confirmation.'
-        : 'Przesylka zostala utworzona i czeka na potwierdzenie platnosci online.',
-      customerAction: isEnglish
-        ? 'Pay for the shipment, then print the label and attach it to the parcel.'
-        : 'Oplac przesylke, a potem wydrukuj etykiete i naklej ja na paczke.',
-      nextStep: isEnglish
-        ? 'After payment, the parcel can be handed over to a point or prepared for courier pickup.'
-        : 'Po oplaceniu paczke mozna nadac w punkcie albo przygotowac do odbioru przez kuriera.',
+      current: t('shipmentGuidance.paymentPendingCurrent'),
+      customerAction: t('shipmentGuidance.paymentPendingAction'),
+      nextStep: t('shipmentGuidance.paymentPendingNext'),
     };
   }
 
   if (routeStatus === 'READY_FOR_HANDOVER') {
     if (intakeMethod === 'POINT_DROPOFF') {
       return {
-        current: isEnglish
-          ? 'The parcel is ready to be handed over to the network through a point.'
-          : 'Paczka jest gotowa do przekazania do sieci przez punkt nadania.',
+        current: t('shipmentGuidance.handoverPointCurrent'),
         customerAction: paymentMethod === 'OFFLINE_AT_POINT'
-          ? (isEnglish
-            ? `Print the label, attach it to the parcel, take it to ${sourcePoint ?? 'the selected point'} and pay at drop-off.`
-            : `Wydrukuj etykiete, naklej ja na paczke, zanies ja do ${sourcePoint ?? 'wybranego punktu'} i oplac przy nadaniu.`)
+          ? t('shipmentGuidance.handoverPointActionOffline', { point: pointLabel })
           : canCancel
-            ? (isEnglish
-              ? `Print the label, attach it to the parcel and take it to ${sourcePoint ?? 'the selected point'}. You can still cancel the shipment before it is posted onward.`
-              : `Wydrukuj etykiete, naklej ja na paczke i zanies ja do ${sourcePoint ?? 'wybranego punktu'}. Na tym etapie nadal mozna anulowac przesylke.`)
-            : (isEnglish
-              ? `Print the label, attach it to the parcel and take it to ${sourcePoint ?? 'the selected point'}.`
-              : `Wydrukuj etykiete, naklej ja na paczke i zanies ja do ${sourcePoint ?? 'wybranego punktu'}.`),
-        nextStep: isEnglish
-          ? 'After point intake, the parcel will be posted onward and sent to the sorting hub.'
-          : 'Po przyjeciu w punkcie paczka zostanie nadana dalej i trafi do centrum sortowania.',
+            ? t('shipmentGuidance.handoverPointActionCancel', { point: pointLabel })
+            : t('shipmentGuidance.handoverPointAction', { point: pointLabel }),
+        nextStep: t('shipmentGuidance.handoverPointNext'),
       };
     }
 
     if (shipment.delivery.currentNodeType === 'COURIER') {
       const assignedCourier = shipment.delivery.currentNodeCode;
+      const idSuffix = assignedCourier ? ` (${assignedCourier})` : '';
       return {
-        current: isEnglish
-          ? 'A pickup courier has already been assigned to collect your parcel from the sender address.'
-          : 'Kurier odbioru zostal juz przydzielony i odbierze paczke spod adresu nadawcy.',
-        customerAction: isEnglish
-          ? 'Keep the parcel packed, labeled and ready for handover to the courier.'
-          : 'Przygotuj zapakowana paczke z etykieta i badz gotowy do przekazania jej kurierowi.',
-        nextStep: isEnglish
-          ? `The assigned courier${assignedCourier ? ` (${assignedCourier})` : ''} will confirm pickup and hand the parcel into the network.`
-          : `Przydzielony kurier${assignedCourier ? ` (${assignedCourier})` : ''} potwierdzi odbior i wprowadzi paczke do sieci.`,
+        current: t('shipmentGuidance.handoverCourierAssignedCurrent'),
+        customerAction: t('shipmentGuidance.handoverCourierAssignedAction'),
+        nextStep: t('shipmentGuidance.handoverCourierAssignedNext', { id: idSuffix }),
       };
     }
 
     return {
-      current: isEnglish
-        ? 'The parcel is waiting to be handed over to the network by courier pickup.'
-        : 'Paczka czeka na przekazanie do sieci przez odbior kuriera.',
-      customerAction: isEnglish
-        ? 'Print the label, attach it to the parcel and keep it ready for pickup.'
-        : 'Wydrukuj etykiete, naklej ja na paczke i przygotuj ja do odbioru przez kuriera.',
-      nextStep: isEnglish
-        ? 'Once pickup is confirmed, the parcel will go to the sorting hub.'
-        : 'Po potwierdzeniu odbioru paczka pojedzie do centrum sortowania.',
+      current: t('shipmentGuidance.handoverCourierCurrent'),
+      customerAction: t('shipmentGuidance.handoverCourierAction'),
+      nextStep: t('shipmentGuidance.handoverCourierNext'),
     };
   }
 
   if (routeStatus === 'ACCEPTED_AT_SOURCE') {
     return {
-      current: isEnglish
-        ? 'The point has already accepted your parcel.'
-        : 'Punkt nadania przyjal juz Twoja paczke.',
-      customerAction: isEnglish ? 'No action is needed from you right now.' : 'Na tym etapie nie musisz juz nic robic.',
-      nextStep: isEnglish
-        ? 'The parcel will be posted onward and moved to the sorting hub.'
-        : 'Paczka zostanie nadana dalej i ruszy do centrum sortowania.',
+      current: t('shipmentGuidance.acceptedAtSourceCurrent'),
+      customerAction: t('shipmentGuidance.acceptedAtSourceAction'),
+      nextStep: t('shipmentGuidance.acceptedAtSourceNext'),
     };
   }
 
   if (routeStatus === 'IN_TRANSIT_TO_DESTINATION_HUB' || routeStatus === 'AT_ORIGIN_HUB') {
     return {
-      current: isEnglish ? 'Your parcel is moving through the sorting network.' : 'Twoja paczka jedzie przez centrum sortowania.',
-      customerAction: isEnglish ? 'No action is needed from you right now.' : 'Na tym etapie nie musisz nic robic.',
-      nextStep: isEnglish
-        ? 'Next it will arrive in the destination city for final delivery or pickup.'
-        : 'Nastepnie dotrze do miasta odbiorcy i trafi do doreczenia albo do punktu odbioru.',
+      current: t('shipmentGuidance.inTransitCurrent'),
+      customerAction: t('shipmentGuidance.inTransitAction'),
+      nextStep: t('shipmentGuidance.inTransitNext'),
     };
   }
 
   if (routeStatus === 'AT_DESTINATION_HUB') {
     return {
-      current: isEnglish
-        ? 'The parcel has reached the destination city hub.'
-        : 'Paczka dotarla juz do hubu w miescie odbiorcy.',
-      customerAction: isEnglish ? 'No action is needed from you right now.' : 'Na tym etapie nie musisz nic robic.',
+      current: t('shipmentGuidance.atDestinationHubCurrent'),
+      customerAction: t('shipmentGuidance.atDestinationHubAction'),
       nextStep: deliveryMethod === 'PICKUP_POINT'
-        ? (isEnglish
-          ? `Next it will be routed to pickup point ${targetPoint ?? ''}.`
-          : `Nastepnie zostanie skierowana do punktu odbioru ${targetPoint ?? ''}.`)
-        : (isEnglish
-          ? 'Next a courier will be assigned for final delivery.'
-          : 'Nastepnie kurier zostanie przydzielony do finalnego doreczenia.'),
+        ? t('shipmentGuidance.atDestinationHubNextPoint', { point: targetPoint ?? '' })
+        : t('shipmentGuidance.atDestinationHubNextCourier'),
     };
   }
 
   if (routeStatus === 'OUT_FOR_DELIVERY') {
     return {
-      current: isEnglish
-        ? 'A courier has your parcel and is on the delivery route.'
-        : 'Kurier ma juz Twoja paczke i jest w trasie do odbiorcy.',
+      current: t('shipmentGuidance.outForDeliveryCurrent'),
       customerAction: paymentMethod === 'OFFLINE_AT_COURIER'
-        ? (isEnglish
-          ? 'Be ready for courier delivery. Payment will be collected on delivery.'
-          : 'Przygotuj sie na doreczenie. Platnosc zostanie pobrana przez kuriera przy odbiorze.')
-        : (isEnglish
-          ? 'Be ready for delivery.'
-          : 'Badz gotowy na kontakt z kurierem i doreczenie paczki.'),
-      nextStep: isEnglish
-        ? 'If delivery succeeds, the shipment will be marked as delivered.'
-        : 'Jesli doreczenie sie powiedzie, przesylka zostanie oznaczona jako doreczona.',
+        ? t('shipmentGuidance.outForDeliveryActionPayment')
+        : t('shipmentGuidance.outForDeliveryAction'),
+      nextStep: t('shipmentGuidance.outForDeliveryNext'),
     };
   }
 
   if (routeStatus === 'IN_TRANSIT_TO_TARGET_POINT') {
     return {
-      current: isEnglish ? 'The parcel is on its way to the pickup point.' : 'Paczka jedzie do punktu odbioru.',
-      customerAction: isEnglish
-        ? 'No action is needed yet. Wait until the point confirms receipt.'
-        : 'Na razie nie musisz nic robic. Poczekaj, az punkt potwierdzi przyjecie paczki.',
-      nextStep: isEnglish
-        ? `After intake at ${targetPoint ?? 'the point'}, the parcel will wait there for pickup.`
-        : `Po przyjeciu w ${targetPoint ?? 'punkcie'} paczka bedzie tam czekac na odbior.`,
+      current: t('shipmentGuidance.inTransitToPointCurrent'),
+      customerAction: t('shipmentGuidance.inTransitToPointAction'),
+      nextStep: t('shipmentGuidance.inTransitToPointNext', { point: targetPoint ?? t('shipmentDetails.noReference') }),
     };
   }
 
   if (routeStatus === 'AWAITING_PICKUP' || routeStatus === 'AWAITING_LOCKER_PICKUP') {
     return {
       current: routeStatus === 'AWAITING_LOCKER_PICKUP'
-        ? (isEnglish ? 'The parcel is waiting in the locker for pickup.' : 'Paczka czeka juz w paczkomacie na odbior.')
-        : (isEnglish ? 'The parcel is waiting at the pickup point.' : 'Paczka czeka juz w punkcie odbioru.'),
+        ? t('shipmentGuidance.awaitingLockerCurrent')
+        : t('shipmentGuidance.awaitingPickupCurrent'),
       customerAction: routeStatus === 'AWAITING_LOCKER_PICKUP'
-        ? (isEnglish ? 'Go to the locker and collect the parcel.' : 'Mozesz teraz odebrac paczke z paczkomatu.')
-        : (isEnglish ? `Go to ${targetPoint ?? 'the selected point'} and collect the parcel.` : `Mozesz teraz odebrac paczke w ${targetPoint ?? 'wybranym punkcie'}.`),
-      nextStep: isEnglish
-        ? 'After pickup, the shipment will be marked as delivered.'
-        : 'Po odbiorze przesylka zostanie oznaczona jako doreczona.',
+        ? t('shipmentGuidance.awaitingLockerAction')
+        : t('shipmentGuidance.awaitingPickupAction', { point: targetPoint ?? t('shipmentDetails.noReference') }),
+      nextStep: t('shipmentGuidance.awaitingNext'),
     };
   }
 
   if (routeStatus === 'DELIVERY_ATTEMPT_FAILED' || routeStatus === 'RETURN_IN_TRANSIT') {
     return {
-      current: isEnglish
-        ? 'The delivery attempt failed and the parcel is being redirected.'
-        : 'Proba doreczenia nie udala sie i paczka jest teraz przekierowywana.',
-      customerAction: isEnglish
-        ? 'Wait for confirmation that the parcel is ready at a pickup point.'
-        : 'Poczekaj na potwierdzenie, ze paczka jest gotowa do odbioru w punkcie.',
-      nextStep: isEnglish
-        ? 'Once the point accepts it, you will be able to collect it there.'
-        : 'Gdy punkt ja przyjmie, bedziesz mogl odebrac paczke na miejscu.',
+      current: t('shipmentGuidance.failedAttemptCurrent'),
+      customerAction: t('shipmentGuidance.failedAttemptAction'),
+      nextStep: t('shipmentGuidance.failedAttemptNext'),
     };
   }
 
   if (routeStatus === 'DELIVERED') {
     return {
-      current: isEnglish ? 'The shipment has been delivered successfully.' : 'Przesylka zostala pomyslnie doreczona.',
-      customerAction: isEnglish ? 'No action is needed from you.' : 'Nie musisz juz nic robic.',
-      nextStep: isEnglish ? 'This shipment is completed.' : 'Ten proces jest juz zakonczony.',
+      current: t('shipmentGuidance.deliveredCurrent'),
+      customerAction: t('shipmentGuidance.deliveredAction'),
+      nextStep: t('shipmentGuidance.deliveredNext'),
     };
   }
 
   if (routeStatus === 'CANCELED') {
     return {
-      current: isEnglish ? 'The shipment has been cancelled.' : 'Przesylka zostala anulowana.',
-      customerAction: isEnglish ? 'No further action is needed.' : 'Nie sa potrzebne dalsze dzialania.',
-      nextStep: isEnglish ? 'The parcel will not continue in the network.' : 'Paczka nie bedzie dalej obslugiwana w sieci.',
+      current: t('shipmentGuidance.canceledCurrent'),
+      customerAction: t('shipmentGuidance.canceledAction'),
+      nextStep: t('shipmentGuidance.canceledNext'),
     };
   }
 
   return {
-    current: isEnglish ? 'Your shipment is being processed.' : 'Twoja przesylka jest w trakcie obslugi.',
-    customerAction: isEnglish ? 'Check the latest status and wait for the next update.' : 'Sprawdzaj status i czekaj na kolejna aktualizacje.',
-    nextStep: isEnglish
-      ? 'The next operational step will appear after the network updates this shipment.'
-      : 'Kolejny krok pojawi sie po aktualizacji operacyjnej tej przesylki.',
+    current: t('shipmentGuidance.defaultCurrent'),
+    customerAction: t('shipmentGuidance.defaultAction'),
+    nextStep: t('shipmentGuidance.defaultNext'),
   };
 }
 
@@ -265,7 +207,11 @@ export default function ShipmentDetails() {
       } catch (requestError) {
         if (active) {
           setShipment(null);
-          setError(requestError instanceof Error ? requestError.message : t('shipmentDetails.loadError'));
+          if (requestError instanceof ApiError && requestError.status === 404) {
+            setError(t('shipmentDetails.notFoundDesc'));
+          } else {
+            setError(t('shipmentDetails.loadError'));
+          }
         }
       } finally {
         if (active) setIsLoading(false);
@@ -323,7 +269,7 @@ export default function ShipmentDetails() {
   const readableActions = shipment?.allowedActions.map((action) => formatShipmentAction(action)).filter(Boolean) ?? [];
   const routeStatus = shipment?.delivery.shipmentRouteStatus ?? shipment?.currentStatus ?? null;
   const customerGuidance = shipment
-    ? buildCustomerGuidance(shipment, routeStatus ?? shipment.currentStatus, canCancel, i18n.language === 'en')
+    ? buildCustomerGuidance(shipment, routeStatus ?? shipment.currentStatus, canCancel, t)
     : null;
 
   function printShipmentLabel(s: ClientShipmentDetails) {

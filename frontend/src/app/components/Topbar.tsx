@@ -1,7 +1,6 @@
 import { Globe, Moon, Sun, User } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
-import { getRoleLabel } from '../navigation';
 import { useAppStateContext } from '../state/AppStateContext';
 
 interface TopbarProps {
@@ -17,7 +16,7 @@ export function Topbar({ title, userName = 'Jan Kowalski' }: TopbarProps) {
   const { t, i18n } = useTranslation();
 
   const displayName = currentUser?.name ?? userName;
-  const displayRole = currentUser ? getRoleLabel(currentUser.role) : 'Gość';
+  const displayRole = currentUser ? t(`roles.${currentUser.role}`) : t('roles.guest', { defaultValue: 'Gość' });
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
   const toggleLanguage = () => void i18n.changeLanguage(i18n.language === 'pl' ? 'en' : 'pl');

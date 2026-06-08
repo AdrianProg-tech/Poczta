@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Building2, Lock, Package, ShieldCheck, Truck, User } from 'lucide-react';
+import { Building2, Globe, Lock, Moon, Package, ShieldCheck, Sun, Truck, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from 'next-themes';
 import { demoRoleOptions, getDemoUsers, type DemoLoginGroup, type DemoUserOption } from '../api';
 import { getDashboardPath } from '../navigation';
 import { useAppStateContext } from '../state/AppStateContext';
@@ -15,19 +16,15 @@ const roleIcons = {
   dispatcher: ShieldCheck,
 } as const;
 
-function getRoleHint(group: DemoLoginGroup, isEnglish: boolean) {
-  const hints = {
-    client: isEnglish ? 'Create, pay, track, and manage complaints.' : 'Tworzenie, platnosc, tracking i reklamacje.',
-    courier: isEnglish ? 'Last-mile tasks, starts, deliveries, and failed attempts.' : 'Zadania kuriera, start trasy, doreczenia i nieudane proby.',
-    point: isEnglish ? 'Point intake, release, and walk-in shipment handling.' : 'Przyjecie w punkcie, wydanie i obsluga walk-in.',
-    admin: isEnglish ? 'Operations, payments, complaints, and demo labs.' : 'Operacje, platnosci, reklamacje i demo laby.',
-    dispatcher: isEnglish ? 'Shipment board, courier assignment, and operational routing.' : 'Tablica przesylek, przydzial kurierow i routing operacyjny.',
-  } satisfies Record<DemoLoginGroup, string>;
+const roleHintKeys: Record<DemoLoginGroup, string> = {
+  client: 'loginDemo.hintClient',
+  courier: 'loginDemo.hintCourier',
+  point: 'loginDemo.hintPoint',
+  admin: 'loginDemo.hintAdmin',
+  dispatcher: 'loginDemo.hintDispatcher',
+};
 
-  return hints[group];
-}
-
-export function buildDemoUserOptionLabel(user: DemoUserOption, isEnglish: boolean) {
+export function buildDemoUserOptionLabel(user: DemoUserOption, cityLabel: string) {
   const details: string[] = [user.email];
   if (user.adminScope) {
     details.push(user.adminScope);
@@ -36,7 +33,7 @@ export function buildDemoUserOptionLabel(user: DemoUserOption, isEnglish: boolea
     details.push(user.pointName ? `${user.pointName} (${user.pointCode})` : user.pointCode);
   }
   if (user.serviceCity) {
-    details.push(isEnglish ? `City: ${user.serviceCity}` : `Miasto: ${user.serviceCity}`);
+    details.push(`${cityLabel}: ${user.serviceCity}`);
   }
 
   return details.length > 0 ? `${user.displayName} - ${details.join(' | ')}` : user.displayName;
@@ -47,8 +44,11 @@ export default function LoginDemo() {
   const location = useLocation();
   const { loginAsRole } = useAppStateContext();
   const { t, i18n } = useTranslation();
-  usePageTitle(i18n.language === 'en' ? 'Demo login' : 'Logowanie demo');
-  const isEnglish = i18n.language === 'en';
+  const { theme, setTheme } = useTheme();
+  usePageTitle(t('loginDemo.pageTitle'));
+
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+  const toggleLanguage = () => void i18n.changeLanguage(i18n.language === 'pl' ? 'en' : 'pl');
 
   const [selectedGroup, setSelectedGroup] = useState<DemoLoginGroup>('client');
   const [users, setUsers] = useState<DemoUserOption[]>([]);
@@ -85,7 +85,7 @@ export default function LoginDemo() {
         if (!active) return;
         setUsers([]);
         setSelectedEmail('');
-        setLoadError(error instanceof Error ? error.message : isEnglish ? 'Could not load demo users.' : 'Nie udalo sie pobrac kont demo.');
+        setLoadError(error instanceof Error ? error.message : t('loginDemo.loadError'));
       })
       .finally(() => {
         if (active) {
@@ -96,14 +96,14 @@ export default function LoginDemo() {
     return () => {
       active = false;
     };
-  }, [isEnglish, selectedGroup]);
+  }, [selectedGroup, t]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAuthError(null);
 
     if (!selectedEmail) {
-      setAuthError(isEnglish ? 'Select an account first.' : 'Najpierw wybierz konto.');
+      setAuthError(t('loginDemo.selectFirst'));
       return;
     }
 
@@ -132,8 +132,32 @@ export default function LoginDemo() {
     }
   };
 
+  const getRoleLabel = (option: typeof demoRoleOptions[number]) => {
+    if (option.id === 'dispatcher') return t('roles.dispatcher');
+    if (option.id === 'admin') return t('roles.admin');
+    return t(`roles.${option.role}`);
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary to-primary/90 p-4">
+      <div className="fixed top-4 right-4 flex items-center gap-2">
+        <button
+          onClick={toggleLanguage}
+          title={t('language.toggle')}
+          className="flex items-center gap-1 p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
+        >
+          <Globe className="w-4 h-4" />
+          <span className="text-xs font-medium uppercase">{i18n.language === 'pl' ? 'PL' : 'EN'}</span>
+        </button>
+        <button
+          onClick={toggleTheme}
+          title={t('theme.toggle')}
+          className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
+        >
+          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+      </div>
+
       <div className="w-full max-w-5xl">
         <div className="mb-8 text-center">
           <Link to="/" className="inline-flex items-center gap-2 text-white">
@@ -142,36 +166,22 @@ export default function LoginDemo() {
             </div>
             <span className="text-3xl">PingwinPost</span>
           </Link>
-          <p className="mt-2 text-white/70">
-            {isEnglish
-              ? 'Quick presenter login with existing role accounts from the live backend.'
-              : 'Szybkie logowanie prezentacyjne na istniejace konta z zywego backendu.'}
-          </p>
+          <p className="mt-2 text-white/70">{t('loginDemo.tagline')}</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr]">
           <div className="rounded-2xl bg-card p-8 shadow-xl">
             <div className="mb-6">
               <div className="text-sm uppercase tracking-[0.25em] text-accent">
-                {isEnglish ? 'Demo Access' : 'Dostep demo'}
+                {t('loginDemo.accessLabel')}
               </div>
-              <h1 className="mt-3 text-3xl">{isEnglish ? 'Choose role and account' : 'Wybierz role i konto'}</h1>
-              <p className="mt-2 text-muted-foreground">
-                {isEnglish
-                  ? 'Select a role first, then choose one of the active accounts available for that role.'
-                  : 'Najpierw wybierz role, a potem jedno z aktywnych kont dostepnych dla tej roli.'}
-              </p>
+              <h1 className="mt-3 text-3xl">{t('loginDemo.chooseRole')}</h1>
+              <p className="mt-2 text-muted-foreground">{t('loginDemo.chooseRoleDesc')}</p>
             </div>
 
             <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-3">
               {demoRoleOptions.map((option) => {
                 const Icon = roleIcons[option.id];
-                const label =
-                  option.id === 'dispatcher'
-                    ? t('roles.dispatcher')
-                    : option.id === 'admin'
-                      ? t('roles.admin')
-                      : t(`roles.${option.role}`);
                 return (
                   <button
                     key={option.id}
@@ -183,9 +193,9 @@ export default function LoginDemo() {
                   >
                     <div className="mb-2 flex items-center gap-2">
                       <Icon className="h-4 w-4" />
-                      <span>{label}</span>
+                      <span>{getRoleLabel(option)}</span>
                     </div>
-                    <div className="text-xs text-muted-foreground">{getRoleHint(option.id, isEnglish)}</div>
+                    <div className="text-xs text-muted-foreground">{t(roleHintKeys[option.id])}</div>
                   </button>
                 );
               })}
@@ -205,29 +215,19 @@ export default function LoginDemo() {
                 >
                   {users.length === 0 ? (
                     <option value="">
-                      {isLoadingUsers
-                        ? isEnglish
-                          ? 'Loading accounts...'
-                          : 'Ladowanie kont...'
-                        : isEnglish
-                          ? 'No accounts available'
-                          : 'Brak dostepnych kont'}
+                      {isLoadingUsers ? t('loginDemo.loadingAccounts') : t('loginDemo.noAccounts')}
                     </option>
                   ) : null}
                   {users.map((user) => (
                     <option key={user.email} value={user.email}>
-                      {buildDemoUserOptionLabel(user, isEnglish)}
+                      {buildDemoUserOptionLabel(user, t('loginDemo.cityLabel'))}
                     </option>
                   ))}
                 </select>
                 <div className="mt-2 text-xs text-muted-foreground">
                   {isLoadingUsers
-                    ? isEnglish
-                      ? 'Fetching active users from /api/auth/demo-users.'
-                      : 'Pobieranie aktywnych uzytkownikow z /api/auth/demo-users.'
-                    : isEnglish
-                      ? `${users.length} account(s) available for this role.`
-                      : `Dostepne konta dla tej roli: ${users.length}.`}
+                    ? t('loginDemo.fetchingUsers')
+                    : t('loginDemo.usersCount', { count: users.length })}
                 </div>
               </div>
 
@@ -245,11 +245,7 @@ export default function LoginDemo() {
                     className="w-full rounded-lg border border-border bg-input-background py-3 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </div>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  {isEnglish
-                    ? 'Prefilled with the shared demo password. You can still edit it if needed.'
-                    : 'Pole jest uzupelnione wspolnym haslem demo, ale nadal mozna je zmienic.'}
-                </div>
+                <div className="mt-2 text-xs text-muted-foreground">{t('loginDemo.demoPasswordHint')}</div>
               </div>
 
               {loadError ? <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{loadError}</div> : null}
@@ -262,9 +258,7 @@ export default function LoginDemo() {
               >
                 {isSubmitting
                   ? t('common.loading')
-                  : isEnglish
-                    ? `Log in as ${selectedRoleOption.id === 'dispatcher' ? t('roles.dispatcher') : selectedRoleOption.id === 'admin' ? t('roles.admin') : t(`roles.${selectedRoleOption.role}`)}`
-                    : `Zaloguj jako ${selectedRoleOption.id === 'dispatcher' ? t('roles.dispatcher') : selectedRoleOption.id === 'admin' ? t('roles.admin') : t(`roles.${selectedRoleOption.role}`)}`}
+                  : t('loginDemo.loginAs', { role: getRoleLabel(selectedRoleOption) })}
               </button>
             </form>
           </div>
@@ -272,27 +266,15 @@ export default function LoginDemo() {
           <div className="space-y-6 rounded-2xl bg-card p-8 shadow-xl">
             <div>
               <div className="text-sm uppercase tracking-[0.25em] text-accent">
-                {isEnglish ? 'How to use it' : 'Jak tego uzyc'}
+                {t('loginDemo.howToUseLabel')}
               </div>
-              <h2 className="mt-3 text-2xl">{isEnglish ? 'Demo shortcuts' : 'Skroty do dema'}</h2>
+              <h2 className="mt-3 text-2xl">{t('loginDemo.shortcutsTitle')}</h2>
             </div>
 
             <div className="space-y-4 text-sm text-muted-foreground">
-              <div className="rounded-xl bg-secondary p-4">
-                {isEnglish
-                  ? 'Pick the role you want to present, then choose one of the live accounts returned by the backend for that role.'
-                  : 'Wybierz role, ktora chcesz prezentowac, a potem jedno z zywych kont zwroconych przez backend dla tej roli.'}
-              </div>
-              <div className="rounded-xl bg-secondary p-4">
-                {isEnglish
-                  ? 'Administrator and Dispatcher are separated here on purpose, even though both ultimately log into the admin shell.'
-                  : 'Administrator i Dyspozytor sa tutaj rozdzieleni celowo, mimo ze oba konta finalnie wchodza do shell-a admina.'}
-              </div>
-              <div className="rounded-xl bg-secondary p-4">
-                {isEnglish
-                  ? 'Use /demo-help in parallel when you want a step-by-step operational script for source -> transit -> target.'
-                  : 'Uzyj rownolegle /demo-help, gdy potrzebujesz gotowego scenariusza source -> transit -> target.'}
-              </div>
+              <div className="rounded-xl bg-secondary p-4">{t('loginDemo.hint1')}</div>
+              <div className="rounded-xl bg-secondary p-4">{t('loginDemo.hint2')}</div>
+              <div className="rounded-xl bg-secondary p-4">{t('loginDemo.hint3')}</div>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -300,10 +282,10 @@ export default function LoginDemo() {
                 to="/demo-help"
                 className="rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-muted"
               >
-                {isEnglish ? 'Open demo help' : 'Otworz demo help'}
+                {t('loginDemo.openDemoHelp')}
               </Link>
               <Link to="/login" className="rounded-lg border border-border px-4 py-2 text-sm transition-colors hover:bg-muted">
-                {isEnglish ? 'Go to classic login' : 'Przejdz do klasycznego logowania'}
+                {t('loginDemo.classicLogin')}
               </Link>
             </div>
           </div>

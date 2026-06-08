@@ -278,7 +278,7 @@ public class CourierTaskContractService {
                 shipment,
                 ShipmentStatus.DELIVERY_ATTEMPT,
                 "Delivery attempt",
-                withOptionalNote("Delivery attempt failed: " + attempt.getResult(), request.note()),
+                withOptionalNote("Nieudana próba doręczenia: " + attempt.getResult(), request.note()),
                 attempt.getAttemptTime()
         );
 
@@ -344,7 +344,7 @@ public class CourierTaskContractService {
                 shipment,
                 shipment.getStatus(),
                 "Notice issued",
-                "Awizo issued. Shipment available at point " + pickupPoint.getPointCode() + " until " + saved.getExpiresAt().toLocalDate(),
+                "Awizo zostało wystawione. Przesyłka czeka w punkcie " + pickupPoint.getPointCode() + " do " + saved.getExpiresAt().toLocalDate(),
                 now
         );
 

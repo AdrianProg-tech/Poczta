@@ -6,12 +6,12 @@ test('courier task board exposes batch controls and next-step guidance', async (
 
   await page.goto('/courier/tasks');
 
-  await expect(page.getByRole('heading', { name: 'Aktywne zadania' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Active tasks' })).toBeVisible();
   await expectTexts(page, [
-    'Przyjmij zaznaczone',
-    'Rozpocznij zaznaczone',
-    'Dorecz zaznaczone',
-    'Zapisz probe + redirect dla zaznaczonych',
-    'Nastepny krok',
+    'Accept selected',
+    'Start selected',
+    'Deliver selected',
+    'Save attempt + redirect for selected',
+    'Next step',
   ]);
 });

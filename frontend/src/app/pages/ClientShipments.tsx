@@ -12,6 +12,7 @@ import { DashboardShell } from '../components/DashboardShell';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAppStateContext } from '../state/AppStateContext';
 import { useTranslation } from 'react-i18next';
+import { type TFunction } from 'i18next';
 
 export function canShowPaymentShortcut(shipment: ClientShipmentListItem) {
   return shipment.paymentStatus === 'PENDING';
@@ -21,7 +22,7 @@ export function canShowRedirectShortcut(shipment: ClientShipmentListItem) {
   return !['AWAITING_PICKUP', 'AWAITING_LOCKER_PICKUP', 'DELIVERED', 'RETURNED', 'CANCELED'].includes(shipment.currentStatus);
 }
 
-function printClientShipmentSummary(shipment: ClientShipmentListItem) {
+function printClientShipmentSummary(shipment: ClientShipmentListItem, t: TFunction) {
   if (typeof window === 'undefined') {
     return;
   }
@@ -51,15 +52,15 @@ function printClientShipmentSummary(shipment: ClientShipmentListItem) {
   <body>
     <div class="sheet">
       <div class="brand">PingwinPost</div>
-      <div class="eyebrow">Szybki wydruk klienta z listy przesylek</div>
+      <div class="eyebrow">${t('clientShipments.printEyebrow')}</div>
       <div class="tracking">${shipment.trackingNumber}</div>
       <div class="grid">
-        <div><div class="label">Odbiorca</div><div class="value">${shipment.recipientName}</div></div>
-        <div><div class="label">Status przesylki</div><div class="value">${shipment.currentStatus}</div></div>
-        <div><div class="label">Status platnosci</div><div class="value">${shipment.paymentStatus ?? 'Brak danych'}</div></div>
-        <div><div class="label">Cel</div><div class="value">${shipment.destinationSummary}</div></div>
-        <div><div class="label">Utworzona</div><div class="value">${formatDateTime(shipment.createdAt)}</div></div>
-        <div><div class="label">ETA</div><div class="value">${shipment.estimatedDeliveryDate ? formatDateTime(shipment.estimatedDeliveryDate) : 'Brak danych'}</div></div>
+        <div><div class="label">${t('clientShipments.printRecipient')}</div><div class="value">${shipment.recipientName}</div></div>
+        <div><div class="label">${t('clientShipments.printShipmentStatus')}</div><div class="value">${shipment.currentStatus}</div></div>
+        <div><div class="label">${t('clientShipments.printPaymentStatus')}</div><div class="value">${shipment.paymentStatus ?? t('clientShipments.printNoData')}</div></div>
+        <div><div class="label">${t('clientShipments.printDestination')}</div><div class="value">${shipment.destinationSummary}</div></div>
+        <div><div class="label">${t('clientShipments.printCreated')}</div><div class="value">${formatDateTime(shipment.createdAt)}</div></div>
+        <div><div class="label">${t('clientShipments.printEta')}</div><div class="value">${shipment.estimatedDeliveryDate ? formatDateTime(shipment.estimatedDeliveryDate) : t('clientShipments.printNoData')}</div></div>
       </div>
     </div>
   </body>
@@ -96,7 +97,7 @@ export default function ClientShipments() {
       setShipments(data);
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac przesylek.');
+      setError(requestError instanceof Error ? requestError.message : t('clientShipments.errorLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -142,25 +143,23 @@ export default function ClientShipments() {
     try {
       const details = await getClientShipmentDetails(currentUser.email, trackingNumber);
       if (details.payment.status !== 'PENDING' || details.payment.method !== 'ONLINE' || !details.payment.paymentId) {
-        throw new Error('Ta przesylka nie ma juz aktywnej platnosci online do uruchomienia.');
+        throw new Error(t('clientShipments.errorPaymentInvalid'));
       }
 
       const { checkoutUrl } = await initiateOnlinePayment(currentUser.email, details.payment.paymentId);
       window.location.href = checkoutUrl;
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie uruchomic platnosci online.');
+      setError(requestError instanceof Error ? requestError.message : t('clientShipments.errorPayOnline'));
       setBusyActionKey(null);
     }
   }
 
   return (
-    <DashboardShell role="client" title="Moje przesylki">
+    <DashboardShell role="client" title={t('clientShipments.pageTitle')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="mb-2 text-2xl">Wszystkie przesylki</h2>
-          <p className="text-muted-foreground">
-            Lista przesylek powiazanych z zalogowanym klientem z szybkimi akcjami bez schodzenia do szczegolow.
-          </p>
+          <h2 className="mb-2 text-2xl">{t('clientShipments.heading')}</h2>
+          <p className="text-muted-foreground">{t('clientShipments.desc')}</p>
         </div>
         <button
           type="button"
@@ -175,19 +174,19 @@ export default function ClientShipments() {
 
       <div className="mb-6 grid gap-4 md:grid-cols-4">
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <div className="text-sm text-muted-foreground">Wszystkie przesylki</div>
+          <div className="text-sm text-muted-foreground">{t('clientShipments.statAll')}</div>
           <div className="mt-2 text-3xl">{summary.total}</div>
         </div>
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <div className="text-sm text-muted-foreground">Czekaja na platnosc</div>
+          <div className="text-sm text-muted-foreground">{t('clientShipments.statPending')}</div>
           <div className="mt-2 text-3xl">{summary.pendingPayment}</div>
         </div>
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <div className="text-sm text-muted-foreground">Mozna przekierowac</div>
+          <div className="text-sm text-muted-foreground">{t('clientShipments.statRedirectable')}</div>
           <div className="mt-2 text-3xl">{summary.redirectable}</div>
         </div>
         <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-          <div className="text-sm text-muted-foreground">Doreczone</div>
+          <div className="text-sm text-muted-foreground">{t('clientShipments.statDelivered')}</div>
           <div className="mt-2 text-3xl">{summary.delivered}</div>
         </div>
       </div>
@@ -195,12 +194,12 @@ export default function ClientShipments() {
       <div className="mb-6 rounded-xl border border-border bg-card p-5 shadow-sm">
         <label className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
           <ScanSearch className="h-4 w-4" />
-          Numer / odbiorca / cel / status
+          {t('clientShipments.searchLabel')}
         </label>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Wpisz tracking, nazwisko odbiorcy albo miasto docelowe"
+          placeholder={t('clientShipments.searchPlaceholder')}
           className="w-full rounded-lg border border-border bg-input-background px-4 py-3 outline-none transition-colors focus:border-accent"
         />
       </div>
@@ -208,20 +207,20 @@ export default function ClientShipments() {
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="flex items-center justify-between gap-4 border-b border-border p-6">
           <div>
-            <h3 className="text-xl">Lista przesylek</h3>
+            <h3 className="text-xl">{t('clientShipments.listHeading')}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Widoczne: {filteredShipments.length} / Lacznie: {shipments.length}
+              {t('clientShipments.visible', { count: filteredShipments.length, total: shipments.length })}
             </p>
           </div>
           <Link
             to="/client/shipments/create"
             className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90"
           >
-            Nowa przesylka
+            {t('clientShipments.newShipment')}
           </Link>
         </div>
 
-        {isLoading ? <div className="p-6">Ladowanie przesylek...</div> : null}
+        {isLoading ? <div className="p-6">{t('clientShipments.loading')}</div> : null}
         {error ? <div className="p-6 text-destructive">{error}</div> : null}
 
         {!isLoading && !error ? (
@@ -229,13 +228,13 @@ export default function ClientShipments() {
             <table className="w-full">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Numer</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Odbiorca</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Status</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Platnosc</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Cel</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Utworzona</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Akcje</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('clientShipments.colNumber')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('clientShipments.colRecipient')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('clientShipments.colStatus')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('clientShipments.colPayment')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('clientShipments.colDestination')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('clientShipments.colCreated')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('clientShipments.colActions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -261,7 +260,7 @@ export default function ClientShipments() {
                           to={`/client/shipments/${shipment.trackingNumber}`}
                           className="rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
                         >
-                          Szczegoly
+                          {t('clientShipments.details')}
                         </Link>
                         {canShowPaymentShortcut(shipment) ? (
                           <button
@@ -271,7 +270,7 @@ export default function ClientShipments() {
                             className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
                           >
                             <CreditCard className="h-4 w-4" />
-                            Oplac
+                            {t('clientShipments.pay')}
                           </button>
                         ) : null}
                         {canShowRedirectShortcut(shipment) ? (
@@ -288,15 +287,15 @@ export default function ClientShipments() {
                           className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
                         >
                           <AlertCircle className="h-4 w-4" />
-                          Reklamacja
+                          {t('clientShipments.complaint')}
                         </Link>
                         <button
                           type="button"
-                          onClick={() => printClientShipmentSummary(shipment)}
+                          onClick={() => printClientShipmentSummary(shipment, t)}
                           className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm transition-colors hover:bg-muted"
                         >
                           <Printer className="h-4 w-4" />
-                          Drukuj
+                          {t('clientShipments.print')}
                         </button>
                       </div>
                     </td>
@@ -308,7 +307,7 @@ export default function ClientShipments() {
         ) : null}
 
         {!isLoading && !error && filteredShipments.length === 0 ? (
-          <div className="p-6 text-muted-foreground">Brak przesylek dla tego filtra lub konta klienta.</div>
+          <div className="p-6 text-muted-foreground">{t('clientShipments.empty')}</div>
         ) : null}
       </div>
     </DashboardShell>

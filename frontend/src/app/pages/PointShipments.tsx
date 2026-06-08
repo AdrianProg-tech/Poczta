@@ -9,35 +9,35 @@ export default function PointShipments() {
   const { error, isLoading, loadQueue, pointCode, queue, queueStats } = usePointQueueData();
   const queueGroups = [
     {
-      title: 'Przyjecie',
-      description: 'Nowe przyjecia, redirecty i pozycje gotowe do nadania dalej.',
-      emptyText: 'Brak pozycji w kolejce przyjecia.',
+      title: t('pointShipments.acceptTitle'),
+      description: t('pointShipments.acceptDesc'),
+      emptyText: t('pointShipments.acceptEmpty'),
       items: queue?.acceptQueue ?? [],
       path: '/point/accept',
     },
     {
-      title: 'Wydanie',
-      description: 'Paczki czekajace na klienta w punkcie.',
-      emptyText: 'Brak paczek gotowych do odbioru.',
+      title: t('pointShipments.releaseTitle'),
+      description: t('pointShipments.releaseDesc'),
+      emptyText: t('pointShipments.releaseEmpty'),
       items: queue?.pickupQueue ?? [],
       path: '/point/release',
     },
     {
-      title: 'Platnosci offline',
-      description: 'Rozliczenia gotowkowe i szybkie checkouty dla punktu.',
-      emptyText: 'Brak platnosci offline do obslugi.',
+      title: t('pointShipments.offlinePayTitle'),
+      description: t('pointShipments.offlinePayDesc'),
+      emptyText: t('pointShipments.offlinePayEmpty'),
       items: queue?.offlinePaymentQueue ?? [],
       path: '/point/payment-verification',
     },
   ];
 
   return (
-    <DashboardShell role="point" title="Kolejki punktu">
+    <DashboardShell role="point" title={t('pointShipments.pageTitle')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="mb-2 text-2xl">Overview kolejek punktu</h2>
+          <h2 className="mb-2 text-2xl">{t('pointShipments.heading')}</h2>
           <p className="text-muted-foreground">
-            Widok czyta zywe `acceptQueue`, `pickupQueue` i `offlinePaymentQueue` dla punktu {pointCode ?? '-'} i rozprowadza operatora do odpowiedniego flow.
+            {t('pointShipments.desc', { code: pointCode ?? '-' })}
           </p>
         </div>
 
@@ -70,7 +70,7 @@ export default function PointShipments() {
       </div>
 
       {error ? <div className="mb-6 rounded-lg bg-destructive/10 p-4 text-destructive">{error}</div> : null}
-      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">Ladowanie kolejki...</div> : null}
+      {isLoading ? <div className="rounded-xl border border-border bg-card p-6 shadow-sm">{t('pointShipments.loading')}</div> : null}
 
       {!isLoading ? (
         <div className="space-y-6">
@@ -84,7 +84,7 @@ export default function PointShipments() {
                     to={group.path}
                     className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
                   >
-                    Otworz ekran
+                    {t('pointShipments.openScreen')}
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 }
@@ -93,7 +93,7 @@ export default function PointShipments() {
               />
               {group.items.length > 3 ? (
                 <div className="text-sm text-muted-foreground">
-                  Pokazano 3 z {group.items.length} pozycji. Pelna obsluga jest na dedykowanym ekranie.
+                  {t('pointShipments.showingMore', { count: group.items.length })}
                 </div>
               ) : null}
             </div>

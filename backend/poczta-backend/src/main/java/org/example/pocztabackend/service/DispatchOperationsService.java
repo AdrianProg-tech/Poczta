@@ -75,8 +75,8 @@ public class DispatchOperationsService {
         TrackingEvent event = new TrackingEvent();
         event.setShipment(shipment);
         event.setStatus(ShipmentStatus.READY_FOR_POSTING.name());
-        event.setLocationName("Operations preparation");
-        event.setDescription("Shipment prepared for dispatch by operations");
+        event.setLocationName("Przygotowanie operacyjne");
+        event.setDescription("Przesyłka została przygotowana do wysyłki przez operacje");
         event.setEventTime(LocalDateTime.now());
         trackingEventRepository.save(event);
 
@@ -138,8 +138,9 @@ public class DispatchOperationsService {
         addTrackingEvent(
                 shipment,
                 shipment.getStatus(),
-                "PICKUP".equals(taskType) ? "Courier pickup assignment" : "Courier assignment",
-                "Shipment assigned to courier " + courier.getEmail() + " for " + taskType.toLowerCase(Locale.ROOT),
+                "PICKUP".equals(taskType) ? "Przypisanie kuriera do odbioru" : "Przypisanie kuriera",
+                "Przesyłka została przypisana do kuriera " + courier.getEmail() + " dla zadania "
+                        + taskType.toLowerCase(Locale.ROOT),
                 LocalDateTime.now()
         );
 
@@ -189,13 +190,13 @@ public class DispatchOperationsService {
             shipmentRepository.save(shipment);
         }
 
-        String previousCourierEmail = latestTask.getCourier() == null ? "unknown courier" : latestTask.getCourier().getEmail();
+        String previousCourierEmail = latestTask.getCourier() == null ? "nieznany kurier" : latestTask.getCourier().getEmail();
         addTrackingEvent(
                 shipment,
                 shipment.getStatus(),
-                "Courier reassignment",
-                "Shipment reassigned from " + previousCourierEmail + " to courier " + newCourier.getEmail()
-                        + " for " + newTask.getTaskType().toLowerCase(Locale.ROOT),
+                "Przepięcie kuriera",
+                "Przesyłka została przepisana z kuriera " + previousCourierEmail + " na kuriera " + newCourier.getEmail()
+                        + " dla zadania " + newTask.getTaskType().toLowerCase(Locale.ROOT),
                 LocalDateTime.now()
         );
 
@@ -220,7 +221,7 @@ public class DispatchOperationsService {
                 resolveHubCode(shipment)
         );
         shipmentRepository.save(shipment);
-        addTrackingEvent(shipment, ShipmentStatus.IN_TRANSIT, "Sorting hub", "Shipment arrived at sorting hub and is in transit", LocalDateTime.now());
+        addTrackingEvent(shipment, ShipmentStatus.IN_TRANSIT, "Hub sortujący", "Przesyłka dotarła do hubu sortującego i jest w tranzycie", LocalDateTime.now());
 
         return new ShipmentStateChangeResponse(shipment.getTrackingNumber(), shipment.getStatus().name());
     }
@@ -245,7 +246,7 @@ public class DispatchOperationsService {
         if (shipment.getStatus() == ShipmentStatus.POSTED) {
             shipmentWorkflowService.changeStatus(shipment, ShipmentStatus.IN_TRANSIT);
             shipmentRepository.save(shipment);
-            addTrackingEvent(shipment, ShipmentStatus.IN_TRANSIT, "Sorting hub", "Shipment in transit to destination", LocalDateTime.now());
+            addTrackingEvent(shipment, ShipmentStatus.IN_TRANSIT, "Hub sortujący", "Przesyłka jest w tranzycie do punktu docelowego", LocalDateTime.now());
         }
 
         shipment.setCurrentPoint(null);
@@ -257,7 +258,7 @@ public class DispatchOperationsService {
         );
         shipmentRepository.save(shipment);
         addTrackingEvent(shipment, ShipmentStatus.IN_TRANSIT,
-                targetPoint.getPointCode(), "Shipment routed to pickup point " + targetPoint.getPointCode(), LocalDateTime.now());
+                targetPoint.getPointCode(), "Przesyłka została skierowana do punktu odbioru " + targetPoint.getPointCode(), LocalDateTime.now());
 
         return new ShipmentStateChangeResponse(shipment.getTrackingNumber(), shipment.getStatus().name());
     }

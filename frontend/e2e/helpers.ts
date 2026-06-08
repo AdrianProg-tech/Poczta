@@ -35,7 +35,11 @@ export async function loginAsDemoRole(page: Page, role: DemoRole) {
   const dashboardPath = dashboardPaths[role];
   const email = roleEmails[role];
 
+  await page.addInitScript(() => {
+    window.localStorage.setItem('i18nextLng', 'pl');
+  });
   await page.goto('/login');
+  await page.reload();
   const roleButton = page.getByRole('button', { name: new RegExp(`^${escapeRegExp(roleLabel)}`) });
   if (await roleButton.count()) {
     await expect(roleButton.first()).toBeVisible();

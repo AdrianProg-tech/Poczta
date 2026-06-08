@@ -33,8 +33,8 @@ import { DashboardShell } from '../components/DashboardShell';
 import { useAppStateContext } from '../state/AppStateContext';
 import { useTranslation } from 'react-i18next';
 
-function formatCourierLoadLabel(openTasks: number, inProgressTasks: number, failedTasks: number) {
-  return `otwarte ${openTasks} / w trasie ${inProgressTasks} / nieudane ${failedTasks}`;
+function formatCourierLoadLabel(openTasks: number, inProgressTasks: number, failedTasks: number, t: (key: string, opts?: object) => string) {
+  return t('adminDashboard.courierLoad', { open: openTasks, inProgress: inProgressTasks, failed: failedTasks });
 }
 
 export default function AdminDashboard() {
@@ -85,7 +85,7 @@ export default function AdminDashboard() {
       setComplaints(complaintsData);
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie odswiezyc panelu operacyjnego.');
+      setError(requestError instanceof Error ? requestError.message : t('adminDashboard.errorLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -102,48 +102,48 @@ export default function AdminDashboard() {
       await action();
       await loadDashboard();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Operacja z dashboardu nie powiodla sie.');
+      setError(requestError instanceof Error ? requestError.message : t('adminDashboard.actionError'));
     } finally {
       setBusyKey(null);
     }
   }
 
   const stats = [
-    { label: 'Wszystkie przesylki', value: summary?.totalShipments ?? 0, icon: Package, color: 'text-accent' },
-    { label: 'Bledne platnosci', value: summary?.paymentFailedShipments ?? 0, icon: CreditCard, color: 'text-destructive' },
-    { label: 'Aktywne taski kurierow', value: summary?.activeCourierTasks ?? 0, icon: Truck, color: 'text-info' },
-    { label: 'Reklamacje w analizie', value: summary?.complaintsInReview ?? 0, icon: AlertCircle, color: 'text-warning' },
+    { label: t('adminDashboard.statAll'), value: summary?.totalShipments ?? 0, icon: Package, color: 'text-accent' },
+    { label: t('adminDashboard.statPaymentFailed'), value: summary?.paymentFailedShipments ?? 0, icon: CreditCard, color: 'text-destructive' },
+    { label: t('adminDashboard.statActiveTasks'), value: summary?.activeCourierTasks ?? 0, icon: Truck, color: 'text-info' },
+    { label: t('adminDashboard.statComplaintsInReview'), value: summary?.complaintsInReview ?? 0, icon: AlertCircle, color: 'text-warning' },
   ];
 
   const focusItems = useMemo(
     () => [
       {
-        title: 'Do przygotowania',
+        title: t('adminDashboard.focusReadyTitle'),
         value: summary?.readyForDispatchShipments ?? 0,
-        description: 'Oplacone przesylki czekajace na przygotowanie do wysylki.',
+        description: t('adminDashboard.focusReadyDesc'),
       },
       {
-        title: 'Czekaja na kuriera',
+        title: t('adminDashboard.focusCourierTitle'),
         value: summary?.awaitingCourierAssignmentShipments ?? 0,
-        description: 'Przesylki gotowe do dispatchu, ale bez zadania kuriera.',
+        description: t('adminDashboard.focusCourierDesc'),
       },
       {
-        title: 'Platnosc u kuriera',
+        title: t('adminDashboard.focusPaymentTitle'),
         value: shipmentBoard.filter((item) => item.nextSuggestedAction === 'COLLECT_PAYMENT_AND_DELIVER').length,
-        description: 'Dostawy z pobraniem, w ktorych kurier musi domknac gotowke albo karte przy drzwiach.',
+        description: t('adminDashboard.focusPaymentDesc'),
       },
       {
-        title: 'Redirect do punktu',
+        title: t('adminDashboard.focusRedirectTitle'),
         value: summary?.redirectedToPickupShipments ?? 0,
-        description: 'Przesylki po nieudanej probie doreczenia, jeszcze nie przyjete w punkcie.',
+        description: t('adminDashboard.focusRedirectDesc'),
       },
       {
-        title: 'Do odbioru',
+        title: t('adminDashboard.focusPickupTitle'),
         value: summary?.awaitingPickupShipments ?? 0,
-        description: 'Przesylki czekajace na klienta w flow odbioru.',
+        description: t('adminDashboard.focusPickupDesc'),
       },
     ],
-    [shipmentBoard, summary],
+    [shipmentBoard, summary, t],
   );
 
   const prepareQueue = useMemo(
@@ -181,14 +181,11 @@ export default function AdminDashboard() {
   );
 
   return (
-    <DashboardShell role="admin" title="Panel operacyjny">
+    <DashboardShell role="admin" title={t('adminDashboard.panelTitle')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="mb-2 text-2xl">Panel operacyjny</h2>
-          <p className="text-muted-foreground">
-            Widok jest oparty o biezacy model operacyjny `/api/ops/*` i pozwala wykonywac najwazniejsze akcje bez
-            schodzenia do osobnych ekranow.
-          </p>
+          <h2 className="mb-2 text-2xl">{t('adminDashboard.panelTitle')}</h2>
+          <p className="text-muted-foreground">{t('adminDashboard.panelDesc')}</p>
         </div>
 
         <button
@@ -236,29 +233,29 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3">
                 <CreditCard className="h-6 w-6 text-destructive" />
                 <div>
-                  <div className="text-sm text-destructive">Płatności wymagają uwagi</div>
+                  <div className="text-sm text-destructive">{t('adminDashboard.paymentQueueTitle')}</div>
                   <div className="text-2xl text-destructive">{paymentQueue.length}</div>
                 </div>
               </div>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                Zarządzaj płatnościami →
+                {t('adminDashboard.paymentQueueAction')}
               </div>
             </Link>
           ) : null}
           {complaintQueue.length > 0 ? (
             <Link
-              to="/admin/complaints"
+              to="/admin/claims"
               className="flex items-center justify-between rounded-xl border border-warning/30 bg-warning/10 p-5 transition-colors hover:bg-warning/15"
             >
               <div className="flex items-center gap-3">
                 <AlertCircle className="h-6 w-6 text-warning" />
                 <div>
-                  <div className="text-sm text-warning">Reklamacje w kolejce</div>
+                  <div className="text-sm text-warning">{t('adminDashboard.complaintQueueTitle')}</div>
                   <div className="text-2xl text-warning">{complaintQueue.length}</div>
                 </div>
               </div>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                Zarządzaj reklamacjami →
+                {t('adminDashboard.complaintQueueAction')}
               </div>
             </Link>
           ) : null}
@@ -268,10 +265,9 @@ export default function AdminDashboard() {
       <div className="mb-8 rounded-xl border border-dashed border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h3 className="text-lg">Techniczne narzedzia demo</h3>
+            <h3 className="text-lg">{t('adminDashboard.demoTitle')}</h3>
             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              Ukryte strony operacyjne do demonstracji cyklu zycia przesylki, przejazdow miedzy hubami oraz
-              technicznych flow odbioru i wydania. Sa podlinkowane tylko z warstwy administracyjnej.
+              {t('adminDashboard.demoDesc')}
             </p>
           </div>
 
@@ -280,25 +276,25 @@ export default function AdminDashboard() {
               to="/admin/demo-lab"
               className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90"
             >
-              Otworz laboratorium demo
+              {t('adminDashboard.openDemoLab')}
             </Link>
             <Link
               to="/admin/demo/locker"
               className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
             >
-              Otworz laboratorium skrytek
+              {t('adminDashboard.openLockerLab')}
             </Link>
             <Link
               to="/admin/demo/transit"
               className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
             >
-              Otworz laboratorium tranzytu
+              {t('adminDashboard.openTransitLab')}
             </Link>
             <Link
               to="/admin/demo/handover"
               className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted"
             >
-              Otworz laboratorium przekazan
+              {t('adminDashboard.openHandoverLab')}
             </Link>
           </div>
         </div>
@@ -307,9 +303,9 @@ export default function AdminDashboard() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border p-6">
-            <h3 className="text-lg">Kolejka przygotowania</h3>
+            <h3 className="text-lg">{t('adminDashboard.prepareQueueTitle')}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Przesylki oplacone i gotowe do pierwszego operacyjnego ruchu.
+              {t('adminDashboard.prepareQueueDesc')}
             </p>
           </div>
           <div className="space-y-4 p-6">
@@ -323,7 +319,7 @@ export default function AdminDashboard() {
                       <StatusBadge status={shipment.shipmentStatus} />
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Cel: {shipment.destinationCity ?? 'brak miasta'} | Platnosc: {shipment.paymentStatus ?? 'brak'}
+                      {t('adminDashboard.prepareRowInfo', { city: shipment.destinationCity ?? t('adminDashboard.noCity'), payment: shipment.paymentStatus ?? t('adminDashboard.noData') })}
                     </div>
                     <div className="mt-3">
                       <button
@@ -337,23 +333,23 @@ export default function AdminDashboard() {
                         }
                         className="rounded-lg bg-accent px-4 py-2 text-white transition-colors hover:bg-accent/90 disabled:opacity-70"
                       >
-                        Przygotuj do wysylki
+                        {t('adminDashboard.prepareAction')}
                       </button>
                     </div>
                   </div>
                 );
               })
             ) : (
-              <div className="text-muted-foreground">Brak przesylek czekajacych na przygotowanie do wysylki.</div>
+              <div className="text-muted-foreground">{t('adminDashboard.prepareEmpty')}</div>
             )}
           </div>
         </div>
 
         <div className="rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border p-6">
-            <h3 className="text-lg">Kolejka dispatchera</h3>
+            <h3 className="text-lg">{t('adminDashboard.dispatchQueueTitle')}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Przesylki, ktore mozna przypisac do kuriera bez schodzenia do surowego API.
+              {t('adminDashboard.dispatchQueueDesc')}
             </p>
           </div>
           <div className="space-y-4 p-6">
@@ -367,10 +363,10 @@ export default function AdminDashboard() {
                       <StatusBadge status={shipment.shipmentStatus} />
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Cel: {shipment.destinationCity ?? 'brak miasta'} | Sugestia: {suggestion?.suggestedCourierEmail ?? 'brak'}
+                      {t('adminDashboard.dispatchRowInfo', { city: shipment.destinationCity ?? t('adminDashboard.noCity'), courier: suggestion?.suggestedCourierEmail ?? t('adminDashboard.noData') })}
                     </div>
                     <div className="mt-2 text-sm text-muted-foreground">
-                      {suggestion?.suggestionReason ?? shipment.blockedReason ?? 'Brak sugestii.'}
+                      {suggestion?.suggestionReason ?? shipment.blockedReason ?? t('adminDashboard.noSuggestion')}
                     </div>
                     <div className="mt-3">
                       <button
@@ -385,14 +381,14 @@ export default function AdminDashboard() {
                         }
                         className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                       >
-                        Auto-przypisz
+                        {t('adminDashboard.autoAssign')}
                       </button>
                     </div>
                   </div>
                 );
               })
             ) : (
-              <div className="text-muted-foreground">Brak shipmentow czekajacych na przypisanie kuriera.</div>
+              <div className="text-muted-foreground">{t('adminDashboard.dispatchEmpty')}</div>
             )}
           </div>
         </div>
@@ -400,9 +396,9 @@ export default function AdminDashboard() {
 
       <div className="mt-6 rounded-xl border border-border bg-card shadow-sm">
         <div className="border-b border-border p-6">
-          <h3 className="text-lg">Kolejka przepiecia kuriera</h3>
+          <h3 className="text-lg">{t('adminDashboard.reassignQueueTitle')}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Taski jeszcze nieuruchomione, ktore mozna szybko przepiac na innego kuriera bez schodzenia do osobnego flow.
+            {t('adminDashboard.reassignQueueDesc')}
           </p>
         </div>
         <div className="space-y-4 p-6">
@@ -416,10 +412,10 @@ export default function AdminDashboard() {
                     <StatusBadge status={candidate.shipmentStatus} />
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    Aktualny kurier: {candidate.currentCourierEmail ?? 'brak'} | Zadanie: {candidate.currentTaskStatus}
+                    {t('adminDashboard.reassignRowInfo', { courier: candidate.currentCourierEmail ?? t('adminDashboard.noData'), taskStatus: candidate.currentTaskStatus })}
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    Sugestia: {candidate.suggestedCourierEmail ?? 'brak'} | {candidate.suggestionReason}
+                    {t('adminDashboard.reassignSuggestion', { courier: candidate.suggestedCourierEmail ?? t('adminDashboard.noData'), reason: candidate.suggestionReason })}
                   </div>
                   <div className="mt-3">
                     <button
@@ -434,24 +430,23 @@ export default function AdminDashboard() {
                       }
                       className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                     >
-                      Zmien kuriera
+                      {t('adminDashboard.reassignAction')}
                     </button>
                   </div>
                 </div>
               );
             })
           ) : (
-            <div className="text-muted-foreground">Brak taskow oczekujacych na reczne przepisanie kuriera.</div>
+            <div className="text-muted-foreground">{t('adminDashboard.reassignEmpty')}</div>
           )}
         </div>
       </div>
 
       <div className="mt-6 rounded-xl border border-border bg-card shadow-sm">
         <div className="border-b border-border p-6">
-          <h3 className="text-lg">Kolejka platnosci u kuriera</h3>
+          <h3 className="text-lg">{t('adminDashboard.checkoutQueueTitle')}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Przesylki z `OFFLINE_AT_COURIER`, gdzie delivery jest juz po stronie kuriera, ale pobranie gotowki lub
-            karty musi zostac zamkniete przed finalnym doreczeniem.
+            {t('adminDashboard.checkoutQueueDesc')}
           </p>
         </div>
         <div className="space-y-4 p-6">
@@ -463,19 +458,18 @@ export default function AdminDashboard() {
                   <StatusBadge status={shipment.shipmentStatus} />
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  Kurier: {shipment.assignedCourierEmail ?? 'brak'} | Cel: {shipment.destinationCity ?? 'brak miasta'}
+                  {t('adminDashboard.checkoutRowInfo', { courier: shipment.assignedCourierEmail ?? t('adminDashboard.noData'), city: shipment.destinationCity ?? t('adminDashboard.noCity') })}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  Platnosc: {shipment.paymentStatus ?? 'brak'} | Sugerowana akcja: pobierz platnosc i dorecz
+                  {t('adminDashboard.checkoutRowPayment', { status: shipment.paymentStatus ?? t('adminDashboard.noData') })}
                 </div>
                 <div className="mt-3 rounded-lg bg-card px-3 py-2 text-sm text-muted-foreground">
-                  Tylko do monitoringu: to rozliczenie zamyka kurier w szczegolach zadania. Po stronie boardu warto
-                  pilnowac, czy przesylka nie utknela zbyt dlugo przed `DELIVERED`.
+                  {t('adminDashboard.checkoutMonitorNote')}
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-muted-foreground">Brak aktywnych przypadkow platnosci u kuriera.</div>
+            <div className="text-muted-foreground">{t('adminDashboard.checkoutEmpty')}</div>
           )}
         </div>
       </div>
@@ -484,9 +478,9 @@ export default function AdminDashboard() {
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <div className="rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6">
-              <h3 className="text-lg">Kolejka wyjatkow platniczych</h3>
+              <h3 className="text-lg">{t('adminDashboard.paymentExceptionsTitle')}</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Najblizsze platnosci wymagajace potwierdzenia albo recznej decyzji.
+                {t('adminDashboard.paymentExceptionsDesc')}
               </p>
             </div>
             <div className="space-y-4 p-6">
@@ -501,7 +495,7 @@ export default function AdminDashboard() {
                         <StatusBadge status={payment.status} type="payment" />
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {payment.clientEmail ?? 'brak klienta'} | {formatCurrency(payment.amount)} | {formatPaymentMethod(payment.method)}
+                        {payment.clientEmail ?? t('adminDashboard.noClient')} | {formatCurrency(payment.amount)} | {formatPaymentMethod(payment.method)}
                       </div>
                       <div className="mt-1 text-sm text-muted-foreground">{formatPaymentStatus(payment.status)}</div>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -516,7 +510,7 @@ export default function AdminDashboard() {
                               }
                               className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                             >
-                              Oznacz jako oplacona
+                              {t('adminDashboard.markPaid')}
                             </button>
                             <button
                               type="button"
@@ -527,27 +521,27 @@ export default function AdminDashboard() {
                               }
                               className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                             >
-                              Oznacz jako nieudana
+                              {t('adminDashboard.markFailed')}
                             </button>
                           </>
                         ) : (
-                          <div className="text-sm text-muted-foreground">Wymaga decyzji klienta lub dodatkowej analizy.</div>
+                          <div className="text-sm text-muted-foreground">{t('adminDashboard.paymentDecisionNeeded')}</div>
                         )}
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <div className="text-muted-foreground">Brak wyjatkow platniczych do obslugi.</div>
+                <div className="text-muted-foreground">{t('adminDashboard.paymentExceptionsEmpty')}</div>
               )}
             </div>
           </div>
 
           <div className="rounded-xl border border-border bg-card shadow-sm">
             <div className="border-b border-border p-6">
-              <h3 className="text-lg">Kolejka reklamacji</h3>
+              <h3 className="text-lg">{t('adminDashboard.complaintQueueSectionTitle')}</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Reklamacje, ktore mozna od razu ruszyc z poziomu panelu.
+                {t('adminDashboard.complaintQueueSectionDesc')}
               </p>
             </div>
             <div className="space-y-4 p-6">
@@ -562,7 +556,7 @@ export default function AdminDashboard() {
                         <StatusBadge status={complaint.status} type="complaint" />
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {complaint.trackingNumber} | {formatComplaintType(complaint.type)} | {complaint.clientEmail ?? 'brak klienta'}
+                        {complaint.trackingNumber} | {formatComplaintType(complaint.type)} | {complaint.clientEmail ?? t('adminDashboard.noClient')}
                       </div>
                       <div className="mt-1 text-sm text-muted-foreground">{formatComplaintStatus(complaint.status)}</div>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -576,7 +570,7 @@ export default function AdminDashboard() {
                             }
                             className="rounded-lg border border-border bg-card px-4 py-2 transition-colors hover:bg-muted disabled:opacity-70"
                           >
-                            Rozpocznij analize
+                            {t('adminDashboard.startReview')}
                           </button>
                         ) : null}
                         {complaint.status === 'IN_REVIEW' ? (
@@ -586,12 +580,12 @@ export default function AdminDashboard() {
                             onClick={() =>
                               currentUser?.email &&
                               runDashboardAction(acceptKey, () =>
-                                acceptComplaint(currentUser.email, complaint.complaintId, 'Zaakceptowano z panelu operacyjnego'),
+                                acceptComplaint(currentUser.email, complaint.complaintId, t('adminDashboard.acceptComplaintNote')),
                               )
                             }
                             className="rounded-lg bg-success px-4 py-2 text-white transition-colors hover:bg-success/90 disabled:opacity-70"
                           >
-                            Akceptuj
+                            {t('adminDashboard.acceptComplaint')}
                           </button>
                         ) : null}
                       </div>
@@ -599,7 +593,7 @@ export default function AdminDashboard() {
                   );
                 })
               ) : (
-                <div className="text-muted-foreground">Brak reklamacji w kolejce analizy.</div>
+                <div className="text-muted-foreground">{t('adminDashboard.complaintEmpty')}</div>
               )}
             </div>
           </div>
@@ -609,9 +603,9 @@ export default function AdminDashboard() {
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border p-6">
-            <h3 className="text-lg">Flota kurierska</h3>
+            <h3 className="text-lg">{t('adminDashboard.fleetTitle')}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Zestawienie obciazenia kurierow po aktualnym seedzie i zywych operacjach.
+              {t('adminDashboard.fleetDesc')}
             </p>
           </div>
           <div className="space-y-4 p-6">
@@ -624,8 +618,8 @@ export default function AdminDashboard() {
                   </div>
                 </div>
                 <div className="text-right text-sm text-muted-foreground">
-                  <div>{formatCourierLoadLabel(courier.openTaskCount, courier.inProgressTaskCount, courier.failedTaskCount)}</div>
-                  <div>{courier.availableForAutoAssignment ? 'auto-assign: tak' : 'auto-assign: nie'}</div>
+                  <div>{formatCourierLoadLabel(courier.openTaskCount, courier.inProgressTaskCount, courier.failedTaskCount, t)}</div>
+                  <div>{courier.availableForAutoAssignment ? t('adminDashboard.autoAssignYes') : t('adminDashboard.autoAssignNo')}</div>
                 </div>
               </div>
             ))}
@@ -634,7 +628,7 @@ export default function AdminDashboard() {
 
         <div className="rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border p-6">
-            <h3 className="text-lg">Ostatnie zdarzenia</h3>
+            <h3 className="text-lg">{t('adminDashboard.recentEventsTitle')}</h3>
           </div>
           <div className="divide-y divide-border">
             {events.map((event, index) => (

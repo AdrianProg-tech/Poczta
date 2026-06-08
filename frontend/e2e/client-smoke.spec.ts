@@ -6,7 +6,7 @@ test('client shipments page exposes list-level quick actions and summaries', asy
 
   await page.goto('/client/shipments');
 
-  await expect(page.getByRole('heading', { name: 'Lista przesylek' })).toBeVisible();
-  await expectTexts(page, ['Czekaja na platnosc', 'Mozna przekierowac', 'Reklamacja', 'Drukuj']);
+  await expect(page.getByRole('heading', { name: 'All shipments' })).toBeVisible();
+  await expectTexts(page, ['Awaiting payment', 'Can redirect', 'Complaint', 'Print']);
   await expect(page.locator('tbody tr').first()).toBeVisible();
 });

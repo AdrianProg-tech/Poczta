@@ -1,10 +1,11 @@
 import { Link, useNavigate } from 'react-router';
-import { Package, MapPin, Search, TrendingUp, Shield, Clock, LayoutDashboard } from 'lucide-react';
+import { MapPin, Package, Search, TrendingUp, Shield, Clock } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStateContext } from '../state/AppStateContext';
 import { getDashboardPath } from '../navigation';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { PublicHeader } from '../components/PublicHeader';
 
 export default function Home() {
   const { t } = useTranslation();
@@ -15,36 +16,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      <header className="bg-primary text-white border-b border-primary">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-accent rounded-lg flex items-center justify-center">
-                <Package className="w-6 h-6 text-white" />
-              </div>
-              <span className="text-2xl">PingwinPost</span>
-            </Link>
-
-            <nav className="hidden md:flex items-center gap-6">
-              <Link to="/tracking" className="hover:text-accent transition-colors">{t('publicNav.track')}</Link>
-              <Link to="/points" className="hover:text-accent transition-colors">{t('publicNav.points')}</Link>
-              {currentUser ? (
-                <Link
-                  to={getDashboardPath(currentUser.role)}
-                  className="flex items-center gap-2 px-4 py-2 bg-accent rounded-lg hover:bg-accent/90 transition-colors"
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  {currentUser.name}
-                </Link>
-              ) : (
-                <Link to="/login" className="px-4 py-2 bg-accent rounded-lg hover:bg-accent/90 transition-colors">
-                  {t('publicNav.login')}
-                </Link>
-              )}
-            </nav>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       <section className="bg-gradient-to-br from-primary to-primary/90 text-white py-20">
         <div className="container mx-auto px-4">
@@ -52,7 +24,7 @@ export default function Home() {
             <h1 className="text-5xl mb-6">{t('home.hero.title')}</h1>
             <p className="text-xl text-white/80 mb-10">{t('home.hero.subtitle')}</p>
 
-            <div className="bg-white rounded-xl p-6 shadow-xl">
+            <div className="bg-card rounded-xl p-6 shadow-xl">
               <h3 className="text-primary text-xl mb-4">{t('home.trackForm.title')}</h3>
               <div className="flex gap-3">
                 <input
@@ -60,7 +32,7 @@ export default function Home() {
                   placeholder={t('home.trackForm.placeholder')}
                   value={trackingNumber}
                   onChange={(event) => setTrackingNumber(event.target.value)}
-                  className="flex-1 px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent text-foreground"
+                  className="flex-1 px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent bg-input-background text-foreground"
                 />
                 <button
                   type="button"

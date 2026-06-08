@@ -144,6 +144,11 @@ def create_shipments(
     created = 0
     shipment_refs: dict[str, dict[str, str]] = {}
     for row in rows:
+        delivery_type = row["deliveryType"]
+        intake_method = row.get("intakeMethod") or "POINT_DROPOFF"
+        delivery_method = row.get("deliveryMethod") or ("PICKUP_POINT" if delivery_type == "PICKUP_POINT" else "COURIER_HOME")
+        source_point_code = row.get("sourcePointCode") or None
+        target_point_code = row.get("targetPointCode") or None
         payload = {
             "sender": {
                 "name": row["senderName"],
@@ -156,8 +161,11 @@ def create_shipments(
                 "address": row["recipientAddress"],
             },
             "delivery": {
-                "deliveryType": row["deliveryType"],
-                "targetPointCode": row["targetPointCode"] or None,
+                "deliveryType": delivery_type,
+                "intakeMethod": intake_method,
+                "deliveryMethod": delivery_method,
+                "sourcePointCode": source_point_code,
+                "targetPointCode": target_point_code,
             },
             "parcel": {
                 "weight": float(row["weight"]),
@@ -216,12 +224,6 @@ def apply_payment_actions(
                 timeout=timeout,
                 extra_headers=auth_headers_by_email[ADMIN_REVIEW_EMAIL],
             )
-            http_json(
-                "POST",
-                f"{base_url}/api/admin/shipments/{shipment_ref['shipmentId']}/prepare-for-dispatch",
-                timeout=timeout,
-                extra_headers=auth_headers_by_email[DISPATCHER_EMAIL],
-            )
         elif action == "FAIL":
             http_json(
                 "POST",
@@ -275,6 +277,8 @@ def create_walk_in_shipments(
     created = 0
     for row in rows:
         payload = {
+            "customerMode": row.get("customerMode") or "NEW",
+            "customerEmail": row.get("customerEmail"),
             "senderName": row["senderName"],
             "senderPhone": row["senderPhone"],
             "senderAddress": row["senderAddress"],
@@ -348,12 +352,56 @@ def choose_courier(
     return {"email": pool[0]["email"], "id": pool[0]["id"]}
 
 
+def prepare_shipment_for_delivery_assignment(
+    shipment_row: dict[str, str],
+    shipment_ref: dict[str, str],
+    base_url: str,
+    timeout: int,
+    point_staff_emails_by_code: dict[str, str],
+    auth_headers_by_email: dict[str, dict[str, str]],
+) -> None:
+    intake_method = (shipment_row.get("intakeMethod") or "").strip().upper()
+    if intake_method != "POINT_DROPOFF":
+        return
+
+    source_point_code = (shipment_row.get("sourcePointCode") or "").strip().upper()
+    if not source_point_code:
+        raise RuntimeError(f"POINT_DROPOFF shipment is missing sourcePointCode for {shipment_row['shipmentKey']}")
+
+    point_staff_email = point_staff_emails_by_code.get(source_point_code)
+    if not point_staff_email:
+        raise RuntimeError(f"No point worker email found for sourcePointCode={source_point_code}")
+
+    point_headers = auth_headers_by_email[point_staff_email]
+    tracking_number = shipment_ref["trackingNumber"]
+    http_json(
+        "POST",
+        f"{base_url}/api/point/shipments/{tracking_number}/accept",
+        timeout=timeout,
+        extra_headers=point_headers,
+    )
+    http_json(
+        "POST",
+        f"{base_url}/api/point/shipments/{tracking_number}/post",
+        timeout=timeout,
+        extra_headers=point_headers,
+    )
+    http_json(
+        "POST",
+        f"{base_url}/api/admin/shipments/{shipment_ref['shipmentId']}/advance-in-transit",
+        timeout=timeout,
+        extra_headers=auth_headers_by_email[DISPATCHER_EMAIL],
+    )
+
+
 def assign_couriers(
     rows: list[dict[str, str]],
     base_url: str,
     timeout: int,
     shipment_refs: dict[str, dict[str, str]],
+    shipment_rows_by_key: dict[str, dict[str, str]],
     user_personas: dict[str, dict[str, str]],
+    point_staff_emails_by_code: dict[str, str],
     auth_headers_by_email: dict[str, dict[str, str]],
 ) -> tuple[int, dict[str, dict[str, str]]]:
     created = 0
@@ -361,6 +409,15 @@ def assign_couriers(
     task_refs: dict[str, dict[str, str]] = {}
     for row in rows:
         shipment_ref = shipment_refs[row["shipmentKey"]]
+        shipment_row = shipment_rows_by_key[row["shipmentKey"]]
+        prepare_shipment_for_delivery_assignment(
+            shipment_row,
+            shipment_ref,
+            base_url,
+            timeout,
+            point_staff_emails_by_code,
+            auth_headers_by_email,
+        )
         courier = choose_courier(shipment_ref, row, user_personas, courier_loads)
         response = http_json(
             "POST",
@@ -502,6 +559,12 @@ def run_point_actions(
         tracking_number = shipment_ref["trackingNumber"]
         action = row["action"].strip().upper()
         if action == "ACCEPT":
+            http_json(
+                "POST",
+                f"{base_url}/api/admin/shipments/{shipment_ref['shipmentId']}/route-to-pickup",
+                timeout=timeout,
+                extra_headers=auth_headers_by_email[DISPATCHER_EMAIL],
+            )
             http_json(
                 "POST",
                 f"{base_url}/api/point/shipments/{tracking_number}/accept",
@@ -656,6 +719,7 @@ def main() -> None:
     users_rows = read_csv_rows(input_dir / "users.csv")
     points_rows = read_csv_rows(input_dir / "points.csv")
     shipments_rows = read_csv_rows(input_dir / "shipments.csv")
+    shipments_by_key = {row["shipmentKey"]: row for row in shipments_rows}
     payment_rows = read_csv_rows(input_dir / "payment_actions.csv")
     courier_assignment_rows = read_csv_rows(input_dir / "courier_assignments.csv")
     courier_action_rows = read_csv_rows(input_dir / "courier_task_actions.csv")
@@ -704,7 +768,9 @@ def main() -> None:
         base_url,
         args.timeout,
         shipment_refs,
+        shipments_by_key,
         user_personas,
+        point_staff_emails_by_code,
         auth_headers_by_email,
     )
     summary.append(("courier_assignments", assignment_count))

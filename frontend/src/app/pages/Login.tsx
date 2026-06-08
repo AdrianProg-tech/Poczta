@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { Building2, Lock, Package, ShieldCheck, Truck, User } from 'lucide-react';
+import { Building2, Globe, Lock, Moon, Package, ShieldCheck, Sun, Truck, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useTheme } from 'next-themes';
 import { demoRoleOptions } from '../api';
 import { getDashboardPath } from '../navigation';
 import { useAppStateContext } from '../state/AppStateContext';
@@ -21,8 +22,11 @@ const roleIcons = {
 } as const;
 
 export default function Login() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { theme, setTheme } = useTheme();
   usePageTitle(t('auth.login'));
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+  const toggleLanguage = () => void i18n.changeLanguage(i18n.language === 'pl' ? 'en' : 'pl');
   const navigate = useNavigate();
   const location = useLocation();
   const { loginAsRole } = useAppStateContext();
@@ -70,6 +74,23 @@ export default function Login() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary to-primary/90 p-4">
+      <div className="fixed top-4 right-4 flex items-center gap-2">
+        <button
+          onClick={toggleLanguage}
+          title={t('language.toggle')}
+          className="flex items-center gap-1 p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
+        >
+          <Globe className="w-4 h-4" />
+          <span className="text-xs font-medium uppercase">{i18n.language === 'pl' ? 'PL' : 'EN'}</span>
+        </button>
+        <button
+          onClick={toggleTheme}
+          title={t('theme.toggle')}
+          className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white"
+        >
+          {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+      </div>
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link to="/" className="inline-flex items-center gap-2 text-white">

@@ -50,7 +50,7 @@ export default function AdminUsers() {
       setUsers(await getAdminUsers(currentUser.email));
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udalo sie pobrac katalogu uzytkownikow.');
+      setError(requestError instanceof Error ? requestError.message : t('adminUsers.errorLoad'));
     } finally {
       setIsLoading(false);
     }
@@ -81,12 +81,12 @@ export default function AdminUsers() {
 
   const stats = useMemo(
     () => [
-      { label: 'Wszyscy', value: users.length },
-      { label: 'Admin', value: users.filter((user) => user.roles.includes('admin')).length },
-      { label: 'Kurierzy', value: users.filter((user) => user.roles.includes('courier')).length },
-      { label: 'Punkty', value: users.filter((user) => user.roles.includes('point')).length },
+      { label: t('adminUsers.statAll'), value: users.length },
+      { label: t('adminUsers.statAdmin'), value: users.filter((user) => user.roles.includes('admin')).length },
+      { label: t('adminUsers.statCouriers'), value: users.filter((user) => user.roles.includes('courier')).length },
+      { label: t('adminUsers.statPoints'), value: users.filter((user) => user.roles.includes('point')).length },
     ],
-    [users],
+    [users, t],
   );
 
   async function handleToggleActive(userId: string) {
@@ -97,7 +97,7 @@ export default function AdminUsers() {
       setUsers((prev) => prev.map((u) => (u.userId === result.userId ? { ...u, active: result.active } : u)));
       setError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Nie udało się zmienić stanu aktywności.');
+      setError(requestError instanceof Error ? requestError.message : t('adminUsers.errorToggle'));
     } finally {
       setBusyUserId(null);
     }
@@ -120,7 +120,7 @@ export default function AdminUsers() {
         pointCode: detail.pointCode ?? '',
       });
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Nie udało się pobrać danych użytkownika.');
+      setEditError(err instanceof Error ? err.message : t('adminUsers.errorLoadDetail'));
     } finally {
       setEditLoading(false);
     }
@@ -162,7 +162,7 @@ export default function AdminUsers() {
       );
       handleCloseEdit();
     } catch (err) {
-      setEditError(err instanceof Error ? err.message : 'Nie udało się zapisać zmian.');
+      setEditError(err instanceof Error ? err.message : t('adminUsers.errorSave'));
     } finally {
       setEditSaving(false);
     }
@@ -176,13 +176,11 @@ export default function AdminUsers() {
   }
 
   return (
-    <DashboardShell role="admin" title="Uzytkownicy">
+    <DashboardShell role="admin" title={t('adminUsers.pageTitle')}>
       <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h2 className="text-xl">Katalog uzytkownikow</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Zarzadzaj kontami, rolami i przypisaniem ludzi do miast kurierow oraz punktow odbioru.
-          </p>
+          <h2 className="text-xl">{t('adminUsers.heading')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('adminUsers.desc')}</p>
         </div>
 
         <button
@@ -213,7 +211,7 @@ export default function AdminUsers() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Szukaj po nazwie, emailu, miescie lub pointCode"
+            placeholder={t('adminUsers.searchPlaceholder')}
             className="w-full bg-transparent outline-none"
           />
         </label>
@@ -223,7 +221,7 @@ export default function AdminUsers() {
           onChange={(event) => setRoleFilter(event.target.value)}
           className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm outline-none"
         >
-          <option value="ALL">Wszystkie role</option>
+          <option value="ALL">{t('adminUsers.allRoles')}</option>
           {roleOptions.map((role) => (
             <option key={role} value={role}>
               {t(`roles.${role}`, { defaultValue: role })}
@@ -232,25 +230,25 @@ export default function AdminUsers() {
         </select>
 
         <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
-          <div className="text-sm text-muted-foreground">Po filtrach</div>
+          <div className="text-sm text-muted-foreground">{t('adminUsers.afterFilters')}</div>
           <div className="mt-1 text-2xl">{isLoading ? '...' : filteredUsers.length}</div>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        {isLoading ? <div className="p-6">Ladowanie uzytkownikow...</div> : null}
+        {isLoading ? <div className="p-6">{t('adminUsers.loading')}</div> : null}
 
         {!isLoading ? (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Uzytkownik</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Role</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Kontekst operacyjny</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Status</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Utworzony</th>
-                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">Akcje</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminUsers.colUser')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminUsers.colRoles')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminUsers.colContext')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminUsers.colStatus')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminUsers.colCreated')}</th>
+                  <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-muted-foreground">{t('adminUsers.colActions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -263,7 +261,7 @@ export default function AdminUsers() {
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-2">
                         {user.roles.length === 0 ? (
-                          <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">brak roli</span>
+                          <span className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">{t('adminUsers.noRole')}</span>
                         ) : (
                           user.roles.map((role) => (
                             <span
@@ -277,21 +275,21 @@ export default function AdminUsers() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">
-                      {user.serviceCity ? <div>Miasto kuriera: {user.serviceCity}</div> : null}
-                      {user.pointCode ? <div>Punkt: {user.pointName ?? user.pointCode} ({user.pointCode})</div> : null}
-                      {!user.serviceCity && !user.pointCode ? <div>Brak dodatkowego scope</div> : null}
+                      {user.serviceCity ? <div>{t('adminUsers.courierCity', { city: user.serviceCity })}</div> : null}
+                      {user.pointCode ? <div>{t('adminUsers.point', { name: user.pointName ?? user.pointCode, code: user.pointCode })}</div> : null}
+                      {!user.serviceCity && !user.pointCode ? <div>{t('adminUsers.noScope')}</div> : null}
                     </td>
                     <td className="px-6 py-4">
                       <button
                         type="button"
                         disabled={busyUserId === user.userId}
                         onClick={() => void handleToggleActive(user.userId)}
-                        title={user.active ? 'Kliknij, aby dezaktywować' : 'Kliknij, aby aktywować'}
+                        title={user.active ? t('adminUsers.toggleDeactivate') : t('adminUsers.toggleActivate')}
                         className={`rounded-full px-3 py-1 text-xs transition-opacity hover:opacity-75 disabled:opacity-50 ${
                           user.active ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
                         }`}
                       >
-                        {busyUserId === user.userId ? '…' : user.active ? 'Aktywny' : 'Nieaktywny'}
+                        {busyUserId === user.userId ? '…' : user.active ? t('adminUsers.active') : t('adminUsers.inactive')}
                       </button>
                     </td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">{formatDateTime(user.createdAt)}</td>
@@ -318,21 +316,21 @@ export default function AdminUsers() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-xl border border-border bg-card shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-6 py-4">
-              <h3 className="text-lg">Edytuj użytkownika</h3>
+              <h3 className="text-lg">{t('adminUsers.editTitle')}</h3>
               <button type="button" onClick={handleCloseEdit} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {editLoading ? (
-              <div className="px-6 py-8 text-center text-muted-foreground">Ładowanie danych…</div>
+              <div className="px-6 py-8 text-center text-muted-foreground">{t('adminUsers.editLoading')}</div>
             ) : (
               <div className="space-y-4 px-6 py-5">
                 {editError ? <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{editError}</div> : null}
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="space-y-1">
-                    <div className="text-sm text-muted-foreground">Imię</div>
+                    <div className="text-sm text-muted-foreground">{t('adminUsers.fieldFirstName')}</div>
                     <input
                       value={editForm.firstName}
                       onChange={(e) => setEditForm((p) => ({ ...p, firstName: e.target.value }))}
@@ -340,7 +338,7 @@ export default function AdminUsers() {
                     />
                   </label>
                   <label className="space-y-1">
-                    <div className="text-sm text-muted-foreground">Nazwisko</div>
+                    <div className="text-sm text-muted-foreground">{t('adminUsers.fieldLastName')}</div>
                     <input
                       value={editForm.lastName}
                       onChange={(e) => setEditForm((p) => ({ ...p, lastName: e.target.value }))}
@@ -350,7 +348,7 @@ export default function AdminUsers() {
                 </div>
 
                 <label className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Telefon</div>
+                  <div className="text-sm text-muted-foreground">{t('adminUsers.fieldPhone')}</div>
                   <input
                     value={editForm.phone}
                     onChange={(e) => setEditForm((p) => ({ ...p, phone: e.target.value }))}
@@ -360,7 +358,7 @@ export default function AdminUsers() {
                 </label>
 
                 <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground">Role</div>
+                  <div className="text-sm text-muted-foreground">{t('adminUsers.fieldRoles')}</div>
                   <div className="flex flex-wrap gap-3">
                     {(['client', 'courier', 'point', 'admin', 'dispatcher'] as const).map((role) => (
                       <label key={role} className="flex cursor-pointer items-center gap-2 text-sm">
@@ -378,24 +376,24 @@ export default function AdminUsers() {
 
                 {editForm.roles.includes('courier') ? (
                   <label className="space-y-1">
-                    <div className="text-sm text-muted-foreground">Miasto kuriera (serviceCity)</div>
+                    <div className="text-sm text-muted-foreground">{t('adminUsers.fieldCourierCity')}</div>
                     <input
                       value={editForm.serviceCity}
                       onChange={(e) => setEditForm((p) => ({ ...p, serviceCity: e.target.value }))}
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
-                      placeholder="np. Warszawa"
+                      placeholder={t('adminUsers.placeholderCity')}
                     />
                   </label>
                 ) : null}
 
                 {editForm.roles.includes('point') ? (
                   <label className="space-y-1">
-                    <div className="text-sm text-muted-foreground">Przypisany punkt (pointCode)</div>
+                    <div className="text-sm text-muted-foreground">{t('adminUsers.fieldPoint')}</div>
                     <input
                       value={editForm.pointCode}
                       onChange={(e) => setEditForm((p) => ({ ...p, pointCode: e.target.value }))}
                       className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
-                      placeholder="np. POP-WAW-01"
+                      placeholder={t('adminUsers.placeholderPoint')}
                     />
                   </label>
                 ) : null}

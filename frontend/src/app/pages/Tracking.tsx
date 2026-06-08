@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { Calendar, MapPin, Package, Search } from 'lucide-react';
+import { Calendar, MapPin, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { ApiError, formatDate, formatDateTime, getPublicTracking, type PublicTrackingResponse } from '../api';
 import { StatusBadge } from '../components/StatusBadge';
 import { usePageTitle } from '../hooks/usePageTitle';
+import { PublicHeader } from '../components/PublicHeader';
 
 export default function Tracking() {
   const { t } = useTranslation();
@@ -63,30 +64,7 @@ export default function Tracking() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-primary bg-primary text-white">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
-                <Package className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-2xl">PingwinPost</span>
-            </Link>
-
-            <nav className="hidden items-center gap-6 md:flex">
-              <Link to="/tracking" className="transition-colors hover:text-accent">
-                {t('publicNav.track')}
-              </Link>
-              <Link to="/points" className="transition-colors hover:text-accent">
-                {t('publicNav.points')}
-              </Link>
-              <Link to="/login" className="rounded-lg bg-accent px-4 py-2 transition-colors hover:bg-accent/90">
-                {t('publicNav.login')}
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       <div className="container mx-auto px-4 py-12">
         <div className="mx-auto max-w-4xl">

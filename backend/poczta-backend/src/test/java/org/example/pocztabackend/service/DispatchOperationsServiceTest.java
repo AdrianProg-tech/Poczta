@@ -250,7 +250,7 @@ class DispatchOperationsServiceTest {
                         && LocalDate.of(2026, 5, 11).equals(task.getTaskDate())
         ));
         verify(trackingEventRepository).save(argThat(event ->
-                event.getDescription() != null && event.getDescription().contains("reassigned from")
+                event.getDescription() != null && event.getDescription().contains("Przesyłka została przepisana z kuriera")
         ));
     }
 
